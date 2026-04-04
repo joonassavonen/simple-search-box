@@ -143,7 +143,7 @@ function ResultCard({
       )}
 
       <div className="min-w-0 flex-1">
-        <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-[hsl(145,50%,35%)]">
+        <h3 className="text-sm sm:text-[15px] font-semibold leading-snug text-foreground group-hover:text-[hsl(145,50%,35%)]">
           {title}
         </h3>
 
