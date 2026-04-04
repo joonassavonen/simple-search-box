@@ -798,7 +798,12 @@ export default function SearchPreview() {
 
       {/* No results */}
       {noResults && (
-        <NoResults query={query} contact={contactConfig || results?.contact_config} />
+        <NoResults 
+          query={query} 
+          contact={contactConfig || results?.contact_config}
+          suggestions={results?.suggestions}
+          onSuggestionClick={(q) => { setQuery(q); }}
+        />
       )}
 
       {/* Error */}
