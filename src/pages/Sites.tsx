@@ -178,6 +178,29 @@ export default function Sites() {
                   </div>
                 </CardContent>
 
+                <CardContent className="pb-3 pt-0">
+                  <Separator className="mb-3" />
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Plug className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">Integrations</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] gap-1" disabled>
+                      <ShoppingBag className="h-3 w-3" />
+                      Shopify
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] gap-1" disabled>
+                      <TrendingUp className="h-3 w-3" />
+                      Google Analytics
+                    </Button>
+                    <Button variant="outline" size="sm" className="h-7 px-2 text-[11px] gap-1" disabled>
+                      <Store className="h-3 w-3" />
+                      WooCommerce
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">Tulossa pian</p>
+                </CardContent>
+
                 <CardFooter className="flex-wrap gap-1.5 pt-0">
                   <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
                     <Link to={`/analytics/${site.id}`}>
