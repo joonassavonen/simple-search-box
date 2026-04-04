@@ -141,6 +141,27 @@ export default function SearchPreview() {
                     <p className="mt-1 text-xs text-muted-foreground">
                       <strong>Why:</strong> {r.reasoning}
                     </p>
+                    {r.schema_data && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <Badge variant="outline" className="text-[10px]">
+                          {r.schema_data.type}
+                        </Badge>
+                        {r.schema_data.type === "Product" && r.schema_data.price && (
+                          <span className="font-semibold">
+                            {r.schema_data.currency === "EUR" ? "\u20AC" : r.schema_data.currency}
+                            {r.schema_data.price}
+                          </span>
+                        )}
+                        {r.schema_data.rating && (
+                          <span className="text-yellow-500">
+                            {"★"} {r.schema_data.rating}
+                          </span>
+                        )}
+                        {r.schema_data.type === "Article" && r.schema_data.author && (
+                          <span className="text-muted-foreground">{r.schema_data.author}</span>
+                        )}
+                      </div>
+                    )}
                     <p className="mt-1 text-xs text-muted-foreground">
                       {r.url.replace(/^https?:\/\//, "")}
                     </p>

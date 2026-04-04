@@ -19,12 +19,30 @@ export interface CrawlJob {
   error: string | null;
 }
 
+export interface SchemaData {
+  type: string;
+  name?: string;
+  description?: string;
+  price?: string | number;
+  currency?: string;
+  availability?: string;
+  image?: string;
+  rating?: number;
+  reviewCount?: number;
+  datePublished?: string;
+  author?: string;
+  startDate?: string;
+  location?: string;
+  questions?: { q: string; a: string }[];
+}
+
 export interface SearchResult {
   url: string;
   title: string;
   score: number;
   snippet: string;
   reasoning: string;
+  schema_data?: SchemaData | null;
 }
 
 export interface SearchResponse {
@@ -43,6 +61,29 @@ export interface SiteStats {
   pages_indexed: number;
   top_queries: { query: string; count: number }[];
   failed_searches: { query: string; count: number }[];
+}
+
+export interface ContactConfig {
+  site_id: string;
+  enabled: boolean;
+  email: string | null;
+  phone: string | null;
+  chat_url: string | null;
+  cta_text_fi: string;
+  cta_text_en: string;
+}
+
+export interface TrendingItem {
+  query: string;
+  count: number;
+}
+
+export interface LearningStats {
+  site_id: string;
+  boost_pairs: number;
+  synonym_count: number;
+  top_boosted: { url: string; query: string; clicks: number; ctr: number; boost: number }[];
+  position_clicks: { position: number; clicks: number }[];
 }
 
 export const api = {
@@ -116,13 +157,11 @@ export const api = {
   },
 
   async getStats(siteId: string): Promise<SiteStats> {
-    // Get pages count
     const { count: pagesIndexed } = await supabase
       .from("pages")
       .select("*", { count: "exact", head: true })
       .eq("site_id", siteId);
 
-    // Get all search logs for this site
     const { data: allLogs } = await supabase
       .from("search_logs")
       .select("*")
@@ -136,7 +175,6 @@ export const api = {
     const recentLogs = logs.filter((l) => new Date(l.created_at) >= sevenDaysAgo);
     const clickedCount = logs.filter((l) => l.clicked).length;
 
-    // Top queries (last 30 days)
     const last30 = logs.filter((l) => new Date(l.created_at) >= thirtyDaysAgo);
     const queryCounts: Record<string, number> = {};
     const failedCounts: Record<string, number> = {};
@@ -173,7 +211,6 @@ export const api = {
   },
 
   async setupDemo(): Promise<Site> {
-    // Create a demo site
     const site = await api.createSite({
       name: "Demo Site",
       domain: "demo.example.com",
@@ -184,8 +221,7 @@ export const api = {
 
   async search(siteId: string, query: string): Promise<SearchResponse> {
     const start = Date.now();
-    
-    // Simple text search on pages content/title
+
     const { data: pages } = await supabase
       .from("pages")
       .select("url, title, content")
@@ -202,7 +238,6 @@ export const api = {
       reasoning: "Text match",
     }));
 
-    // Log the search
     await supabase.from("search_logs").insert({
       site_id: siteId,
       query,
@@ -217,5 +252,82 @@ export const api = {
       response_ms: responseMs,
       fallback_message: results.length === 0 ? "No results found. Try a different query." : undefined,
     };
+  },
+
+  // --- Learning features ---
+
+  async getContactConfig(siteId: string): Promise<ContactConfig> {
+    const { data, error } = await supabase
+      .from("site_contact_configs")
+      .select("*")
+      .eq("site_id", siteId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data || {
+      site_id: siteId,
+      enabled: false,
+      email: null,
+      phone: null,
+      chat_url: null,
+      cta_text_fi: "Etkö löytänyt etsimääsi? Ota yhteyttä!",
+      cta_text_en: "Didn't find what you need? Contact us!",
+    };
+  },
+
+  async updateContactConfig(siteId: string, config: Partial<ContactConfig>): Promise<ContactConfig> {
+    const { data, error } = await supabase
+      .from("site_contact_configs")
+      .upsert({ site_id: siteId, ...config }, { onConflict: "site_id" })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data as ContactConfig;
+  },
+
+  async getTrending(siteId: string, limit = 5): Promise<{ trending: TrendingItem[] }> {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase
+      .from("search_logs")
+      .select("query")
+      .eq("site_id", siteId)
+      .gte("created_at", sevenDaysAgo);
+
+    const counts: Record<string, number> = {};
+    for (const log of data || []) {
+      const q = log.query.toLowerCase();
+      counts[q] = (counts[q] || 0) + 1;
+    }
+
+    const trending = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([query, count]) => ({ query, count }));
+
+    return { trending };
+  },
+
+  async getLearningStats(siteId: string): Promise<LearningStats> {
+    const { count: boostPairs } = await supabase
+      .from("query_url_boosts")
+      .select("*", { count: "exact", head: true })
+      .eq("site_id", siteId);
+
+    const { count: synonymCount } = await supabase
+      .from("learned_synonyms")
+      .select("*", { count: "exact", head: true })
+      .eq("site_id", siteId);
+
+    return {
+      site_id: siteId,
+      boost_pairs: boostPairs || 0,
+      synonym_count: synonymCount || 0,
+      top_boosted: [],
+      position_clicks: [],
+    };
+  },
+
+  async discoverSynonyms(_siteId: string): Promise<{ discovered: number }> {
+    // Synonym discovery runs server-side; this is a placeholder
+    return { discovered: 0 };
   },
 };

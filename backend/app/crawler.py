@@ -155,12 +155,64 @@ def extract_page_content(html: str, url: str) -> dict:
     content = body_text[:MAX_CONTENT_CHARS]
     word_count = len(body_text.split())
 
+    # Schema.org JSON-LD extraction
+    schema_data = None
+    for script_tag in soup.find_all("script", type="application/ld+json"):
+        try:
+            ld_json = json.loads(script_tag.string or "")
+            # Handle both single objects and arrays
+            items = ld_json if isinstance(ld_json, list) else [ld_json]
+            for item in items:
+                schema_type = item.get("@type", "")
+                if schema_type in ("Product", "Article", "FAQPage", "Event",
+                                    "LocalBusiness", "Organization", "Recipe",
+                                    "HowTo", "Service", "SoftwareApplication",
+                                    "Course", "JobPosting", "Review"):
+                    schema_data = {
+                        "type": schema_type,
+                        "name": item.get("name", ""),
+                        "description": item.get("description", ""),
+                    }
+                    # Product-specific fields
+                    if schema_type == "Product":
+                        offers = item.get("offers", {})
+                        if isinstance(offers, list):
+                            offers = offers[0] if offers else {}
+                        schema_data["price"] = offers.get("price")
+                        schema_data["currency"] = offers.get("priceCurrency")
+                        schema_data["availability"] = offers.get("availability", "").split("/")[-1]
+                        schema_data["image"] = item.get("image", [""])[0] if isinstance(item.get("image"), list) else item.get("image", "")
+                        rating = item.get("aggregateRating", {})
+                        if rating:
+                            schema_data["rating"] = rating.get("ratingValue")
+                            schema_data["reviewCount"] = rating.get("reviewCount")
+                    # Article-specific
+                    elif schema_type == "Article":
+                        schema_data["datePublished"] = item.get("datePublished")
+                        schema_data["author"] = item.get("author", {}).get("name") if isinstance(item.get("author"), dict) else item.get("author")
+                        schema_data["image"] = item.get("image", [""])[0] if isinstance(item.get("image"), list) else item.get("image", "")
+                    # FAQ-specific
+                    elif schema_type == "FAQPage":
+                        faq_items = item.get("mainEntity", [])[:5]
+                        schema_data["questions"] = [
+                            {"q": q.get("name", ""), "a": q.get("acceptedAnswer", {}).get("text", "")[:200]}
+                            for q in faq_items
+                        ]
+                    # Event-specific
+                    elif schema_type == "Event":
+                        schema_data["startDate"] = item.get("startDate")
+                        schema_data["location"] = item.get("location", {}).get("name") if isinstance(item.get("location"), dict) else item.get("location")
+                    break
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            continue
+
     return {
         "title": title,
         "meta_description": meta_desc,
         "headings": headings,
         "content": content,
         "word_count": word_count,
+        "schema_data": schema_data,
     }
 
 
@@ -232,6 +284,8 @@ def crawl_site(
 
                 # Upsert
                 page = db.query(Page).filter_by(site_id=site.id, url=url).first()
+                schema_json = json.dumps(data["schema_data"], ensure_ascii=False) if data.get("schema_data") else None
+
                 if page:
                     if page.content_hash == chash:
                         continue   # unchanged
@@ -241,6 +295,7 @@ def crawl_site(
                     page.content = data["content"]
                     page.content_hash = chash
                     page.word_count = data["word_count"]
+                    page.schema_data = schema_json
                     page.indexed_at = datetime.utcnow()
                 else:
                     page = Page(
@@ -252,6 +307,7 @@ def crawl_site(
                         content=data["content"],
                         content_hash=chash,
                         word_count=data["word_count"],
+                        schema_data=schema_json,
                     )
                     db.add(page)
 

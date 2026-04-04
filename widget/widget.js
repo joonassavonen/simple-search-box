@@ -34,6 +34,13 @@
     return;
   }
 
+  // Session ID for click tracking
+  const SESSION_ID = sessionStorage.getItem("findai-sid") || (() => {
+    const id = crypto.randomUUID();
+    sessionStorage.setItem("findai-sid", id);
+    return id;
+  })();
+
   // -------------------------------------------------------------------------
   // Language detection
   // -------------------------------------------------------------------------
@@ -188,6 +195,69 @@
     }
     .findai-close:hover { background: var(--bg2); }
 
+    /* --- Suggestions dropdown --- */
+    .findai-suggestions {
+      border-bottom: 1px solid var(--border);
+      padding: 4px 0;
+      background: var(--bg);
+    }
+    .findai-suggestion {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text);
+      transition: background 0.1s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+    .findai-suggestion:hover, .findai-suggestion.active {
+      background: var(--accent-light);
+    }
+    .findai-suggestion svg { color: var(--text-muted); flex-shrink: 0; }
+
+    /* --- Trending section --- */
+    .findai-trending {
+      padding: 16px 20px;
+    }
+    .findai-trending-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .findai-trending-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .findai-trending-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 12px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.1s, border-color 0.1s;
+      font-family: inherit;
+    }
+    .findai-trending-item:hover {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     /* --- Results --- */
     .findai-results {
       max-height: 60vh;
@@ -262,6 +332,43 @@
       white-space: nowrap;
     }
 
+    /* --- Schema rich data --- */
+    .findai-schema {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .findai-schema-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 6px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .findai-schema-price {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .findai-schema-rating {
+      color: #f59e0b;
+    }
+    .findai-schema-image {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      float: right;
+      margin-left: 10px;
+    }
+
     /* --- Fallback --- */
     .findai-fallback {
       padding: 20px;
@@ -272,6 +379,39 @@
       color: var(--text-muted);
       text-align: center;
     }
+
+    /* --- Contact CTA --- */
+    .findai-contact-cta {
+      padding: 16px 20px;
+      text-align: center;
+    }
+    .findai-contact-cta p {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .findai-contact-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .findai-contact-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: opacity 0.15s;
+      font-family: inherit;
+    }
+    .findai-contact-btn:hover { opacity: 0.9; }
 
     /* --- Footer --- */
     .findai-footer {
@@ -303,14 +443,18 @@
   // -------------------------------------------------------------------------
   const ICON_SEARCH = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
   const ICON_CLOSE = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-  const ICON_ARROW = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+  const ICON_TRENDING = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
 
   // -------------------------------------------------------------------------
   // Widget state
   // -------------------------------------------------------------------------
   let currentSearchLogId = null;
   let debounceTimer = null;
+  let suggestDebounce = null;
   let lastQuery = "";
+  let trendingData = null;
+  let contactConfig = null;
+  let activeSuggestionIdx = -1;
 
   // -------------------------------------------------------------------------
   // Build DOM
@@ -330,12 +474,10 @@
     let panel, overlay, trigger;
 
     if (POSITION === "inline" && INLINE_TARGET) {
-      // Inline mode — render directly into target element
       panel = document.createElement("div");
       panel.className = "findai-inline";
       wrapper.appendChild(panel);
     } else {
-      // Floating trigger + modal
       trigger = document.createElement("button");
       trigger.className = `findai-trigger pos-${POSITION}`;
       trigger.innerHTML = `${ICON_SEARCH} <span class="findai-trigger-label">Search</span>`;
@@ -381,6 +523,13 @@
 
     panel.appendChild(bar);
 
+    // Suggestions area (between bar and results)
+    const suggestionsEl = document.createElement("div");
+    suggestionsEl.className = "findai-suggestions";
+    suggestionsEl.style.display = "none";
+    suggestionsEl.setAttribute("role", "listbox");
+    panel.appendChild(suggestionsEl);
+
     // Results area
     const resultsEl = document.createElement("div");
     resultsEl.className = "findai-results";
@@ -391,7 +540,7 @@
     const footer = document.createElement("div");
     footer.className = "findai-footer";
     footer.innerHTML = `
-      <span class="findai-footer-hint">↑↓ navigate · Enter select · Esc close</span>
+      <span class="findai-footer-hint">\u2191\u2193 navigate \u00b7 Enter select \u00b7 Esc close</span>
       <a class="findai-brand" href="https://findai.app" target="_blank" rel="noopener">
         ${ICON_SEARCH} FindAI
       </a>
@@ -400,6 +549,19 @@
 
     shadow.appendChild(wrapper);
     document.body.appendChild(host);
+
+    // -----------------------------------------------------------------------
+    // Prefetch trending + contact config
+    // -----------------------------------------------------------------------
+    fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
+      .then(r => r.json())
+      .then(data => { trendingData = data.trending || []; })
+      .catch(() => {});
+
+    fetch(`${API_URL}/api/sites/${SITE_ID}/contact-config`)
+      .then(r => r.json())
+      .then(data => { contactConfig = data; })
+      .catch(() => {});
 
     // -----------------------------------------------------------------------
     // Event handlers
@@ -415,6 +577,10 @@
         overlay.classList.add("open");
         input.focus();
         document.addEventListener("keydown", handleGlobalKey);
+      }
+      // Show trending when opening with empty input
+      if (!input.value.trim()) {
+        renderTrending();
       }
     }
 
@@ -457,21 +623,53 @@
       updatePlaceholder(q);
 
       clearTimeout(debounceTimer);
+      clearTimeout(suggestDebounce);
+
       if (!q) {
-        renderEmpty();
+        hideSuggestions();
+        renderTrending();
         lastQuery = "";
         return;
       }
+
+      // Autocomplete suggestions (faster debounce)
+      if (q.length >= 2) {
+        suggestDebounce = setTimeout(() => fetchSuggestions(q), 150);
+      } else {
+        hideSuggestions();
+      }
+
       if (q === lastQuery) return;
 
       debounceTimer = setTimeout(() => {
         lastQuery = q;
+        hideSuggestions();
         doSearch(q);
       }, 350);
     });
 
-    // Keyboard navigation in results
+    // Keyboard navigation
     input.addEventListener("keydown", (e) => {
+      // If suggestions visible, navigate suggestions
+      if (suggestionsEl.style.display !== "none") {
+        const items = Array.from(suggestionsEl.querySelectorAll(".findai-suggestion"));
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          activeSuggestionIdx = Math.min(activeSuggestionIdx + 1, items.length - 1);
+          updateSuggestionFocus(items);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          activeSuggestionIdx = Math.max(activeSuggestionIdx - 1, -1);
+          updateSuggestionFocus(items);
+        } else if (e.key === "Enter" && activeSuggestionIdx >= 0 && items[activeSuggestionIdx]) {
+          e.preventDefault();
+          selectSuggestion(items[activeSuggestionIdx].dataset.query);
+          return;
+        }
+        if (activeSuggestionIdx >= 0) return;
+      }
+
+      // Otherwise navigate results
       const items = Array.from(resultsEl.querySelectorAll(".findai-result"));
       const focused = resultsEl.querySelector(".findai-result:focus");
       const idx = items.indexOf(focused);
@@ -491,12 +689,88 @@
     });
 
     // -----------------------------------------------------------------------
-    // Rendering helpers
+    // Suggestions
     // -----------------------------------------------------------------------
 
-    function renderEmpty() {
-      resultsEl.innerHTML = "";
+    function fetchSuggestions(q) {
+      fetch(`${API_URL}/api/sites/${SITE_ID}/suggestions?q=${encodeURIComponent(q)}&limit=5`)
+        .then(r => r.json())
+        .then(data => {
+          if (input.value.trim() !== q) return; // stale
+          renderSuggestions(data.suggestions || []);
+        })
+        .catch(() => {});
     }
+
+    function renderSuggestions(items) {
+      if (!items.length) { hideSuggestions(); return; }
+      activeSuggestionIdx = -1;
+      suggestionsEl.innerHTML = "";
+      items.forEach(s => {
+        const btn = document.createElement("button");
+        btn.className = "findai-suggestion";
+        btn.dataset.query = s.query;
+        btn.innerHTML = `${ICON_SEARCH} <span>${escHtml(s.query)}</span>`;
+        btn.addEventListener("click", () => selectSuggestion(s.query));
+        suggestionsEl.appendChild(btn);
+      });
+      suggestionsEl.style.display = "block";
+    }
+
+    function hideSuggestions() {
+      suggestionsEl.style.display = "none";
+      suggestionsEl.innerHTML = "";
+      activeSuggestionIdx = -1;
+    }
+
+    function updateSuggestionFocus(items) {
+      items.forEach((el, i) => {
+        el.classList.toggle("active", i === activeSuggestionIdx);
+      });
+    }
+
+    function selectSuggestion(q) {
+      input.value = q;
+      hideSuggestions();
+      lastQuery = q;
+      doSearch(q);
+    }
+
+    // -----------------------------------------------------------------------
+    // Trending
+    // -----------------------------------------------------------------------
+
+    function renderTrending() {
+      if (!trendingData || trendingData.length === 0) {
+        resultsEl.innerHTML = "";
+        return;
+      }
+      const lang = navigator.language.startsWith("fi") ? "fi" : "en";
+      const title = lang === "fi" ? "Suositut haut" : "Trending searches";
+
+      resultsEl.innerHTML = `
+        <div class="findai-trending">
+          <div class="findai-trending-title">${ICON_TRENDING} ${escHtml(title)}</div>
+          <div class="findai-trending-list"></div>
+        </div>
+      `;
+      const list = resultsEl.querySelector(".findai-trending-list");
+      trendingData.forEach(t => {
+        const btn = document.createElement("button");
+        btn.className = "findai-trending-item";
+        btn.textContent = t.query;
+        btn.addEventListener("click", () => {
+          input.value = t.query;
+          lastQuery = t.query;
+          doSearch(t.query);
+        });
+        list.appendChild(btn);
+      });
+    }
+
+    // -----------------------------------------------------------------------
+    // Rendering helpers
+    // -----------------------------------------------------------------------
 
     function renderLoading(lang) {
       const msg = lang === "fi" ? "Haetaan..." : "Searching...";
@@ -515,11 +789,40 @@
       resultsEl.innerHTML = `<div class="findai-state">${msg}</div>`;
     }
 
-    function renderNoResults(fallback, lang) {
+    function renderNoResults(fallback, lang, responseContactConfig) {
       const msg = fallback || (lang === "fi"
         ? "Ei hakutuloksia. Kokeile eri hakusanoja."
         : "No results found. Try different keywords.");
       resultsEl.innerHTML = `<div class="findai-fallback">${msg}</div>`;
+
+      // Add contact CTA
+      const cfg = responseContactConfig || contactConfig;
+      if (cfg && cfg.enabled) {
+        const ctaText = lang === "fi" ? cfg.cta_text_fi : cfg.cta_text_en;
+        const ctaEl = document.createElement("div");
+        ctaEl.className = "findai-contact-cta";
+
+        let buttonsHtml = "";
+        if (cfg.email) {
+          const emailLabel = lang === "fi" ? "Sähköposti" : "Email";
+          buttonsHtml += `<a href="mailto:${escHtml(cfg.email)}" class="findai-contact-btn">\u2709\uFE0F ${escHtml(emailLabel)}</a>`;
+        }
+        if (cfg.phone) {
+          const phoneLabel = lang === "fi" ? "Soita" : "Call";
+          buttonsHtml += `<a href="tel:${escHtml(cfg.phone)}" class="findai-contact-btn">\uD83D\uDCDE ${escHtml(phoneLabel)}</a>`;
+        }
+        if (cfg.chat_url) {
+          buttonsHtml += `<a href="${escHtml(cfg.chat_url)}" target="_blank" rel="noopener" class="findai-contact-btn">\uD83D\uDCAC Chat</a>`;
+        }
+
+        if (buttonsHtml) {
+          ctaEl.innerHTML = `
+            <p>${escHtml(ctaText)}</p>
+            <div class="findai-contact-buttons">${buttonsHtml}</div>
+          `;
+          resultsEl.appendChild(ctaEl);
+        }
+      }
     }
 
     function scoreLabel(score) {
@@ -533,13 +836,13 @@
       resultsEl.innerHTML = "";
 
       if (!data.results || data.results.length === 0) {
-        renderNoResults(data.fallback_message, data.language);
+        renderNoResults(data.fallback_message, data.language, data.contact_config);
         return;
       }
 
       currentSearchLogId = data.search_log_id;
 
-      data.results.forEach((r) => {
+      data.results.forEach((r, idx) => {
         const item = document.createElement("a");
         item.className = "findai-result";
         item.href = r.url;
@@ -549,18 +852,64 @@
         item.tabIndex = 0;
 
         const displayUrl = r.url.replace(/^https?:\/\//, "");
+        let schemaHtml = "";
+
+        if (r.schema_data) {
+          const s = r.schema_data;
+          const parts = [];
+
+          // Type badge
+          parts.push(`<span class="findai-schema-badge">${escHtml(s.type)}</span>`);
+
+          // Product: price + rating
+          if (s.type === "Product") {
+            if (s.price) {
+              const currency = s.currency === "EUR" ? "\u20AC" : (s.currency || "");
+              parts.push(`<span class="findai-schema-price">${currency}${escHtml(String(s.price))}</span>`);
+            }
+            if (s.availability) parts.push(`<span>${escHtml(s.availability)}</span>`);
+            if (s.rating) parts.push(`<span class="findai-schema-rating">\u2605 ${escHtml(String(s.rating))}</span>`);
+            if (s.reviewCount) parts.push(`<span>(${escHtml(String(s.reviewCount))} reviews)</span>`);
+          }
+
+          // Article: date + author
+          if (s.type === "Article") {
+            if (s.datePublished) {
+              try { parts.push(`<span>${new Date(s.datePublished).toLocaleDateString()}</span>`); } catch(e) {}
+            }
+            if (s.author) parts.push(`<span>${escHtml(s.author)}</span>`);
+          }
+
+          // Event: date + location
+          if (s.type === "Event") {
+            if (s.startDate) {
+              try { parts.push(`<span>${new Date(s.startDate).toLocaleDateString()}</span>`); } catch(e) {}
+            }
+            if (s.location) parts.push(`<span>${escHtml(s.location)}</span>`);
+          }
+
+          schemaHtml = `<div class="findai-schema">${parts.join("")}</div>`;
+        }
+
+        // Product image
+        let imageHtml = "";
+        if (r.schema_data && r.schema_data.image && (r.schema_data.type === "Product" || r.schema_data.type === "Article")) {
+          imageHtml = `<img class="findai-schema-image" src="${escHtml(r.schema_data.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+        }
 
         item.innerHTML = `
+          ${imageHtml}
           <div class="findai-result-header">
             <span class="findai-result-title">${escHtml(r.title || displayUrl)}</span>
             <span class="findai-score">${scoreLabel(r.score)}</span>
           </div>
           <div class="findai-snippet">${escHtml(r.snippet)}</div>
+          ${schemaHtml}
           <div class="findai-url">${escHtml(displayUrl)}</div>
         `;
 
         item.addEventListener("click", () => {
-          trackClick(r.url);
+          trackClick(r.url, idx);
         });
 
         resultsEl.appendChild(item);
@@ -595,12 +944,17 @@
         .catch(() => renderError(lang));
     }
 
-    function trackClick(url) {
+    function trackClick(url, position) {
       if (!currentSearchLogId) return;
       fetch(`${API_URL}/api/search/click`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ search_log_id: currentSearchLogId, clicked_url: url }),
+        body: JSON.stringify({
+          search_log_id: currentSearchLogId,
+          clicked_url: url,
+          click_position: position || 0,
+          session_id: SESSION_ID,
+        }),
       }).catch(() => {});   // fire-and-forget
     }
 

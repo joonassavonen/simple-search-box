@@ -73,18 +73,31 @@ def _build_corpus(pages: list[Page]) -> tuple[list[str], list[int]]:
     return texts, ids
 
 
+BOOST_WEIGHT = 0.3  # Weight for CTR boost in TF-IDF scoring
+
+
 def retrieve_candidates(
     query: str,
     pages: list[Page],
     top_k: int = 20,
+    boosts: dict | None = None,
+    expanded_query: str | None = None,
 ) -> list[tuple[Page, float]]:
-    """Return (page, tfidf_score) tuples sorted by relevance."""
+    """Return (page, tfidf_score) tuples sorted by relevance.
+
+    Args:
+        boosts: {url: {"boost": float, "clicks": int, "ctr": float}} from CTR learning
+        expanded_query: query with synonyms appended for TF-IDF (original goes to Claude)
+    """
     if not pages:
         return []
 
     texts, ids = _build_corpus(pages)
     if not texts:
         return []
+
+    # Use expanded query for TF-IDF if synonyms are available
+    search_query = expanded_query or query
 
     try:
         vectorizer = TfidfVectorizer(
@@ -95,7 +108,7 @@ def retrieve_candidates(
             min_df=1,
         )
         tfidf_matrix = vectorizer.fit_transform(texts)
-        query_vec = vectorizer.transform([query])
+        query_vec = vectorizer.transform([search_query])
         scores = cosine_similarity(query_vec, tfidf_matrix)[0]
     except Exception as exc:
         logger.warning("TF-IDF failed: %s", exc)
@@ -103,11 +116,18 @@ def retrieve_candidates(
 
     # Map back to Page objects
     page_map = {p.id: p for p in pages}
-    ranked = sorted(
-        [(page_map[ids[i]], float(scores[i])) for i in range(len(ids))],
-        key=lambda x: x[1],
-        reverse=True,
-    )
+
+    # Apply CTR boost to TF-IDF scores
+    boosted_scores = []
+    for i in range(len(ids)):
+        page = page_map[ids[i]]
+        score = float(scores[i])
+        if boosts and page.url in boosts:
+            boost_val = boosts[page.url]["boost"]
+            score = score + (boost_val * BOOST_WEIGHT)
+        boosted_scores.append((page, score))
+
+    ranked = sorted(boosted_scores, key=lambda x: x[1], reverse=True)
     # Return pages with non-zero score, up to top_k
     return [(p, s) for p, s in ranked if s > 0][:top_k]
 
@@ -163,7 +183,9 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation outside
   "fallback_message": "<null or a helpful message if no good results found>"
 }}
 
-Return at most {max_results} results. Only include pages that are genuinely helpful."""
+Return at most {max_results} results. Only include pages that are genuinely helpful.
+
+{historical_click_section}"""
 
 
 def _format_candidates(candidates: list[tuple[Page, float]]) -> str:
@@ -183,12 +205,26 @@ def _format_candidates(candidates: list[tuple[Page, float]]) -> str:
     return "\n---\n".join(parts)
 
 
+def _format_click_data(boosts: dict | None) -> str:
+    """Format historical click data for Claude's prompt."""
+    if not boosts:
+        return ""
+    lines = ["HISTORICAL CLICK DATA for this query:",
+             "Users who searched for similar queries most often clicked:"]
+    for url, data in sorted(boosts.items(), key=lambda x: x[1]["clicks"], reverse=True)[:5]:
+        ctr_pct = int(data["ctr"] * 100)
+        lines.append(f"- {url} (clicked {data['clicks']} times, CTR {ctr_pct}%)")
+    lines.append("\nUse this data as a signal but evaluate content relevance independently.")
+    return "\n".join(lines)
+
+
 def ai_rerank(
     query: str,
     candidates: list[tuple[Page, float]],
     language: str,
     max_results: int,
     client: anthropic.Anthropic,
+    boosts: dict | None = None,
 ) -> dict:
     """Call Claude to re-rank candidates and generate snippets."""
     if not candidates:
@@ -206,6 +242,7 @@ def ai_rerank(
     )
 
     candidates_text = _format_candidates(candidates)
+    historical_click_section = _format_click_data(boosts)
 
     prompt = RANKING_PROMPT_TEMPLATE.format(
         query=query,
@@ -213,6 +250,7 @@ def ai_rerank(
         language_instruction=language_instruction,
         language=language,
         max_results=max_results,
+        historical_click_section=historical_click_section,
     )
 
     message = client.messages.create(
@@ -241,6 +279,8 @@ def run_search(
     pages: list[Page],
     max_results: int,
     anthropic_client: anthropic.Anthropic,
+    boosts: dict | None = None,
+    synonyms: list[str] | None = None,
 ) -> tuple[SearchResponse, bool]:
     """
     Execute full search pipeline. Returns (SearchResponse, had_good_results).
@@ -248,8 +288,17 @@ def run_search(
     start = time.time()
     language = detect_language(query)
 
-    # Step 1: TF-IDF candidate retrieval
-    candidates = retrieve_candidates(query, pages, top_k=20)
+    # Expand query with synonyms for TF-IDF (original goes to Claude)
+    expanded_query = None
+    if synonyms:
+        expanded_query = query + " " + " ".join(synonyms)
+
+    # Step 1: TF-IDF candidate retrieval (with CTR boost)
+    candidates = retrieve_candidates(
+        query, pages, top_k=20,
+        boosts=boosts,
+        expanded_query=expanded_query,
+    )
 
     # If TF-IDF finds nothing (e.g. cross-language query), send top pages
     # to Claude anyway — it can bridge language gaps and understand intent
@@ -257,24 +306,36 @@ def run_search(
         sample = pages[:15]  # send up to 15 pages for Claude to evaluate
         candidates = [(p, 0.0) for p in sample]
 
-    # Step 2: Claude re-ranking
+    # Step 2: Claude re-ranking (with historical click data)
     ai_response = ai_rerank(
         query=query,
         candidates=candidates,
         language=language,
         max_results=max_results,
         client=anthropic_client,
+        boosts=boosts,
     )
+
+    # Build a lookup for schema data by URL
+    page_schema_map = {}
+    for page in pages:
+        if page.schema_data:
+            try:
+                page_schema_map[page.url] = json.loads(page.schema_data)
+            except (json.JSONDecodeError, TypeError):
+                pass
 
     # Step 3: Build response
     results = []
     for r in ai_response.get("results", []):
+        result_url = r.get("url", "")
         results.append(SearchResult(
-            url=r.get("url", ""),
+            url=result_url,
             title=r.get("title", ""),
             snippet=r.get("snippet", ""),
             score=float(r.get("score", 0.0)),
             reasoning=r.get("reasoning", ""),
+            schema_data=page_schema_map.get(result_url),
         ))
 
     response_ms = int((time.time() - start) * 1000)

@@ -50,6 +50,7 @@ class Page(Base):
     content = Column(Text, default="")    # chunked / cleaned text
     content_hash = Column(String(64), default="")
     word_count = Column(Integer, default=0)
+    schema_data = Column(Text, nullable=True)  # JSON: extracted Schema.org structured data
     indexed_at = Column(DateTime, default=datetime.utcnow)
 
     site = relationship("Site", back_populates="pages")
@@ -80,11 +81,67 @@ class SearchLog(Base):
     language = Column(String(10), default="en")
     result_count = Column(Integer, default=0)
     clicked_url = Column(String(1024), nullable=True)
+    click_position = Column(Integer, nullable=True)
+    shown_urls = Column(Text, nullable=True)       # JSON list of result URLs in display order
+    session_id = Column(String(64), index=True, nullable=True)
     response_ms = Column(Integer, default=0)   # latency
     had_good_results = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     site = relationship("Site", back_populates="searches")
+    clicks = relationship("SearchClick", back_populates="search_log", cascade="all, delete-orphan")
+
+
+class SearchClick(Base):
+    __tablename__ = "search_clicks"
+
+    id = Column(Integer, primary_key=True)
+    search_log_id = Column(Integer, ForeignKey("search_logs.id"), nullable=False)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    clicked_url = Column(String(1024), nullable=False)
+    click_position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    search_log = relationship("SearchLog", back_populates="clicks")
+
+
+class QueryUrlBoost(Base):
+    __tablename__ = "query_url_boosts"
+
+    id = Column(Integer, primary_key=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    query_normalized = Column(String(512), nullable=False, index=True)
+    url = Column(String(1024), nullable=False)
+    impressions = Column(Integer, default=0)
+    clicks = Column(Integer, default=0)
+    ctr = Column(Float, default=0.0)
+    boost_score = Column(Float, default=0.0)  # Wilson lower bound
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SiteContactConfig(Base):
+    __tablename__ = "site_contact_configs"
+
+    id = Column(Integer, primary_key=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, unique=True)
+    enabled = Column(Boolean, default=False)
+    email = Column(String(255), nullable=True)
+    phone = Column(String(64), nullable=True)
+    chat_url = Column(String(512), nullable=True)
+    cta_text_fi = Column(String(512), default="Etkö löytänyt etsimääsi? Ota yhteyttä!")
+    cta_text_en = Column(String(512), default="Didn't find what you need? Contact us!")
+
+
+class LearnedSynonym(Base):
+    __tablename__ = "learned_synonyms"
+
+    id = Column(Integer, primary_key=True)
+    site_id = Column(Integer, ForeignKey("sites.id"), nullable=False, index=True)
+    query_term = Column(String(255), nullable=False)
+    synonym_term = Column(String(255), nullable=False)
+    confidence = Column(Float, default=0.0)
+    source = Column(String(32), default="click_pattern")  # click_pattern | manual
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class CrawlJob(Base):
@@ -137,6 +194,7 @@ class SearchResult(BaseModel):
     snippet: str       # AI-generated relevance explanation
     score: float       # 0-1 confidence
     reasoning: str     # why this page helps
+    schema_data: Optional[dict] = None  # Schema.org structured data if available
 
 
 class SearchResponse(BaseModel):
@@ -150,6 +208,8 @@ class SearchResponse(BaseModel):
 class ClickTrackRequest(BaseModel):
     search_log_id: int
     clicked_url: str
+    click_position: int = 0
+    session_id: Optional[str] = None
 
 
 class CrawlRequest(BaseModel):
@@ -166,3 +226,42 @@ class StatsResponse(BaseModel):
     top_queries: list[dict]
     failed_searches: list[dict]   # queries with no clicks
     pages_indexed: int
+
+
+class ContactConfigRequest(BaseModel):
+    enabled: bool = False
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    chat_url: Optional[str] = None
+    cta_text_fi: str = "Etkö löytänyt etsimääsi? Ota yhteyttä!"
+    cta_text_en: str = "Didn't find what you need? Contact us!"
+
+
+class ContactConfigResponse(BaseModel):
+    site_id: int
+    enabled: bool
+    email: Optional[str]
+    phone: Optional[str]
+    chat_url: Optional[str]
+    cta_text_fi: str
+    cta_text_en: str
+
+    model_config = {"from_attributes": True}
+
+
+class TrendingItem(BaseModel):
+    query: str
+    count: int
+
+
+class SuggestionItem(BaseModel):
+    query: str
+    count: int
+
+
+class LearningStatsResponse(BaseModel):
+    site_id: int
+    boost_pairs: int
+    synonym_count: int
+    top_boosted: list[dict]
+    position_clicks: list[dict]

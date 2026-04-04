@@ -21,9 +21,11 @@ from app.crawler import crawl_site
 from app.database import get_db, init_db
 from app.models import (
     ClickTrackRequest,
+    ContactConfigRequest,
     CrawlJob,
     CrawlRequest,
     Page,
+    SearchClick,
     SearchLog,
     SearchRequest,
     Site,
@@ -32,6 +34,17 @@ from app.models import (
     StatsResponse,
 )
 from app.search import run_search
+from app.learning import (
+    get_trending,
+    get_suggestions,
+    get_contact_config,
+    upsert_contact_config,
+    get_learning_stats,
+    update_boosts,
+    discover_synonyms,
+    get_boosts_for_query,
+    get_synonyms,
+)
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -247,12 +260,23 @@ def search(payload: SearchRequest, db: Session = Depends(get_db)):
         }
 
     claude = get_anthropic()
+
+    # Get CTR boosts and synonyms for this query
+    boosts = get_boosts_for_query(db, site.id, payload.query)
+    synonyms = get_synonyms(db, site.id, payload.query)
+
     response, had_good_results = run_search(
         query=payload.query,
         pages=pages,
         max_results=payload.max_results,
         anthropic_client=claude,
+        boosts=boosts,
+        synonyms=synonyms,
     )
+
+    # Store shown URLs for CTR learning
+    import json as _json
+    shown_urls = _json.dumps([r.url for r in response.results])
 
     # Log search
     log = SearchLog(
@@ -262,14 +286,19 @@ def search(payload: SearchRequest, db: Session = Depends(get_db)):
         result_count=len(response.results),
         had_good_results=had_good_results,
         response_ms=response.response_ms,
+        shown_urls=shown_urls,
     )
     db.add(log)
     db.commit()
     db.refresh(log)
 
+    # Get contact config for zero-result fallback
+    contact = get_contact_config(db, site.id) if not response.results else None
+
     return {
         **response.model_dump(),
         "search_log_id": log.id,
+        "contact_config": contact,
     }
 
 
@@ -278,8 +307,91 @@ def track_click(payload: ClickTrackRequest, db: Session = Depends(get_db)):
     log = db.get(SearchLog, payload.search_log_id)
     if log:
         log.clicked_url = payload.clicked_url
+        log.click_position = payload.click_position
+        if payload.session_id:
+            log.session_id = payload.session_id
         db.commit()
+
+        # Also record in SearchClick for multi-click tracking
+        click = SearchClick(
+            search_log_id=log.id,
+            site_id=log.site_id,
+            clicked_url=payload.clicked_url,
+            click_position=payload.click_position,
+        )
+        db.add(click)
+        db.commit()
+
+        # Incremental CTR boost update (fire-and-forget in same thread)
+        try:
+            update_boosts(db, log.site_id)
+        except Exception:
+            pass  # Non-critical
+
     return {"ok": True}
+
+
+# --- Trending & Suggestions ---
+
+@app.get("/api/sites/{site_id}/trending")
+def site_trending(site_id: int, limit: int = 5, db: Session = Depends(get_db)):
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    trending = get_trending(db, site_id, limit)
+    return {"trending": trending}
+
+
+@app.get("/api/sites/{site_id}/suggestions")
+def site_suggestions(site_id: int, q: str = "", limit: int = 5, db: Session = Depends(get_db)):
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    suggestions = get_suggestions(db, site_id, q, limit)
+    return {"suggestions": suggestions}
+
+
+# --- Contact Config ---
+
+@app.get("/api/sites/{site_id}/contact-config")
+def get_site_contact_config(site_id: int, db: Session = Depends(get_db)):
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    config = get_contact_config(db, site_id)
+    if not config:
+        return {"site_id": site_id, "enabled": False, "email": None, "phone": None,
+                "chat_url": None, "cta_text_fi": "Etkö löytänyt etsimääsi? Ota yhteyttä!",
+                "cta_text_en": "Didn't find what you need? Contact us!"}
+    return config
+
+
+@app.put("/api/sites/{site_id}/contact-config")
+def update_site_contact_config(site_id: int, payload: ContactConfigRequest, db: Session = Depends(get_db)):
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    config = upsert_contact_config(db, site_id, payload.model_dump())
+    return config
+
+
+# --- Learning Stats ---
+
+@app.get("/api/sites/{site_id}/learning-stats")
+def site_learning_stats(site_id: int, db: Session = Depends(get_db)):
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    return get_learning_stats(db, site_id)
+
+
+@app.post("/api/sites/{site_id}/discover-synonyms")
+def trigger_synonym_discovery(site_id: int, db: Session = Depends(get_db)):
+    site = db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    count = discover_synonyms(db, site_id)
+    return {"discovered": count}
 
 
 # --- Analytics ---

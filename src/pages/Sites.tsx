@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2 } from "lucide-react";
+import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Sites() {
@@ -190,6 +190,12 @@ export default function Sites() {
                     <Link to={`/search/${site.id}`}>
                       <Search className="mr-1 h-3 w-3" />
                       Test Search
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link to={`/settings/${site.id}`}>
+                      <Settings className="mr-1 h-3 w-3" />
+                      Settings
                     </Link>
                   </Button>
                   <Button
