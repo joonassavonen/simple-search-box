@@ -711,9 +711,9 @@ export default function SearchPreview() {
           {query.trim() && (
             <button
               onClick={() => doSearch(query)}
-              className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-xl bg-amber-400 text-white shadow-md transition-all hover:bg-amber-500 active:scale-95"
+              className="flex h-10 w-10 sm:h-[48px] sm:w-[48px] shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-amber-400 text-white shadow-md transition-all hover:bg-amber-500 active:scale-95"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           )}
         </div>
