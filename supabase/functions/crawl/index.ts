@@ -8,44 +8,29 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+async function doCrawl(jobId: string, siteId: string) {
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   try {
-    const { job_id, site_id } = await req.json();
-    if (!job_id || !site_id) {
-      return new Response(JSON.stringify({ error: "job_id and site_id required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-    // Update job to running (discovering sitemap)
-    await supabase.from("crawl_jobs").update({ status: "discovering" }).eq("id", job_id);
+    // Update job to discovering
+    await supabase.from("crawl_jobs").update({ status: "discovering" }).eq("id", jobId);
 
     // Get site info
     const { data: site, error: siteErr } = await supabase
       .from("sites")
       .select("*")
-      .eq("id", site_id)
+      .eq("id", siteId)
       .single();
 
     if (siteErr || !site) {
-      await supabase.from("crawl_jobs").update({ status: "failed", error: "Site not found" }).eq("id", job_id);
-      return new Response(JSON.stringify({ error: "Site not found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      await supabase.from("crawl_jobs").update({ status: "failed", error: "Site not found" }).eq("id", jobId);
+      return;
     }
 
     const domain = site.domain.replace(/\/$/, "");
     const baseUrl = domain.startsWith("http") ? domain : `https://${domain}`;
 
-    // --- Phase 1: Discover URLs from sitemap FIRST ---
+    // --- Phase 1: Discover URLs from sitemap ---
     let urls: string[] = [];
     const sitemapUrl = site.sitemap_url || `${baseUrl}/sitemap.xml`;
 
@@ -57,11 +42,10 @@ Deno.serve(async (req) => {
       if (sitemapRes.ok) {
         const xml = await sitemapRes.text();
 
-        // Check if this is a sitemap index (contains other sitemaps)
+        // Check if this is a sitemap index
         const sitemapIndexMatches = [...xml.matchAll(/<sitemap>[\s\S]*?<loc>\s*(.*?)\s*<\/loc>[\s\S]*?<\/sitemap>/gi)];
         if (sitemapIndexMatches.length > 0) {
           console.log(`Found sitemap index with ${sitemapIndexMatches.length} child sitemaps`);
-          // Fetch each child sitemap (cap at 5 sitemaps)
           for (const sm of sitemapIndexMatches.slice(0, 5)) {
             try {
               const childRes = await fetch(sm[1], {
@@ -73,26 +57,24 @@ Deno.serve(async (req) => {
                   urls.push(m[1]);
                 }
               } else {
-                await childRes.text(); // consume body
+                await childRes.text();
               }
             } catch (e) {
               console.log(`Child sitemap ${sm[1]} failed:`, e);
             }
           }
         } else {
-          // Regular sitemap — parse <loc> tags directly
           for (const m of xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/gi)) {
             urls.push(m[1]);
           }
         }
       } else {
-        await sitemapRes.text(); // consume body
+        await sitemapRes.text();
       }
     } catch (e) {
       console.log("Sitemap fetch failed, falling back to homepage:", e);
     }
 
-    // Fallback: just crawl homepage
     if (urls.length === 0) {
       urls = [baseUrl];
     }
@@ -103,12 +85,13 @@ Deno.serve(async (req) => {
 
     console.log(`Sitemap discovery complete: ${totalFound} URLs found, crawling ${urls.length}`);
 
-    // Update pages_found immediately so the UI can show progress
+    // Update pages_found immediately
     await supabase.from("crawl_jobs").update({
       pages_found: urls.length,
       status: "crawling",
-    }).eq("id", job_id);
+    }).eq("id", jobId);
 
+    // --- Phase 2: Crawl each page ---
     let indexed = 0;
     const errors: string[] = [];
 
@@ -133,15 +116,14 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Upsert page
         const { error: upsertErr } = await supabase
           .from("pages")
           .upsert(
             {
-              site_id,
+              site_id: siteId,
               url,
               title: title || url,
-              content: content.slice(0, 50000), // cap content size
+              content: content.slice(0, 50000),
               last_indexed_at: new Date().toISOString(),
             },
             { onConflict: "site_id,url" }
@@ -153,12 +135,11 @@ Deno.serve(async (req) => {
         }
 
         indexed++;
-        // Update progress every 5 pages
         if (indexed % 5 === 0) {
           await supabase
             .from("crawl_jobs")
             .update({ pages_indexed: indexed })
-            .eq("id", job_id);
+            .eq("id", jobId);
         }
       } catch (e) {
         errors.push(`${url}: ${(e as Error).message}`);
@@ -169,32 +150,55 @@ Deno.serve(async (req) => {
     const finalStatus = errors.length > 0 && indexed > 0
       ? "done_with_errors"
       : errors.length > 0
-      ? "failed"
-      : "done";
+        ? "failed"
+        : "done";
 
     await supabase.from("crawl_jobs").update({
       status: finalStatus,
       pages_indexed: indexed,
       pages_found: urls.length,
       error: errors.length > 0 ? errors.slice(0, 10).join("; ") : null,
-    }).eq("id", job_id);
+    }).eq("id", jobId);
 
-    // Update site stats
     await supabase.from("sites").update({
       page_count: indexed,
       last_crawled_at: new Date().toISOString(),
-    }).eq("id", site_id);
+    }).eq("id", siteId);
 
-    return new Response(JSON.stringify({
-      status: finalStatus,
-      pages_found: urls.length,
-      pages_indexed: indexed,
-      errors: errors.slice(0, 10),
-    }), {
+    console.log(`Crawl complete: ${indexed}/${urls.length} pages indexed, ${errors.length} errors`);
+  } catch (e) {
+    console.error("Crawl error:", e);
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    await supabase.from("crawl_jobs").update({
+      status: "failed",
+      error: (e as Error).message,
+    }).eq("id", jobId);
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { job_id, site_id } = await req.json();
+    if (!job_id || !site_id) {
+      return new Response(JSON.stringify({ error: "job_id and site_id required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Run crawl in background using EdgeRuntime.waitUntil
+    // This returns immediately so the client doesn't time out
+    EdgeRuntime.waitUntil(doCrawl(job_id, site_id));
+
+    return new Response(JSON.stringify({ status: "started", job_id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("Crawl error:", e);
+    console.error("Crawl invocation error:", e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -208,7 +212,6 @@ function extractTitle(html: string): string | null {
 }
 
 function extractTextContent(html: string): string {
-  // Remove script, style, nav, header, footer tags and their content
   let text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -218,7 +221,6 @@ function extractTextContent(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-
   return decodeEntities(text);
 }
 
