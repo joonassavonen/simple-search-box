@@ -2,17 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, Site, SearchResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft, Loader2, ExternalLink } from "lucide-react";
-
-function scoreLabel(score: number) {
-  if (score >= 0.8) return { text: "Great match", color: "bg-green-100 text-green-700" };
-  if (score >= 0.6) return { text: "Good match", color: "bg-yellow-100 text-yellow-700" };
-  if (score >= 0.4) return { text: "Possible match", color: "bg-gray-100 text-gray-700" };
-  return { text: "Related", color: "bg-gray-100 text-gray-500" };
-}
+import { ArrowLeft, Loader2, ExternalLink, Search } from "lucide-react";
 
 export default function SearchPreview() {
   const { siteId } = useParams();
@@ -48,16 +38,16 @@ export default function SearchPreview() {
     }
   }
 
-  const EXAMPLES = [
-    "sähkökatko mitä teen",
-    "how do I cancel my contract",
-    "lasku virheellinen",
-    "renewable energy options",
-  ];
+  const widgetSnippet = `<script
+  src="${window.location.origin}/widget.js"
+  data-site-id="${siteId}"
+  data-api-url="${import.meta.env.VITE_SUPABASE_URL}/functions/v1">
+</script>`;
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Test Search</h1>
           <p className="text-sm text-muted-foreground">
@@ -72,131 +62,112 @@ export default function SearchPreview() {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={
-                site?.domain?.includes("helen") || /[äöå]/i.test(query)
-                  ? "Hae sivustolta, esim. 'sähkökatko mitä teen'..."
-                  : "Search the site, e.g. 'how do I pay my bill'..."
-              }
+      {/* Widget Preview Container — simulates a website background */}
+      <div className="rounded-xl border bg-muted/30 p-6 sm:p-10">
+        <p className="mb-4 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Widget Preview
+        </p>
+
+        {/* Widget Panel */}
+        <div className="mx-auto w-full max-w-[640px] overflow-hidden rounded-xl border bg-background shadow-lg">
+          {/* Search Bar */}
+          <div className="flex items-center gap-3 border-b px-4 py-3.5">
+            <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
+            <input
               value={query}
               onChange={(e) => handleQuery(e.target.value)}
-              className="pl-10 pr-10"
+              placeholder={
+                site?.domain?.includes("fi") ? "Hae sivustolta..." : "Search the site..."
+              }
+              className="flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
               autoFocus
             />
-            {loading && (
-              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-            )}
+            {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />}
           </div>
 
-          {!query && (
-            <div className="mt-4">
-              <p className="mb-2 text-sm text-muted-foreground">Try example queries:</p>
-              <div className="flex flex-wrap gap-2">
-                {EXAMPLES.map((h) => (
-                  <Button
-                    key={h}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => handleQuery(h)}
+          {/* Empty state — trending / examples */}
+          {!query && !results && (
+            <div className="px-5 py-4">
+              <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Try searching
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {["ilmalämpöpumppu", "huolto", "asennus", "takuu"].map((term) => (
+                  <button
+                    key={term}
+                    onClick={() => handleQuery(term)}
+                    className="inline-flex items-center rounded-full border bg-muted/50 px-3 py-1 text-[13px] text-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
                   >
-                    {h}
-                  </Button>
+                    {term}
+                  </button>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Results */}
           {results && !results.error && (
-            <div className="mt-6 space-y-4">
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <span>{results.results?.length || 0} results</span>
-                <span>{results.language === "fi" ? "Finnish" : "English"}</span>
-                <span>{results.response_ms}ms</span>
-              </div>
-
-              {results.results?.map((r, i) => {
-                const sl = scoreLabel(r.score);
-                return (
-                  <div key={i} className="rounded-lg border p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noopener"
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        {r.title || r.url}
-                        <ExternalLink className="ml-1 inline h-3 w-3" />
-                      </a>
-                      <Badge className={sl.color} variant="outline">
-                        {(r.score * 100).toFixed(0)}% — {sl.text}
-                      </Badge>
-                    </div>
-                    <p className="mt-2 text-sm">{r.snippet}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      <strong>Why:</strong> {r.reasoning}
-                    </p>
-                    {r.schema_data && (
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                        <Badge variant="outline" className="text-[10px]">
-                          {r.schema_data.type}
-                        </Badge>
-                        {r.schema_data.type === "Product" && r.schema_data.price && (
-                          <span className="font-semibold">
-                            {r.schema_data.currency === "EUR" ? "\u20AC" : r.schema_data.currency}
-                            {r.schema_data.price}
-                          </span>
-                        )}
-                        {r.schema_data.rating && (
-                          <span className="text-yellow-500">
-                            {"★"} {r.schema_data.rating}
-                          </span>
-                        )}
-                        {r.schema_data.type === "Article" && r.schema_data.author && (
-                          <span className="text-muted-foreground">{r.schema_data.author}</span>
-                        )}
-                      </div>
-                    )}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {r.url.replace(/^https?:\/\//, "")}
-                    </p>
-                  </div>
-                );
-              })}
-
-              {results.fallback_message && (
-                <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
-                  {results.fallback_message}
+            <div className="max-h-[50vh] overflow-y-auto">
+              {results.results?.length === 0 && (
+                <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+                  No results found. Try different keywords.
                 </div>
               )}
+
+              {results.results?.map((r, i) => (
+                <a
+                  key={i}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block border-b px-5 py-3.5 transition-colors last:border-b-0 hover:bg-primary/5"
+                >
+                  <div className="mb-1 flex items-center gap-2.5">
+                    <span className="flex-1 text-[15px] font-semibold text-primary">
+                      {r.title || r.url}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                      {(r.score * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <p className="mb-1 line-clamp-2 text-[13px] leading-relaxed text-foreground">
+                    {r.snippet}
+                  </p>
+                  <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                    <ExternalLink className="inline h-3 w-3" />
+                    {r.url.replace(/^https?:\/\//, "")}
+                  </p>
+                </a>
+              ))}
+
+              {/* Stats footer */}
+              <div className="flex items-center justify-between border-t px-4 py-2">
+                <span className="text-[11px] text-muted-foreground">
+                  {results.results?.length || 0} results · {results.response_ms}ms
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Powered by FindAI
+                </span>
+              </div>
             </div>
           )}
 
+          {/* Error */}
           {results?.error && (
-            <div className="mt-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="px-5 py-4 text-sm text-destructive">
               Search error: {results.error}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="mt-4">
-        <CardHeader>
-          <CardTitle className="text-sm">Widget snippet for {site?.name}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="overflow-x-auto rounded-md bg-muted p-3 text-xs">{`<script
-  src="YOUR_API_URL/widget.js"
-  data-site-id="${siteId}"
-  data-api-url="YOUR_API_URL">
-</script>`}</pre>
-        </CardContent>
-      </Card>
+      {/* Widget Snippet */}
+      <div className="mt-6 rounded-xl border p-5">
+        <h3 className="mb-3 text-sm font-semibold">Widget snippet for {site?.name}</h3>
+        <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-xs leading-relaxed">
+          {widgetSnippet}
+        </pre>
+      </div>
     </div>
   );
 }
