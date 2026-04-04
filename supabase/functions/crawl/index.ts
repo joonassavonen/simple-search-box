@@ -221,17 +221,53 @@ Deno.serve(async (req) => {
 });
 
 function extractTitle(html: string): string | null {
-  const match = html.match(/<title[^>]*>(.*?)<\/title>/i);
-  return match ? decodeEntities(match[1].trim()) : null;
+  // Try <title> first
+  const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
+  if (titleMatch) {
+    const title = decodeEntities(titleMatch[1].trim());
+    // Clean up common suffixes like "| Site Name" or "- Site Name"
+    const cleaned = title.split(/\s*[|–—]\s*/)[0].trim();
+    if (cleaned.length > 2) return cleaned;
+  }
+  // Fallback to <h1>
+  const h1Match = html.match(/<h1[^>]*>(.*?)<\/h1>/is);
+  if (h1Match) {
+    const h1 = decodeEntities(h1Match[1].replace(/<[^>]+>/g, "").trim());
+    if (h1.length > 2) return h1;
+  }
+  return null;
+}
+
+function titleFromUrl(url: string): string {
+  try {
+    const path = new URL(url).pathname.replace(/\/$/, "");
+    const lastSegment = path.split("/").pop() || "";
+    return lastSegment
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim() || url;
+  } catch {
+    return url;
+  }
 }
 
 function extractTextContent(html: string): string {
-  let text = html
+  // Try to find main content area first
+  let mainContent = html;
+  const mainMatch = html.match(/<main[\s\S]*?<\/main>/i) ||
+    html.match(/<article[\s\S]*?<\/article>/i) ||
+    html.match(/<div[^>]*(?:content|main|body)[^>]*>[\s\S]*?<\/div>/i);
+  if (mainMatch) {
+    mainContent = mainMatch[0];
+  }
+
+  let text = mainContent
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<nav[\s\S]*?<\/nav>/gi, " ")
     .replace(/<header[\s\S]*?<\/header>/gi, " ")
     .replace(/<footer[\s\S]*?<\/footer>/gi, " ")
+    .replace(/<aside[\s\S]*?<\/aside>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
