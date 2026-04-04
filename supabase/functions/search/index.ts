@@ -114,6 +114,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    // --- GA ANALYTICS BOOST: Get page analytics data ---
+    const { data: gaData } = await supabase
+      .from("page_analytics")
+      .select("page_path, pageviews, conversions, conversion_rate")
+      .eq("site_id", site_id)
+      .order("conversions", { ascending: false })
+      .limit(200);
+
+    const gaBoosts: Record<string, { pageviews: number; conversions: number; convRate: number }> = {};
+    if (gaData && gaData.length > 0) {
+      // Normalize: find max values for relative scoring
+      const maxPV = Math.max(...gaData.map(g => g.pageviews), 1);
+      const maxConv = Math.max(...gaData.map(g => g.conversions), 1);
+      for (const g of gaData) {
+        gaBoosts[g.page_path] = {
+          pageviews: g.pageviews / maxPV,         // 0-1 normalized
+          conversions: g.conversions / maxConv,     // 0-1 normalized
+          convRate: g.conversion_rate,
+        };
+      }
+    }
+
     // Fetch all pages for the site
     const { data: pages, error: pagesErr } = await supabase
       .from("pages")
@@ -174,6 +196,23 @@ Deno.serve(async (req) => {
       if (generalPopularity > 0 && score > 0) {
         // Mild boost for generally popular pages
         score += Math.min(generalPopularity * 0.5, 10);
+      }
+
+      // --- GA ANALYTICS BOOST ---
+      if (score > 0) {
+        // Match page URL path against GA page_path
+        let pagePath = "";
+        try { pagePath = new URL(page.url).pathname; } catch { /* ignore */ }
+        const ga = gaBoosts[pagePath];
+        if (ga) {
+          // Conversion boost: pages that convert well get strong boost
+          score += ga.conversions * 20;   // up to +20 for top converter
+          // Traffic boost: high-traffic pages are likely more relevant
+          score += ga.pageviews * 8;      // up to +8 for most visited
+          // Conversion rate bonus: efficient pages get extra
+          if (ga.convRate > 0.05) score += 5;
+          if (ga.convRate > 0.10) score += 10;
+        }
       }
 
       let snippet = "";

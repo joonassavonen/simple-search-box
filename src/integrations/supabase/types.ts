@@ -55,6 +55,65 @@ export type Database = {
           },
         ]
       }
+      page_analytics: {
+        Row: {
+          avg_time_on_page: number
+          bounce_rate: number
+          conversion_rate: number
+          conversions: number
+          created_at: string
+          fetched_at: string
+          id: string
+          page_path: string
+          pageviews: number
+          period_end: string
+          period_start: string
+          sessions: number
+          site_id: string
+          updated_at: string
+        }
+        Insert: {
+          avg_time_on_page?: number
+          bounce_rate?: number
+          conversion_rate?: number
+          conversions?: number
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          page_path: string
+          pageviews?: number
+          period_end: string
+          period_start: string
+          sessions?: number
+          site_id: string
+          updated_at?: string
+        }
+        Update: {
+          avg_time_on_page?: number
+          bounce_rate?: number
+          conversion_rate?: number
+          conversions?: number
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          page_path?: string
+          pageviews?: number
+          period_end?: string
+          period_start?: string
+          sessions?: number
+          site_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_analytics_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pages: {
         Row: {
           content: string | null
@@ -214,6 +273,7 @@ export type Database = {
           api_key: string
           created_at: string
           domain: string
+          ga_property_id: string | null
           id: string
           is_active: boolean
           last_crawled_at: string | null
@@ -227,6 +287,7 @@ export type Database = {
           api_key?: string
           created_at?: string
           domain: string
+          ga_property_id?: string | null
           id?: string
           is_active?: boolean
           last_crawled_at?: string | null
@@ -240,6 +301,7 @@ export type Database = {
           api_key?: string
           created_at?: string
           domain?: string
+          ga_property_id?: string | null
           id?: string
           is_active?: boolean
           last_crawled_at?: string | null
