@@ -680,7 +680,7 @@ export default function SearchPreview() {
       <div ref={containerRef} className="relative">
         <div className="relative flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/40" />
+            <Search className="absolute left-3 sm:left-4 top-1/2 h-4 w-4 sm:h-[18px] sm:w-[18px] -translate-y-1/2 text-muted-foreground/40" />
             <input
               ref={inputRef}
               type="text"
@@ -691,7 +691,7 @@ export default function SearchPreview() {
               onFocus={() => {
                 if (suggestions.length > 0) setShowSuggestions(true);
               }}
-              className="h-[52px] w-full rounded-2xl border-2 border-border/50 bg-white pl-11 pr-10 text-[15px] shadow-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-[hsl(145,50%,45%)] focus:shadow-md focus:shadow-[hsl(145,50%,45%)]/10"
+              className="h-11 sm:h-[52px] w-full rounded-xl sm:rounded-2xl border-2 border-border/50 bg-white pl-9 sm:pl-11 pr-9 sm:pr-10 text-sm sm:text-[15px] shadow-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-[hsl(145,50%,45%)] focus:shadow-md focus:shadow-[hsl(145,50%,45%)]/10"
               autoFocus
             />
             {query && !loading && (
