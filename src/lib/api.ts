@@ -158,31 +158,30 @@ export const api = {
   // --- Crawl (Backend fetch) ---
 
   async triggerCrawl(siteId: string, sitemapUrl?: string): Promise<CrawlJob> {
-    const body: Record<string, unknown> = { site_id: siteId };
-    if (sitemapUrl) body.sitemap_url = sitemapUrl;
-    const data = await backendFetch<{ job_id: number; status: string; site_id: number }>("/api/crawl", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
+    const { data, error } = await supabase
+      .from("crawl_jobs")
+      .insert({ site_id: siteId, status: "pending" })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
     return {
-      job_id: String(data.job_id),
+      job_id: data.id,
       status: data.status,
-      pages_found: 0,
-      pages_indexed: 0,
-      error: null,
+      pages_found: data.pages_found,
+      pages_indexed: data.pages_indexed,
+      error: data.error,
     };
   },
 
   async getCrawlJob(jobId: string): Promise<CrawlJob> {
-    const data = await backendFetch<{
-      job_id: number;
-      status: string;
-      pages_found: number;
-      pages_indexed: number;
-      error: string | null;
-    }>(`/api/crawl/${jobId}`);
+    const { data, error } = await supabase
+      .from("crawl_jobs")
+      .select("*")
+      .eq("id", jobId)
+      .single();
+    if (error) throw new Error(error.message);
     return {
-      job_id: String(data.job_id),
+      job_id: data.id,
       status: data.status,
       pages_found: data.pages_found,
       pages_indexed: data.pages_indexed,
@@ -193,10 +192,9 @@ export const api = {
   // --- Search (Backend fetch — TF-IDF + Claude re-ranking) ---
 
   async search(siteId: string, query: string): Promise<SearchResponse> {
-    return backendFetch<SearchResponse>("/api/search", {
-      method: "POST",
-      body: JSON.stringify({ site_id: siteId, query, max_results: 5 }),
-    });
+    // TODO: migrate to edge function
+    console.warn("Search not yet implemented on backend");
+    return { results: [], language: "en", response_ms: 0, fallback_message: "Search not yet configured. Please set up crawling first." };
   },
 
   // --- Stats (Supabase direct) ---
@@ -258,60 +256,55 @@ export const api = {
   // --- Demo (Backend fetch) ---
 
   async setupDemo(): Promise<Site> {
-    const data = await backendFetch<{ site: Site }>("/api/demo/setup");
-    return data.site;
+    // TODO: migrate to edge function
+    throw new Error("Demo setup not yet available");
   },
 
-  // --- Trending & Suggestions (Backend fetch) ---
-
   async getTrending(siteId: string, limit = 5): Promise<{ trending: TrendingItem[] }> {
-    return backendFetch<{ trending: TrendingItem[] }>(
-      `/api/sites/${siteId}/trending?limit=${limit}`,
-    );
+    // TODO: migrate to edge function
+    return { trending: [] };
   },
 
   async getSuggestions(siteId: string, query: string, limit = 5): Promise<{ suggestions: string[] }> {
-    return backendFetch<{ suggestions: string[] }>(
-      `/api/sites/${siteId}/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`,
-    );
+    // TODO: migrate to edge function
+    return { suggestions: [] };
   },
 
   // --- Contact Config (Backend fetch) ---
 
   async getContactConfig(siteId: string): Promise<ContactConfig> {
-    return backendFetch<ContactConfig>(`/api/sites/${siteId}/contact-config`);
+    // TODO: migrate to edge function or DB table
+    return {
+      site_id: siteId,
+      enabled: false,
+      email: null,
+      phone: null,
+      chat_url: null,
+      cta_text_fi: "Ota yhteyttä",
+      cta_text_en: "Contact us",
+    };
   },
 
   async updateContactConfig(siteId: string, config: Partial<ContactConfig>): Promise<ContactConfig> {
-    return backendFetch<ContactConfig>(`/api/sites/${siteId}/contact-config`, {
-      method: "PUT",
-      body: JSON.stringify(config),
-    });
+    // TODO: migrate to edge function or DB table
+    console.warn("updateContactConfig not yet implemented on backend");
+    return { site_id: siteId, enabled: false, email: null, phone: null, chat_url: null, cta_text_fi: "", cta_text_en: "", ...config } as ContactConfig;
   },
 
   // --- Learning Stats (Backend fetch) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    return backendFetch<LearningStats>(`/api/sites/${siteId}/learning-stats`);
+    // TODO: migrate to edge function
+    return { site_id: siteId, boost_pairs: 0, synonym_count: 0, top_boosted: [], position_clicks: [] };
   },
 
   async discoverSynonyms(siteId: string): Promise<{ discovered: number }> {
-    return backendFetch<{ discovered: number }>(`/api/sites/${siteId}/discover-synonyms`, {
-      method: "POST",
-    });
+    // TODO: migrate to edge function
+    return { discovered: 0 };
   },
 
-  // --- Click tracking (Backend fetch) ---
-
   async trackClick(searchLogId: number, clickedUrl: string, clickPosition?: number, sessionId?: string): Promise<void> {
-    await backendFetch<{ ok: boolean }>("/api/search/click", {
-      method: "POST",
-      body: JSON.stringify({
-        search_log_id: searchLogId,
-        clicked_url: clickedUrl,
-        click_position: clickPosition ?? null,
-        session_id: sessionId ?? null,
-      }),
-    });
+    // TODO: migrate to edge function
+    console.warn("trackClick not yet implemented");
   },
 };
