@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     // Fetch all pages for the site
     const { data: pages, error: pagesErr } = await supabase
       .from("pages")
-      .select("url, title, content")
+      .select("url, title, content, meta_description")
       .eq("site_id", site_id)
       .limit(500);
 
