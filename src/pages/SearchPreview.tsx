@@ -413,7 +413,7 @@ function ContactCTA({ config }: { config: ContactConfig }) {
           href={config.chat_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(145,55%,50%)] px-6 py-4 text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,55%,45%)]"
+          className="flex w-full items-center justify-center gap-2 rounded-lg sm:rounded-xl bg-[hsl(145,55%,50%)] px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,55%,45%)]"
         >
           <MessageCircle className="h-5 w-5" />
           Lähetä WhatsApp-viesti
