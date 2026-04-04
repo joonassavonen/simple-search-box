@@ -115,7 +115,6 @@ function ResultCard({
   onTrackClick: (url: string, position: number) => void;
 }) {
   const title = cleanTitle(result.title, result.url);
-  const domain = shortDomain(result.url);
   const path = shortPath(result.url);
   const snippet = cleanSnippet(result.snippet);
   const s = result.schema_data;
@@ -148,17 +147,12 @@ function ResultCard({
 
         {/* Content */}
         <div className="min-w-0 flex-1">
-          {/* Breadcrumb */}
-          <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground/70">
-            <Globe className="h-3 w-3 shrink-0" />
-            <span className="truncate">{domain}</span>
-            {path && (
-              <>
-                <ChevronRight className="h-2.5 w-2.5 shrink-0" />
-                <span className="truncate">{path}</span>
-              </>
-            )}
-          </div>
+          {/* Breadcrumb — path only, no domain */}
+          {path && (
+            <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground/70">
+              <span className="truncate">{path}</span>
+            </div>
+          )}
 
           {/* Title */}
           <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary">

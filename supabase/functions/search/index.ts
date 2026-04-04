@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     // Fetch all pages for the site
     const { data: pages, error: pagesErr } = await supabase
       .from("pages")
-      .select("url, title, content")
+      .select("url, title, content, meta_description")
       .eq("site_id", site_id)
       .limit(500);
 
@@ -91,8 +91,11 @@ Deno.serve(async (req) => {
         score *= 1.5;
       }
 
+      // Prefer meta description as snippet, fallback to content extract
       let snippet = "";
-      if (score > 0 && page.content) {
+      if (page.meta_description) {
+        snippet = page.meta_description;
+      } else if (score > 0 && page.content) {
         snippet = extractSnippet(page.content, words);
       }
 

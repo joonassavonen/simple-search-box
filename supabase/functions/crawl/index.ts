@@ -125,6 +125,7 @@ async function doCrawl(jobId: string, siteId: string) {
 
         const html = await pageRes.text();
         const title = extractTitle(html) || titleFromUrl(url);
+        const metaDesc = extractMetaDescription(html);
         const content = extractTextContent(html);
 
         if (!content || content.length < 10) {
@@ -140,6 +141,7 @@ async function doCrawl(jobId: string, siteId: string) {
               url,
               title: title || url,
               content: content.slice(0, 50000),
+              meta_description: metaDesc || null,
               last_indexed_at: new Date().toISOString(),
             },
             { onConflict: "site_id,url" }
@@ -221,6 +223,16 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+function extractMetaDescription(html: string): string | null {
+  const match = html.match(/<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["'](.*?)["'][^>]*>/i)
+    || html.match(/<meta\s+[^>]*content\s*=\s*["'](.*?)["'][^>]*name\s*=\s*["']description["'][^>]*>/i);
+  if (match) {
+    const desc = decodeEntities(match[1].trim());
+    if (desc.length > 10) return desc;
+  }
+  return null;
+}
 
 function extractTitle(html: string): string | null {
   // Try <title> first

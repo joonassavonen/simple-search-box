@@ -62,6 +62,7 @@ export type Database = {
           embedding: string | null
           id: string
           last_indexed_at: string
+          meta_description: string | null
           site_id: string
           title: string | null
           updated_at: string
@@ -73,6 +74,7 @@ export type Database = {
           embedding?: string | null
           id?: string
           last_indexed_at?: string
+          meta_description?: string | null
           site_id: string
           title?: string | null
           updated_at?: string
@@ -84,6 +86,7 @@ export type Database = {
           embedding?: string | null
           id?: string
           last_indexed_at?: string
+          meta_description?: string | null
           site_id?: string
           title?: string | null
           updated_at?: string
