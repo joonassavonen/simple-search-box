@@ -815,7 +815,7 @@ export default function SearchPreview() {
       )}
 
       {/* Widget snippet */}
-      <Card className="mt-12 border-border/30">
+      <Card className="mt-8 sm:mt-12 border-border/30">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-medium text-muted-foreground">
             Upotuskoodi
