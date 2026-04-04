@@ -335,22 +335,41 @@ function PopularSection({
 // Autocomplete with images
 // ---------------------------------------------------------------------------
 
-function AutocompleteDropdown({
+function SearchDropdown({
   suggestions,
   visible,
   activeIndex,
   onSelect,
   pages,
+  results,
+  loading,
+  noResults,
+  query,
+  onTrackClick,
+  zeroSuggestions,
+  onSuggestionClick,
+  contactConfig,
 }: {
   suggestions: string[];
   visible: boolean;
   activeIndex: number;
   onSelect: (q: string) => void;
   pages: PopularProduct[];
+  results: SearchResponse | null;
+  loading: boolean;
+  noResults: boolean;
+  query: string;
+  onTrackClick: (url: string, position: number) => void;
+  zeroSuggestions?: string[];
+  onSuggestionClick?: (q: string) => void;
+  contactConfig?: ContactConfig | null;
 }) {
-  if (!visible || !suggestions.length) return null;
+  const hasResults = results && results.results && results.results.length > 0;
+  const showAutocomplete = visible && suggestions.length > 0;
+  const showResults = query.trim().length > 0 && (hasResults || noResults || loading);
 
-  // Match suggestions to pages for images
+  if (!showAutocomplete && !showResults) return null;
+
   const getImage = (q: string) => {
     const match = pages.find((p) =>
       p.title.toLowerCase().includes(q.toLowerCase())
@@ -359,34 +378,186 @@ function AutocompleteDropdown({
   };
 
   return (
-    <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-border/50 bg-white shadow-xl animate-in fade-in slide-in-from-top-1 duration-150">
-      {suggestions.map((s, i) => {
-        const img = getImage(s);
-        return (
-          <button
-            key={s}
-            onClick={() => onSelect(s)}
-            className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 ${
-              i === activeIndex ? "bg-muted/50" : ""
-            }`}
-          >
-            {img ? (
-              <img
-                src={img}
-                alt=""
-                className="h-9 w-9 shrink-0 rounded-lg border border-border/20 object-contain bg-white"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <Search className="h-4 w-4 shrink-0 text-muted-foreground/40" />
-            )}
-            <span className="text-[14px] text-foreground">{s}</span>
-          </button>
-        );
-      })}
+    <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[70vh] overflow-y-auto overscroll-contain rounded-xl sm:rounded-2xl border border-border/50 bg-white shadow-xl animate-in fade-in slide-in-from-top-1 duration-150">
+      {/* Autocomplete suggestions */}
+      {showAutocomplete && (
+        <div className={hasResults || loading ? "border-b border-border/30" : ""}>
+          {suggestions.map((s, i) => {
+            const img = getImage(s);
+            return (
+              <button
+                key={`sug-${s}`}
+                onClick={() => onSelect(s)}
+                className={`flex w-full cursor-pointer items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left transition-colors hover:bg-muted/40 ${
+                  i === activeIndex ? "bg-muted/50" : ""
+                }`}
+              >
+                {img ? (
+                  <img
+                    src={img}
+                    alt=""
+                    className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-lg border border-border/20 object-contain bg-white"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <Search className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+                )}
+                <span className="text-[13px] sm:text-[14px] text-foreground">{s}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center gap-2 px-4 py-6">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
+          <span className="text-xs text-muted-foreground">Haetaan...</span>
+        </div>
+      )}
+
+      {/* Search results inline */}
+      {hasResults && !loading && (
+        <div>
+          {/* Results count */}
+          <div className="flex items-center gap-1.5 px-3 sm:px-4 pt-2.5 pb-1 text-xs sm:text-sm font-semibold text-[hsl(145,50%,35%)]">
+            <Sparkles className="h-3.5 w-3.5" />
+            {results.results.length} osuma{results.results.length !== 1 ? "a" : ""}
+          </div>
+
+          {/* Featured / AI summary */}
+          {results.ai_summary && (
+            <button
+              type="button"
+              onClick={() => onTrackClick(results.results[0]?.url || "", 0)}
+              className="group mx-2 mb-1 flex w-[calc(100%-16px)] cursor-pointer items-center gap-3 rounded-lg border border-[hsl(145,40%,85%)] bg-[hsl(145,40%,96%)] p-3 text-left transition-all hover:shadow-md"
+            >
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-bold text-foreground line-clamp-2">{results.ai_summary.split(".")[0]}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{results.ai_summary}</p>
+              </div>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[hsl(145,50%,40%)]" />
+            </button>
+          )}
+
+          {/* Result items */}
+          {results.results.map((r, i) => (
+            <DropdownResultItem key={`res-${r.url}-${i}`} result={r} index={i} onTrackClick={onTrackClick} />
+          ))}
+
+          {/* Contact CTA inline */}
+          {contactConfig && contactConfig.enabled && (
+            <div className="border-t border-border/30 p-3">
+              <ContactCTA config={contactConfig} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* No results */}
+      {noResults && !loading && (
+        <div className="px-4 py-6 text-center">
+          <Search className="mx-auto mb-2 h-6 w-6 text-muted-foreground/30" />
+          <p className="text-xs font-medium text-foreground">Ei tuloksia haulle "{query}"</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">Kokeile eri hakusanoja</p>
+          {zeroSuggestions && zeroSuggestions.length > 0 && (
+            <div className="mt-3">
+              <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Tarkoititko:</p>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {zeroSuggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onSuggestionClick?.(s)}
+                    className="rounded-full bg-[hsl(145,40%,95%)] px-2.5 py-1 text-[11px] font-medium text-[hsl(145,50%,30%)] hover:bg-[hsl(145,40%,88%)] transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+// Compact result item for the dropdown
+function DropdownResultItem({
+  result,
+  index,
+  onTrackClick,
+}: {
+  result: SearchResult;
+  index: number;
+  onTrackClick: (url: string, position: number) => void;
+}) {
+  const title = cleanTitle(result.title, result.url);
+  const snippet = cleanSnippet(result.snippet);
+  const s = result.schema_data;
+  const isProduct = s?.type === "Product";
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onTrackClick(result.url, index)}
+      className="group flex w-full cursor-pointer items-start gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left transition-colors hover:bg-muted/30"
+    >
+      {isProduct && s?.image && !imgError && (
+        <div className="shrink-0 mt-0.5">
+          <img
+            src={s.image}
+            alt={s.name || title}
+            className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg border border-border/30 object-contain bg-white"
+            onError={() => setImgError(true)}
+          />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[13px] sm:text-sm font-semibold leading-snug text-foreground group-hover:text-[hsl(145,50%,35%)] line-clamp-2">
+          {title}
+        </h3>
+        {isProduct && s?.price && (
+          <p className="mt-0.5 text-xs font-bold text-[hsl(145,60%,35%)]">
+            {formatPrice(s.price, s.currency)}
+          </p>
+        )}
+        {isProduct && s?.rating && (
+          <div className="mt-0.5 flex items-center gap-0.5">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`h-2.5 w-2.5 ${
+                  i < Math.round(Number(s.rating))
+                    ? "fill-amber-400 text-amber-400"
+                    : "fill-muted text-muted"
+                }`}
+              />
+            ))}
+            {s.reviewCount && (
+              <span className="ml-0.5 text-[10px] text-muted-foreground">({s.reviewCount})</span>
+            )}
+          </div>
+        )}
+        {snippet && (
+          <p className="mt-0.5 text-[11px] sm:text-xs leading-relaxed text-muted-foreground line-clamp-2">
+            {snippet}
+          </p>
+        )}
+        {s?.type === "Article" && (s.author || s.datePublished) && (
+          <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            {s.author && <span>{s.author}</span>}
+            {s.author && s.datePublished && <span>·</span>}
+            {s.datePublished && <span>{new Date(s.datePublished).toLocaleDateString("fi-FI")}</span>}
+          </div>
+        )}
+      </div>
+      <ExternalLink className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground/0 group-hover:text-muted-foreground/40 transition-colors" />
+    </button>
   );
 }
 
@@ -602,10 +773,13 @@ export default function SearchPreview() {
   async function doSearch(q: string) {
     setLoading(true);
     setError(null);
-    setShowSuggestions(false);
+    // Don't hide suggestions — they merge with results in the dropdown
     try {
       const data = await api.search(siteId!, q);
       setResults(data);
+      // Hide autocomplete suggestions once results arrive
+      setShowSuggestions(false);
+      setSuggestions([]);
     } catch (e: any) {
       setError(e.message);
       setResults(null);
@@ -718,13 +892,21 @@ export default function SearchPreview() {
           )}
         </div>
 
-        {/* Autocomplete */}
-        <AutocompleteDropdown
+        {/* Unified search dropdown: autocomplete + results */}
+        <SearchDropdown
           suggestions={suggestions}
           visible={showSuggestions}
           activeIndex={activeIndex}
           onSelect={selectSuggestion}
           pages={popularProducts}
+          results={results}
+          loading={loading}
+          noResults={!!noResults}
+          query={query}
+          onTrackClick={trackClick}
+          zeroSuggestions={results?.suggestions}
+          onSuggestionClick={selectSuggestion}
+          contactConfig={contactConfig}
         />
       </div>
 
@@ -756,55 +938,6 @@ export default function SearchPreview() {
             ))}
           </div>
         </div>
-      )}
-
-      {/* Results count */}
-      {hasResults && (
-        <div className="mb-3 mt-5 flex items-center gap-1.5 text-sm font-semibold text-[hsl(145,50%,35%)]">
-          <Sparkles className="h-4 w-4" />
-          {results.results.length} osuma{results.results.length !== 1 ? "a" : ""}
-        </div>
-      )}
-
-      {/* AI summary as featured card */}
-      {hasResults && results.ai_summary && (
-        <FeaturedCard
-          result={{
-            url: results.results[0]?.url || "",
-            title: results.ai_summary.split(".")[0] || "Löydä sopivin vaihtoehto",
-            snippet: results.ai_summary,
-            score: 1,
-            reasoning: "",
-          }}
-          onTrackClick={trackClick}
-        />
-      )}
-
-      {/* Results */}
-      {hasResults && (
-        <div className="mt-2 space-y-0.5 sm:space-y-1 rounded-xl sm:rounded-2xl bg-white p-1.5 sm:p-2 shadow-sm border border-border/30 animate-in fade-in slide-in-from-bottom-1 duration-200">
-          {results.results.map((r, i) => (
-            <ResultCard
-              key={`${r.url}-${i}`}
-              result={r}
-              index={i}
-              onTrackClick={trackClick}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Contact CTA — always show after results if configured */}
-      {hasResults && contactConfig && <ContactCTA config={contactConfig} />}
-
-      {/* No results */}
-      {noResults && (
-        <NoResults 
-          query={query} 
-          contact={contactConfig || results?.contact_config}
-          suggestions={results?.suggestions}
-          onSuggestionClick={(q) => selectSuggestion(q)}
-        />
       )}
 
       {/* Error */}
