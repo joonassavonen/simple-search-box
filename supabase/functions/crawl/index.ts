@@ -126,6 +126,7 @@ async function doCrawl(jobId: string, siteId: string) {
         const html = await pageRes.text();
         const title = extractTitle(html) || titleFromUrl(url);
         const metaDesc = extractMetaDescription(html);
+        const schemaData = extractJsonLd(html);
         const content = extractTextContent(html);
 
         if (!content || content.length < 10) {
@@ -142,6 +143,7 @@ async function doCrawl(jobId: string, siteId: string) {
               title: title || url,
               content: content.slice(0, 50000),
               meta_description: metaDesc || null,
+              schema_data: schemaData || null,
               last_indexed_at: new Date().toISOString(),
             },
             { onConflict: "site_id,url" }

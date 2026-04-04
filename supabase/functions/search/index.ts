@@ -196,6 +196,7 @@ Return ONLY valid JSON.`
         score: Math.round(Math.min(r.score / maxScore, 1) * 100) / 100,
         snippet: r.snippet,
         reasoning: (r as any).aiReasoning || `Matched: ${r.matchedWords.join(", ")}`,
+        schema_data: (r as any).schema_data || null,
       }));
 
     const responseMs = Date.now() - startTime;
