@@ -43,7 +43,7 @@ export default function Sites() {
     setCrawling((prev) => ({ ...prev, [site.id]: true }));
     try {
       const job = await api.triggerCrawl(site.id);
-      pollJob(site.id, job.job_id);
+      pollJob(site.id, job.job_id as string);
     } catch (e: any) {
       toast.error("Crawl failed: " + e.message);
       setCrawling((prev) => ({ ...prev, [site.id]: false }));
