@@ -114,6 +114,28 @@ Deno.serve(async (req) => {
       }
     }
 
+    // --- GA ANALYTICS BOOST: Get page analytics data ---
+    const { data: gaData } = await supabase
+      .from("page_analytics")
+      .select("page_path, pageviews, conversions, conversion_rate")
+      .eq("site_id", site_id)
+      .order("conversions", { ascending: false })
+      .limit(200);
+
+    const gaBoosts: Record<string, { pageviews: number; conversions: number; convRate: number }> = {};
+    if (gaData && gaData.length > 0) {
+      // Normalize: find max values for relative scoring
+      const maxPV = Math.max(...gaData.map(g => g.pageviews), 1);
+      const maxConv = Math.max(...gaData.map(g => g.conversions), 1);
+      for (const g of gaData) {
+        gaBoosts[g.page_path] = {
+          pageviews: g.pageviews / maxPV,         // 0-1 normalized
+          conversions: g.conversions / maxConv,     // 0-1 normalized
+          convRate: g.conversion_rate,
+        };
+      }
+    }
+
     // Fetch all pages for the site
     const { data: pages, error: pagesErr } = await supabase
       .from("pages")
