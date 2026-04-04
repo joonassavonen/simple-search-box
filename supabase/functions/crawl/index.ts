@@ -95,9 +95,7 @@ async function doCrawl(jobId: string, siteId: string) {
       }
     });
 
-    // Cap at 50 pages for MVP
     const totalFound = urls.length;
-    urls = urls.slice(0, 50);
 
     console.log(`Sitemap discovery complete: ${totalFound} URLs found, crawling ${urls.length}`);
 
