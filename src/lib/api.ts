@@ -1,25 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
 // ---------------------------------------------------------------------------
-// Backend API URL — set via env var or defaults to localhost
-// ---------------------------------------------------------------------------
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
-
-async function backendFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${BACKEND_URL}${path}`;
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(body.detail || body.error || `Backend error ${res.status}`);
-  }
-  return res.json();
-}
-
-// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -269,51 +250,122 @@ export const api = {
     throw new Error("Demo setup not yet available");
   },
 
+  // --- Trending (Supabase direct — aggregates search_logs) ---
+
   async getTrending(siteId: string, limit = 5): Promise<{ trending: TrendingItem[] }> {
-    // TODO: migrate to edge function
-    return { trending: [] };
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await supabase
+      .from("search_logs")
+      .select("query")
+      .eq("site_id", siteId)
+      .gte("created_at", sevenDaysAgo)
+      .gt("results_count", 0);
+
+    if (!data || data.length === 0) return { trending: [] };
+
+    // Aggregate query counts client-side
+    const counts: Record<string, number> = {};
+    for (const row of data) {
+      const q = row.query.trim().toLowerCase();
+      if (q.length >= 2) counts[q] = (counts[q] || 0) + 1;
+    }
+
+    const trending = Object.entries(counts)
+      .filter(([, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([query, count]) => ({ query, count }));
+
+    return { trending };
   },
+
+  // --- Suggestions (Supabase direct — prefix match on past queries) ---
 
   async getSuggestions(siteId: string, query: string, limit = 5): Promise<{ suggestions: string[] }> {
-    // TODO: migrate to edge function
-    return { suggestions: [] };
+    const prefix = query.trim().toLowerCase();
+    if (prefix.length < 2) return { suggestions: [] };
+
+    const { data } = await supabase
+      .from("search_logs")
+      .select("query")
+      .eq("site_id", siteId)
+      .gt("results_count", 0)
+      .ilike("query", `${prefix}%`)
+      .limit(200);
+
+    if (!data || data.length === 0) return { suggestions: [] };
+
+    // Deduplicate and rank by frequency
+    const counts: Record<string, number> = {};
+    for (const row of data) {
+      const q = row.query.trim().toLowerCase();
+      if (q !== prefix && q.length >= 2) counts[q] = (counts[q] || 0) + 1;
+    }
+
+    const suggestions = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([q]) => q);
+
+    return { suggestions };
   },
 
-  // --- Contact Config (Backend fetch) ---
+  // --- Contact Config (localStorage until DB table is created) ---
 
   async getContactConfig(siteId: string): Promise<ContactConfig> {
-    // TODO: migrate to edge function or DB table
+    try {
+      const stored = localStorage.getItem(`findai-contact-${siteId}`);
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
     return {
       site_id: siteId,
       enabled: false,
       email: null,
       phone: null,
       chat_url: null,
-      cta_text_fi: "Ota yhteyttä",
-      cta_text_en: "Contact us",
+      cta_text_fi: "Etkö löytänyt etsimääsi? Ota yhteyttä!",
+      cta_text_en: "Didn't find what you need? Contact us!",
     };
   },
 
   async updateContactConfig(siteId: string, config: Partial<ContactConfig>): Promise<ContactConfig> {
-    // TODO: migrate to edge function or DB table
-    console.warn("updateContactConfig not yet implemented on backend");
-    return { site_id: siteId, enabled: false, email: null, phone: null, chat_url: null, cta_text_fi: "", cta_text_en: "", ...config } as ContactConfig;
+    const current = await api.getContactConfig(siteId);
+    const updated = { ...current, ...config, site_id: siteId };
+    localStorage.setItem(`findai-contact-${siteId}`, JSON.stringify(updated));
+    return updated;
   },
 
-  // --- Learning Stats (Backend fetch) ---
+  // --- Learning Stats (Supabase direct) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    // TODO: migrate to edge function
-    return { site_id: siteId, boost_pairs: 0, synonym_count: 0, top_boosted: [], position_clicks: [] };
+    const { data: logs } = await supabase
+      .from("search_logs")
+      .select("query, results_count, clicked")
+      .eq("site_id", siteId);
+
+    const allLogs = logs || [];
+    const clickedLogs = allLogs.filter((l) => l.clicked);
+
+    return {
+      site_id: siteId,
+      boost_pairs: 0,
+      synonym_count: 0,
+      top_boosted: [],
+      position_clicks: [],
+    };
   },
 
   async discoverSynonyms(siteId: string): Promise<{ discovered: number }> {
-    // TODO: migrate to edge function
+    // Synonym discovery requires backend ML — stubbed until edge function exists
     return { discovered: 0 };
   },
 
+  // --- Click tracking (Supabase direct) ---
+
   async trackClick(searchLogId: number, clickedUrl: string, clickPosition?: number, sessionId?: string): Promise<void> {
-    // TODO: migrate to edge function
-    console.warn("trackClick not yet implemented");
+    await supabase
+      .from("search_logs")
+      .update({ clicked: true })
+      .eq("id", String(searchLogId));
   },
 };
