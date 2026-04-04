@@ -15,16 +15,15 @@ import {
   Search,
   ArrowLeft,
   Loader2,
-  ExternalLink,
+  ArrowUpRight,
   TrendingUp,
+  Sparkles,
   Star,
   Calendar,
   MapPin,
-  ShoppingCart,
   Mail,
   Phone,
   MessageCircle,
-  Globe,
   ChevronRight,
   Copy,
   Check,
@@ -124,15 +123,10 @@ function ResultCard({
   const isFAQ = s?.type === "FAQPage";
 
   return (
-    <a
-      href={result.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => {
-        e.preventDefault();
-        onTrackClick(result.url, index);
-      }}
-      className="group block rounded-xl border border-border/50 bg-card transition-all duration-200 hover:border-primary/25 hover:shadow-lg hover:shadow-primary/[0.04] active:scale-[0.995]"
+    <button
+      type="button"
+      onClick={() => onTrackClick(result.url, index)}
+      className="group flex w-full cursor-pointer items-stretch gap-0 overflow-hidden rounded-2xl border border-border/40 bg-card text-left transition-all duration-200 ease-out hover:border-primary/20 hover:shadow-lg hover:shadow-primary/[0.03] active:scale-[0.995]"
     >
       {/* Product card — horizontal layout with large image */}
       {isProduct ? (
@@ -195,7 +189,7 @@ function ResultCard({
               )}
             </div>
             {snippet && (
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">{snippet}</p>
+              <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground line-clamp-2">{snippet}</p>
             )}
           </div>
         </div>
@@ -290,7 +284,7 @@ function ResultCard({
 
             {/* Arrow on hover */}
             <div className="hidden shrink-0 self-center sm:flex">
-              <ExternalLink className="h-4 w-4 text-muted-foreground/0 transition-all group-hover:text-muted-foreground/40" />
+              <ArrowUpRight className="h-4 w-4 text-muted-foreground/0 transition-all duration-200 group-hover:text-primary/40" />
             </div>
           </div>
 
@@ -309,7 +303,7 @@ function ResultCard({
           )}
         </div>
       )}
-    </a>
+    </button>
   );
 }
 
@@ -337,7 +331,7 @@ function TrendingSection({
           <button
             key={item.query}
             onClick={() => onSelect(item.query)}
-            className="rounded-full border border-border/50 bg-card px-3.5 py-1.5 text-sm text-foreground transition-all hover:border-primary/30 hover:bg-primary/5"
+            className="cursor-pointer rounded-full border border-border/40 bg-card px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-all duration-150 ease-out hover:border-primary/25 hover:bg-primary/[0.04] hover:text-primary"
           >
             {item.query}
           </button>
@@ -365,12 +359,12 @@ function AutocompleteDropdown({
   if (!visible || !suggestions.length) return null;
 
   return (
-    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border/60 bg-card shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
+    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-2xl border border-border/50 bg-card shadow-xl shadow-black/[0.06] animate-in fade-in slide-in-from-top-1 duration-150">
       {suggestions.map((s, i) => (
         <button
           key={s}
           onClick={() => onSelect(s)}
-          className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted/60 ${
+          className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left text-[14px] transition-colors duration-100 hover:bg-muted/50 ${
             i === activeIndex ? "bg-muted/60" : ""
           }`}
         >
@@ -598,7 +592,7 @@ export default function SearchPreview() {
           </h1>
           <p className="text-xs text-muted-foreground">{site?.domain}</p>
         </div>
-        <Button variant="ghost" size="sm" asChild>
+        <Button variant="ghost" size="sm" className="cursor-pointer" asChild>
           <Link to="/">
             <ArrowLeft className="mr-1 h-3.5 w-3.5" />
             Takaisin
@@ -613,12 +607,12 @@ export default function SearchPreview() {
           <input
             ref={inputRef}
             type="text"
-            placeholder="Hae sivustolta..."
+            placeholder="Mitä etsit?"
             value={query}
             onChange={(e) => handleInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            className="h-12 w-full rounded-xl border border-border/60 bg-card pl-11 pr-11 text-[15px] shadow-sm outline-none transition-all placeholder:text-muted-foreground/40 focus:border-primary/30 focus:shadow-md"
+            className="h-[52px] w-full rounded-2xl border border-border/50 bg-card pl-11 pr-11 text-[15px] shadow-sm outline-none transition-all duration-200 ease-out placeholder:text-muted-foreground/35 focus:border-primary/25 focus:shadow-md focus:shadow-primary/[0.04]"
             autoFocus
           />
           {loading && (
@@ -640,9 +634,19 @@ export default function SearchPreview() {
       )}
 
 
+      {/* AI summary */}
+      {hasResults && results.ai_summary && (
+        <div className="mb-3 mt-5 flex items-start gap-2 rounded-2xl border border-primary/10 bg-primary/[0.03] px-4 py-3">
+          <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary/60" />
+          <p className="text-[13px] leading-relaxed text-foreground/80">
+            {results.ai_summary}
+          </p>
+        </div>
+      )}
+
       {/* Results count — minimal */}
       {hasResults && (
-        <p className="mb-3 text-xs text-muted-foreground">
+        <p className="mb-2.5 mt-5 text-[12px] text-muted-foreground/60">
           {results.results.length} tulosta
         </p>
       )}
