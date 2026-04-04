@@ -590,9 +590,22 @@ export default function SearchPreview() {
         <TrendingSection items={trending} onSelect={selectTrending} />
       )}
 
+      {/* AI Summary */}
+      {results?.ai_summary && (
+        <div className="mt-5 mb-4 rounded-xl border border-primary/20 bg-primary/[0.03] p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-primary/70">
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            AI-yhteenveto
+          </div>
+          <p className="text-sm leading-relaxed text-foreground">
+            {results.ai_summary}
+          </p>
+        </div>
+      )}
+
       {/* Results count — minimal */}
       {hasResults && (
-        <p className="mb-3 mt-5 text-xs text-muted-foreground">
+        <p className="mb-3 text-xs text-muted-foreground">
           {results.results.length} tulosta
         </p>
       )}
