@@ -105,6 +105,36 @@ export type Database = {
           },
         ]
       }
+      search_clicks: {
+        Row: {
+          click_count: number
+          created_at: string
+          id: string
+          last_clicked_at: string
+          page_url: string
+          query: string
+          site_id: string
+        }
+        Insert: {
+          click_count?: number
+          created_at?: string
+          id?: string
+          last_clicked_at?: string
+          page_url: string
+          query: string
+          site_id: string
+        }
+        Update: {
+          click_count?: number
+          created_at?: string
+          id?: string
+          last_clicked_at?: string
+          page_url?: string
+          query?: string
+          site_id?: string
+        }
+        Relationships: []
+      }
       search_logs: {
         Row: {
           clicked: boolean
@@ -145,6 +175,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      search_synonyms: {
+        Row: {
+          confidence: number
+          created_at: string
+          id: string
+          query_from: string
+          query_to: string
+          site_id: string
+          times_used: number
+          updated_at: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          query_from: string
+          query_to: string
+          site_id: string
+          times_used?: number
+          updated_at?: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          id?: string
+          query_from?: string
+          query_to?: string
+          site_id?: string
+          times_used?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       sites: {
         Row: {
