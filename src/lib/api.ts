@@ -199,9 +199,11 @@ export const api = {
   // --- Search (Backend fetch — TF-IDF + Claude re-ranking) ---
 
   async search(siteId: string, query: string): Promise<SearchResponse> {
-    // TODO: migrate to edge function
-    console.warn("Search not yet implemented on backend");
-    return { results: [], language: "en", response_ms: 0, fallback_message: "Search not yet configured. Please set up crawling first." };
+    const { data, error } = await supabase.functions.invoke("search", {
+      body: { site_id: siteId, query },
+    });
+    if (error) throw new Error(error.message || "Search failed");
+    return data as SearchResponse;
   },
 
   // --- Stats (Supabase direct) ---
