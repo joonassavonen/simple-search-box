@@ -782,7 +782,7 @@ export default function SearchPreview() {
 
       {/* Results */}
       {hasResults && (
-        <div className="mt-2 space-y-1 rounded-2xl bg-white p-2 shadow-sm border border-border/30 animate-in fade-in slide-in-from-bottom-1 duration-200">
+        <div className="mt-2 space-y-0.5 sm:space-y-1 rounded-xl sm:rounded-2xl bg-white p-1.5 sm:p-2 shadow-sm border border-border/30 animate-in fade-in slide-in-from-bottom-1 duration-200">
           {results.results.map((r, i) => (
             <ResultCard
               key={`${r.url}-${i}`}
