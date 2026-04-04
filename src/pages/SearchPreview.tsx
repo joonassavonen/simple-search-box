@@ -422,7 +422,7 @@ function ContactCTA({ config }: { config: ContactConfig }) {
       {config.email && (
         <a
           href={`mailto:${config.email}`}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-white px-6 py-4 text-[15px] font-medium text-foreground transition-all hover:bg-muted/30"
+          className="flex w-full items-center justify-center gap-2 rounded-lg sm:rounded-xl border border-border/50 bg-white px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-[15px] font-medium text-foreground transition-all hover:bg-muted/30"
         >
           <Mail className="h-5 w-5" />
           {config.email}
