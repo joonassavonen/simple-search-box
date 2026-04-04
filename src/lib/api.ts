@@ -340,34 +340,46 @@ export const api = {
   // --- Learning Stats (Supabase direct) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    const { data: logs } = await supabase
-      .from("search_logs")
-      .select("query, results_count, clicked")
-      .eq("site_id", siteId);
+    const { data: clicks } = await supabase
+      .from("search_clicks" as any)
+      .select("query, page_url, click_count")
+      .eq("site_id", siteId)
+      .order("click_count", { ascending: false })
+      .limit(20);
 
-    const allLogs = logs || [];
-    const clickedLogs = allLogs.filter((l) => l.clicked);
+    const { data: synonyms } = await supabase
+      .from("search_synonyms" as any)
+      .select("query_from, query_to, confidence")
+      .eq("site_id", siteId);
 
     return {
       site_id: siteId,
-      boost_pairs: 0,
-      synonym_count: 0,
-      top_boosted: [],
+      boost_pairs: clicks?.length || 0,
+      synonym_count: synonyms?.length || 0,
+      top_boosted: (clicks || []).slice(0, 10).map((c: any) => ({
+        url: c.page_url,
+        query: c.query,
+        clicks: c.click_count,
+        ctr: 0,
+        boost: c.click_count,
+      })),
       position_clicks: [],
     };
   },
 
   async discoverSynonyms(siteId: string): Promise<{ discovered: number }> {
-    // Synonym discovery requires backend ML — stubbed until edge function exists
-    return { discovered: 0 };
+    const { data, error } = await supabase.functions.invoke("learn", {
+      body: { site_id: siteId },
+    });
+    if (error) throw new Error(error.message || "Learning failed");
+    return { discovered: data?.synonyms_created || 0 };
   },
 
-  // --- Click tracking (Supabase direct) ---
+  // --- Click tracking ---
 
-  async trackClick(searchLogId: number, clickedUrl: string, clickPosition?: number, sessionId?: string): Promise<void> {
-    await supabase
-      .from("search_logs")
-      .update({ clicked: true })
-      .eq("id", String(searchLogId));
+  async trackClick(siteId: string, query: string, clickedUrl: string): Promise<void> {
+    await supabase.functions.invoke("search", {
+      body: { action: "click", site_id: siteId, query, url: clickedUrl },
+    });
   },
 };
