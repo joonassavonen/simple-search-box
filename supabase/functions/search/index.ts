@@ -70,16 +70,25 @@ Deno.serve(async (req) => {
     const scored = (pages || []).map((page) => {
       const titleLower = (page.title || "").toLowerCase();
       const contentLower = (page.content || "").toLowerCase();
+      const metaLower = (page.meta_description || "").toLowerCase();
       let score = 0;
       const matchedWords: string[] = [];
 
       for (const word of words) {
-        const titleMatches = (titleLower.match(new RegExp(escapeRegex(word), "g")) || []).length;
-        const contentMatches = (contentLower.match(new RegExp(escapeRegex(word), "g")) || []).length;
+        // Use word boundary-like matching: require at least 3 chars match
+        // and the word must appear as a substantial substring
+        const regex = new RegExp(escapeRegex(word), "gi");
+        const titleMatches = (titleLower.match(regex) || []).length;
+        const contentMatches = (contentLower.match(regex) || []).length;
+        const metaMatches = (metaLower.match(regex) || []).length;
 
         if (titleMatches > 0) {
           score += titleMatches * 10;
           matchedWords.push(word);
+        }
+        if (metaMatches > 0) {
+          score += metaMatches * 5;
+          if (!matchedWords.includes(word)) matchedWords.push(word);
         }
         if (contentMatches > 0) {
           score += Math.min(contentMatches, 20);
@@ -87,8 +96,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (matchedWords.length === words.length && words.length > 1) {
+      // Require ALL query words to match for multi-word queries
+      if (words.length > 1 && matchedWords.length === words.length) {
         score *= 1.5;
+      }
+
+      // For multi-word queries, require at least half the words to match
+      if (words.length > 1 && matchedWords.length < Math.ceil(words.length / 2)) {
+        score = 0;
       }
 
       // Prefer meta description as snippet, fallback to content extract
@@ -110,9 +125,10 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Get top candidates from keyword search
+    // Get top candidates from keyword search — require minimum score
+    const minScore = words.length > 1 ? 5 : 3;
     const keywordResults = scored
-      .filter((r) => r.score > 0)
+      .filter((r) => r.score >= minScore)
       .sort((a, b) => b.score - a.score)
       .slice(0, 15);
 
@@ -140,9 +156,10 @@ Deno.serve(async (req) => {
                 content: `You are a search assistant. The user searched a website. Given the query and page contents:
 1. Return a JSON object with:
    - "summary": A helpful 1-2 sentence answer in the same language as the query (Finnish or English). Be concise and direct. Reference specific pages if helpful.
-   - "ranking": An array of page indices (1-based) ordered by relevance to the query. Include only relevant pages. Max 8.
+   - "ranking": An array of page indices (1-based) ordered by relevance to the query. ONLY include pages that are genuinely relevant to what the user is searching for. If a page doesn't actually contain information about the search topic, DO NOT include it. Max 8.
    - "reasoning": For each ranked page, a short reason why it's relevant.
-2. If no pages are truly relevant, return {"summary": null, "ranking": [], "reasoning": []}.
+2. CRITICAL: If no pages are truly relevant to the query, you MUST return {"summary": null, "ranking": [], "reasoning": []}. Do NOT force irrelevant pages into results.
+3. Be strict about relevance — a page about heat pumps is NOT relevant to a search for antennas, even if both are on the same website.
 Return ONLY valid JSON.`
               },
               {
