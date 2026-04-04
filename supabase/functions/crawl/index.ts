@@ -45,21 +45,48 @@ Deno.serve(async (req) => {
     const domain = site.domain.replace(/\/$/, "");
     const baseUrl = domain.startsWith("http") ? domain : `https://${domain}`;
 
-    // Discover URLs from sitemap or fallback to homepage
+    // --- Phase 1: Discover URLs from sitemap FIRST ---
     let urls: string[] = [];
-
     const sitemapUrl = site.sitemap_url || `${baseUrl}/sitemap.xml`;
+
     try {
+      console.log(`Fetching sitemap: ${sitemapUrl}`);
       const sitemapRes = await fetch(sitemapUrl, {
         headers: { "User-Agent": "FindAI-Crawler/1.0" },
       });
       if (sitemapRes.ok) {
         const xml = await sitemapRes.text();
-        // Parse <loc> tags from sitemap XML
-        const locMatches = xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/gi);
-        for (const m of locMatches) {
-          urls.push(m[1]);
+
+        // Check if this is a sitemap index (contains other sitemaps)
+        const sitemapIndexMatches = [...xml.matchAll(/<sitemap>[\s\S]*?<loc>\s*(.*?)\s*<\/loc>[\s\S]*?<\/sitemap>/gi)];
+        if (sitemapIndexMatches.length > 0) {
+          console.log(`Found sitemap index with ${sitemapIndexMatches.length} child sitemaps`);
+          // Fetch each child sitemap (cap at 5 sitemaps)
+          for (const sm of sitemapIndexMatches.slice(0, 5)) {
+            try {
+              const childRes = await fetch(sm[1], {
+                headers: { "User-Agent": "FindAI-Crawler/1.0" },
+              });
+              if (childRes.ok) {
+                const childXml = await childRes.text();
+                for (const m of childXml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/gi)) {
+                  urls.push(m[1]);
+                }
+              } else {
+                await childRes.text(); // consume body
+              }
+            } catch (e) {
+              console.log(`Child sitemap ${sm[1]} failed:`, e);
+            }
+          }
+        } else {
+          // Regular sitemap — parse <loc> tags directly
+          for (const m of xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/gi)) {
+            urls.push(m[1]);
+          }
         }
+      } else {
+        await sitemapRes.text(); // consume body
       }
     } catch (e) {
       console.log("Sitemap fetch failed, falling back to homepage:", e);
@@ -71,9 +98,16 @@ Deno.serve(async (req) => {
     }
 
     // Cap at 50 pages for MVP
+    const totalFound = urls.length;
     urls = urls.slice(0, 50);
 
-    await supabase.from("crawl_jobs").update({ pages_found: urls.length }).eq("id", job_id);
+    console.log(`Sitemap discovery complete: ${totalFound} URLs found, crawling ${urls.length}`);
+
+    // Update pages_found immediately so the UI can show progress
+    await supabase.from("crawl_jobs").update({
+      pages_found: urls.length,
+      status: "crawling",
+    }).eq("id", job_id);
 
     let indexed = 0;
     const errors: string[] = [];
