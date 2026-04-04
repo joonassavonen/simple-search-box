@@ -11,8 +11,8 @@ import { toast } from "sonner";
 export default function Sites() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
-  const [crawling, setCrawling] = useState<Record<number, boolean>>({});
-  const [jobStatus, setJobStatus] = useState<Record<number, CrawlJob>>({});
+  const [crawling, setCrawling] = useState<Record<string, boolean>>({});
+  const [jobStatus, setJobStatus] = useState<Record<string, CrawlJob>>({});
 
   const loadSites = useCallback(async () => {
     try {
