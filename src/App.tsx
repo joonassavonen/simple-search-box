@@ -13,6 +13,7 @@ import Analytics from "./pages/Analytics";
 import SearchPreview from "./pages/SearchPreview";
 import Auth from "./pages/Auth";
 import ContactConfig from "./pages/ContactConfig";
+import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ const App = () => {
               <Route path="/analytics/:siteId" element={<Analytics />} />
               <Route path="/search/:siteId" element={<SearchPreview />} />
               <Route path="/settings/:siteId" element={<ContactConfig />} />
+              <Route path="/integrations" element={<Integrations />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </DashboardLayout>
