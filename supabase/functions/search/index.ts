@@ -198,6 +198,23 @@ Deno.serve(async (req) => {
         score += Math.min(generalPopularity * 0.5, 10);
       }
 
+      // --- GA ANALYTICS BOOST ---
+      if (score > 0) {
+        // Match page URL path against GA page_path
+        let pagePath = "";
+        try { pagePath = new URL(page.url).pathname; } catch { /* ignore */ }
+        const ga = gaBoosts[pagePath];
+        if (ga) {
+          // Conversion boost: pages that convert well get strong boost
+          score += ga.conversions * 20;   // up to +20 for top converter
+          // Traffic boost: high-traffic pages are likely more relevant
+          score += ga.pageviews * 8;      // up to +8 for most visited
+          // Conversion rate bonus: efficient pages get extra
+          if (ga.convRate > 0.05) score += 5;
+          if (ga.convRate > 0.10) score += 10;
+        }
+      }
+
       let snippet = "";
       if (page.meta_description) {
         snippet = page.meta_description;
