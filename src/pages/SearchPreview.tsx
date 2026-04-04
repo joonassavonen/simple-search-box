@@ -802,7 +802,7 @@ export default function SearchPreview() {
           query={query} 
           contact={contactConfig || results?.contact_config}
           suggestions={results?.suggestions}
-          onSuggestionClick={(q) => { setQuery(q); }}
+          onSuggestionClick={(q) => selectSuggestion(q)}
         />
       )}
 
