@@ -161,7 +161,9 @@ export default function Sites() {
                       <Progress value={crawlProgress || 5} className="h-2" />
                       <p className="text-xs text-muted-foreground">
                         {job
-                          ? `${job.pages_indexed}/${job.pages_found || "?"} pages indexed`
+                          ? job.pages_found > 0
+                            ? `${job.pages_indexed}/${job.pages_found} pages indexed`
+                            : "Discovering pages from sitemap..."
                           : "Starting crawl..."}
                       </p>
                     </div>
