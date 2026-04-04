@@ -21,7 +21,7 @@
   // Config
   // -------------------------------------------------------------------------
   const script = document.currentScript || document.querySelector("script[data-site-id]");
-  const SITE_ID = script.getAttribute("data-site-id") || "";
+  const SITE_ID = parseInt(script.getAttribute("data-site-id") || "0", 10);
   const API_URL = (script.getAttribute("data-api-url") || "http://localhost:8000").replace(/\/$/, "");
   const THEME = script.getAttribute("data-theme") || "light";
   const POSITION = script.getAttribute("data-position") || "bottom-right";

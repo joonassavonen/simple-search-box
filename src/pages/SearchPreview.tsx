@@ -1,39 +1,648 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api, Site } from "@/lib/api";
+import {
+  api,
+  Site,
+  SearchResponse,
+  SearchResult,
+  TrendingItem,
+  ContactConfig,
+} from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Search,
+  ArrowLeft,
+  Loader2,
+  ExternalLink,
+  TrendingUp,
+  Sparkles,
+  Star,
+  Calendar,
+  MapPin,
+  Mail,
+  Phone,
+  MessageCircle,
+  X,
+  Copy,
+  Check,
+} from "lucide-react";
+
+// ---------------------------------------------------------------------------
+// Types for popular products
+// ---------------------------------------------------------------------------
+interface PopularProduct {
+  title: string;
+  url: string;
+  image?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function cleanTitle(title: string, url: string): string {
+  if (!title || title.startsWith("http") || title.includes("://")) {
+    try {
+      const path = new URL(url).pathname.replace(/\/$/, "");
+      const segment = path.split("/").pop() || "";
+      const cleaned = segment
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
+      return cleaned || new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  }
+  return title;
+}
+
+function shortPath(url: string): string {
+  try {
+    const path = new URL(url).pathname.replace(/\/$/, "");
+    if (!path || path === "/") return "";
+    return decodeURIComponent(path)
+      .replace(/^\//, "")
+      .split("/")
+      .map((seg) =>
+        seg
+          .replace(/[-_]/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase())
+      )
+      .join(" › ");
+  } catch {
+    return "";
+  }
+}
+
+function cleanSnippet(snippet: string): string {
+  if (!snippet) return "";
+  return snippet
+    .replace(/Siirry sisältöön/gi, "")
+    .replace(/Kirjaudu sisään/gi, "")
+    .replace(/Luo tili/gi, "")
+    .replace(/Unohditko salasanasi\??/gi, "")
+    .replace(/Palauta salasana/gi, "")
+    .replace(/Sähköposti\s+Salasana/gi, "")
+    .replace(/Ota yhteyttä\s+Varaa huolto/gi, "")
+    .replace(/Google\s*★+\s*-?\s*/g, "")
+    .replace(/\|\s*\+?\d+\s*arvostelua/g, "")
+    .replace(/\d{2,3}\s+\d{4}\s+\d{4}/g, "")
+    .replace(/Uusi asiakas\?/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function formatPrice(price: string | number, currency?: string): string {
+  const num = typeof price === "string" ? parseFloat(price) : price;
+  if (isNaN(num)) return String(price);
+  const formatted = num.toFixed(2).replace(".", ",");
+  return currency === "EUR" || !currency
+    ? `alk. ${formatted} €`
+    : `alk. ${formatted} ${currency}`;
+}
+
+// ---------------------------------------------------------------------------
+// Result card
+// ---------------------------------------------------------------------------
+
+function ResultCard({
+  result,
+  index,
+  onTrackClick,
+}: {
+  result: SearchResult;
+  index: number;
+  onTrackClick: (url: string, position: number) => void;
+}) {
+  const title = cleanTitle(result.title, result.url);
+  const snippet = cleanSnippet(result.snippet);
+  const s = result.schema_data;
+  const isProduct = s?.type === "Product";
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onTrackClick(result.url, index)}
+      className="group flex w-full cursor-pointer items-start gap-4 rounded-xl border border-transparent bg-white p-4 text-left transition-all duration-150 hover:border-[hsl(145,50%,40%)]/10 hover:shadow-md"
+    >
+      {/* Product image */}
+      {isProduct && s?.image && !imgError && (
+        <div className="shrink-0">
+          <img
+            src={s.image}
+            alt={s.name || title}
+            className="h-16 w-16 rounded-lg border border-border/30 object-contain bg-white"
+            onError={() => setImgError(true)}
+          />
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-[hsl(145,50%,35%)]">
+          {title}
+        </h3>
+
+        {/* Price & availability for products */}
+        {isProduct && s?.price && (
+          <p className="mt-1 text-sm font-bold text-[hsl(145,60%,35%)]">
+            {formatPrice(s.price, s.currency)}
+          </p>
+        )}
+
+        {/* Rating */}
+        {isProduct && s?.rating && (
+          <div className="mt-1 flex items-center gap-1">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                className={`h-3 w-3 ${
+                  i < Math.round(Number(s.rating))
+                    ? "fill-amber-400 text-amber-400"
+                    : "fill-muted text-muted"
+                }`}
+              />
+            ))}
+            {s.reviewCount && (
+              <span className="ml-1 text-xs text-muted-foreground">({s.reviewCount})</span>
+            )}
+          </div>
+        )}
+
+        {/* Availability badge */}
+        {isProduct && s?.availability && (
+          <Badge
+            variant="secondary"
+            className={`mt-1.5 text-[10px] ${
+              s.availability.includes("InStock")
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-orange-200 bg-orange-50 text-orange-700"
+            }`}
+          >
+            {s.availability.includes("InStock") ? "✓ Varastossa" : "Ei varastossa"}
+          </Badge>
+        )}
+
+        {/* Snippet */}
+        {snippet && (
+          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground line-clamp-2">
+            {snippet}
+          </p>
+        )}
+
+        {/* Article/Event meta */}
+        {s?.type === "Article" && (s.author || s.datePublished) && (
+          <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
+            {s.author && <span>{s.author}</span>}
+            {s.author && s.datePublished && <span>·</span>}
+            {s.datePublished && <span>{new Date(s.datePublished).toLocaleDateString("fi-FI")}</span>}
+          </div>
+        )}
+
+        {s?.type === "Event" && (
+          <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+            {s.startDate && (
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                {new Date(s.startDate).toLocaleDateString("fi-FI")}
+              </span>
+            )}
+            {s.location && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {s.location}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* FAQ */}
+        {s?.type === "FAQPage" && s.questions && s.questions.length > 0 && (
+          <div className="mt-2 space-y-1.5">
+            {s.questions.slice(0, 2).map((faq, i) => (
+              <div key={i} className="rounded-lg bg-muted/40 px-3 py-2">
+                <p className="text-xs font-medium text-foreground">{faq.q}</p>
+                {faq.a && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">{faq.a}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* External link icon */}
+      <div className="shrink-0 pt-1">
+        <ExternalLink className="h-4 w-4 text-muted-foreground/0 transition-all group-hover:text-[hsl(145,50%,40%)]/50" />
+      </div>
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Featured / promoted result card (green tint)
+// ---------------------------------------------------------------------------
+
+function FeaturedCard({
+  result,
+  onTrackClick,
+}: {
+  result: SearchResult;
+  onTrackClick: (url: string, position: number) => void;
+}) {
+  const title = cleanTitle(result.title, result.url);
+  const snippet = cleanSnippet(result.snippet);
+  const s = result.schema_data;
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onTrackClick(result.url, 0)}
+      className="group flex w-full cursor-pointer items-center gap-4 rounded-xl border border-[hsl(145,40%,85%)] bg-[hsl(145,40%,96%)] p-4 text-left transition-all hover:shadow-md"
+    >
+      {s?.image && !imgError && (
+        <div className="shrink-0">
+          <img
+            src={s.image}
+            alt={title}
+            className="h-12 w-12 rounded-lg object-contain"
+            onError={() => setImgError(true)}
+          />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <h3 className="text-[15px] font-bold text-foreground">{title}</h3>
+        {snippet && (
+          <p className="mt-0.5 text-[13px] text-muted-foreground line-clamp-1">{snippet}</p>
+        )}
+      </div>
+      <ExternalLink className="h-4 w-4 shrink-0 text-[hsl(145,50%,40%)]" />
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Popular products (trending with images)
+// ---------------------------------------------------------------------------
+
+function PopularSection({
+  products,
+  onSelect,
+}: {
+  products: PopularProduct[];
+  onSelect: (q: string) => void;
+}) {
+  if (!products.length) return null;
+
+  return (
+    <div className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+        Suosittua juuri nyt
+      </div>
+      <div className="space-y-1">
+        {products.map((p) => (
+          <button
+            key={p.url}
+            onClick={() => onSelect(p.title)}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted/50"
+          >
+            {p.image ? (
+              <img
+                src={p.image}
+                alt=""
+                className="h-10 w-10 shrink-0 rounded-lg border border-border/30 object-contain bg-white"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <div className="h-10 w-10 shrink-0 rounded-lg bg-muted/50" />
+            )}
+            <span className="text-[14px] font-medium text-foreground">{p.title}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Autocomplete with images
+// ---------------------------------------------------------------------------
+
+function AutocompleteDropdown({
+  suggestions,
+  visible,
+  activeIndex,
+  onSelect,
+  pages,
+}: {
+  suggestions: string[];
+  visible: boolean;
+  activeIndex: number;
+  onSelect: (q: string) => void;
+  pages: PopularProduct[];
+}) {
+  if (!visible || !suggestions.length) return null;
+
+  // Match suggestions to pages for images
+  const getImage = (q: string) => {
+    const match = pages.find((p) =>
+      p.title.toLowerCase().includes(q.toLowerCase())
+    );
+    return match?.image;
+  };
+
+  return (
+    <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-border/50 bg-white shadow-xl animate-in fade-in slide-in-from-top-1 duration-150">
+      {suggestions.map((s, i) => {
+        const img = getImage(s);
+        return (
+          <button
+            key={s}
+            onClick={() => onSelect(s)}
+            className={`flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40 ${
+              i === activeIndex ? "bg-muted/50" : ""
+            }`}
+          >
+            {img ? (
+              <img
+                src={img}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-lg border border-border/20 object-contain bg-white"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : (
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground/40" />
+            )}
+            <span className="text-[14px] text-foreground">{s}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Contact CTA — full-width green buttons
+// ---------------------------------------------------------------------------
+
+function ContactCTA({ config }: { config: ContactConfig }) {
+  if (!config.enabled) return null;
+
+  return (
+    <div className="mt-6 space-y-2 animate-in fade-in slide-in-from-bottom-3 duration-400">
+      {config.phone && (
+        <a
+          href={`tel:${config.phone}`}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(145,45%,35%)] px-6 py-4 text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,45%,30%)]"
+        >
+          <Phone className="h-5 w-5" />
+          Soita {config.phone}
+        </a>
+      )}
+      {config.chat_url && (
+        <a
+          href={config.chat_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(145,55%,50%)] px-6 py-4 text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,55%,45%)]"
+        >
+          <MessageCircle className="h-5 w-5" />
+          Lähetä WhatsApp-viesti
+        </a>
+      )}
+      {config.email && (
+        <a
+          href={`mailto:${config.email}`}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-white px-6 py-4 text-[15px] font-medium text-foreground transition-all hover:bg-muted/30"
+        >
+          <Mail className="h-5 w-5" />
+          {config.email}
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// No results
+// ---------------------------------------------------------------------------
+
+function NoResults({ query, contact }: { query: string; contact?: ContactConfig | null }) {
+  return (
+    <div className="mt-8 text-center animate-in fade-in duration-300">
+      <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
+      <p className="text-sm font-medium text-foreground">
+        Ei tuloksia haulle "{query}"
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Kokeile eri hakusanoja tai tarkista kirjoitusasu.
+      </p>
+      {contact && <ContactCTA config={contact} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
 
 export default function SearchPreview() {
   const { siteId } = useParams();
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [site, setSite] = useState<Site | null>(null);
-  const [copied, setCopied] = useState(false);
 
+  const [trending, setTrending] = useState<TrendingItem[]>([]);
+  const [popularProducts, setPopularProducts] = useState<PopularProduct[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [copied, setCopied] = useState(false);
+  const [contactConfig, setContactConfig] = useState<ContactConfig | null>(null);
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const suggestRef = useRef<ReturnType<typeof setTimeout>>();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const sessionId = useRef(
+    sessionStorage.getItem("findai-session") ||
+    (() => {
+      const id = crypto.randomUUID();
+      sessionStorage.setItem("findai-session", id);
+      return id;
+    })()
+  );
+
+  // Fetch site, trending, popular products, and contact config
   useEffect(() => {
     if (!siteId) return;
     api.getSite(siteId).then(setSite).catch(() => {});
+    api.getTrending(siteId).then((d) => setTrending(d.trending)).catch(() => {});
+    api.getContactConfig(siteId).then(setContactConfig).catch(() => {});
+
+    // Fetch popular products (pages with schema images)
+    supabase
+      .from("pages")
+      .select("title, url, schema_data")
+      .eq("site_id", siteId)
+      .not("schema_data", "is", null)
+      .limit(50)
+      .then(({ data }) => {
+        if (!data) return;
+        const products: PopularProduct[] = [];
+        for (const p of data) {
+          try {
+            const schema = typeof p.schema_data === "string"
+              ? JSON.parse(p.schema_data)
+              : p.schema_data;
+            if (schema?.type === "Product" && p.title) {
+              products.push({
+                title: p.title,
+                url: p.url,
+                image: schema.image || undefined,
+              });
+            }
+          } catch { /* skip */ }
+        }
+        setPopularProducts(products.slice(0, 5));
+      });
   }, [siteId]);
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-  const apiUrl = supabaseUrl ? `${supabaseUrl}/functions/v1` : "";
-  const iframeSrc = `/widget-preview.html?siteId=${siteId}&apiUrl=${encodeURIComponent(apiUrl)}`;
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const fetchSuggestions = useCallback(
+    (q: string) => {
+      clearTimeout(suggestRef.current);
+      if (!q.trim() || q.length < 2) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+      suggestRef.current = setTimeout(async () => {
+        try {
+          const data = await api.getSuggestions(siteId!, q);
+          setSuggestions(data.suggestions || []);
+          setShowSuggestions(true);
+          setActiveIndex(-1);
+        } catch {
+          setSuggestions([]);
+        }
+      }, 150);
+    },
+    [siteId]
+  );
+
+  function handleInput(q: string) {
+    setQuery(q);
+    setError(null);
+    clearTimeout(debounceRef.current);
+    fetchSuggestions(q);
+    if (!q.trim()) {
+      setResults(null);
+      return;
+    }
+    debounceRef.current = setTimeout(() => doSearch(q), 400);
+  }
+
+  function selectSuggestion(q: string) {
+    setQuery(q);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    doSearch(q);
+    inputRef.current?.focus();
+  }
+
+  function selectTrending(q: string) {
+    setQuery(q);
+    doSearch(q);
+    inputRef.current?.focus();
+  }
+
+  async function doSearch(q: string) {
+    setLoading(true);
+    setError(null);
+    setShowSuggestions(false);
+    try {
+      const data = await api.search(siteId!, q);
+      setResults(data);
+    } catch (e: any) {
+      setError(e.message);
+      setResults(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!showSuggestions || !suggestions.length) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : suggestions.length - 1));
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(suggestions[activeIndex]);
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  }
+
+  function trackClick(url: string, position: number) {
+    if (results?.search_log_id) {
+      api.trackClick(results.search_log_id, url, position, sessionId.current).catch(() => {});
+    }
+    window.open(url, "_blank", "noopener");
+  }
+
+  function clearQuery() {
+    setQuery("");
+    setResults(null);
+    setError(null);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  }
 
   function copySnippet() {
-    const snippet = `<script\n  src="YOUR_DOMAIN/widget.js"\n  data-site-id="${siteId}"\n  data-api-url="${apiUrl}">\n</script>`;
+    const snippet = `<script\n  src="YOUR_API_URL/widget.js"\n  data-site-id="${siteId}"\n  data-api-url="YOUR_API_URL">\n</script>`;
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   }
 
+  const hasResults = results && results.results && results.results.length > 0;
+  const noResults = results && results.results && results.results.length === 0;
+
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-2xl">
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">
-            {site?.name || "Widget-esikatselu"}
+            {site?.name || "Search Preview"}
           </h1>
           <p className="text-xs text-muted-foreground">{site?.domain}</p>
         </div>
@@ -45,29 +654,143 @@ export default function SearchPreview() {
         </Button>
       </div>
 
-      {/* Widget preview iframe */}
-      <div className="overflow-hidden rounded-xl border border-border/50 shadow-lg bg-background">
-        {/* Browser chrome */}
-        <div className="flex items-center gap-2 border-b border-border/30 bg-muted/30 px-4 py-2.5">
-          <div className="flex gap-1.5">
-            <div className="h-3 w-3 rounded-full bg-red-400/60" />
-            <div className="h-3 w-3 rounded-full bg-yellow-400/60" />
-            <div className="h-3 w-3 rounded-full bg-green-400/60" />
+      {/* Search box — green focus, X clear, search button */}
+      <div ref={containerRef} className="relative">
+        <div className="relative flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/40" />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Kysy meiltä mitä vain..."
+              value={query}
+              onChange={(e) => handleInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                if (suggestions.length > 0) setShowSuggestions(true);
+              }}
+              className="h-[52px] w-full rounded-2xl border-2 border-border/50 bg-white pl-11 pr-10 text-[15px] shadow-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-[hsl(145,50%,45%)] focus:shadow-md focus:shadow-[hsl(145,50%,45%)]/10"
+              autoFocus
+            />
+            {query && !loading && (
+              <button
+                onClick={clearQuery}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            {loading && (
+              <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground/50" />
+            )}
           </div>
-          <div className="ml-4 flex-1 rounded-md bg-background/80 px-3 py-1 text-xs text-muted-foreground truncate">
-            {site?.domain || "esimerkki.fi"}
-          </div>
+
+          {/* Search button — appears when there's a query */}
+          {query.trim() && (
+            <button
+              onClick={() => doSearch(query)}
+              className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-xl bg-amber-400 text-white shadow-md transition-all hover:bg-amber-500 active:scale-95"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+          )}
         </div>
-        <iframe
-          src={iframeSrc}
-          className="w-full border-0"
-          style={{ height: "600px" }}
-          title="Widget preview"
+
+        {/* Autocomplete */}
+        <AutocompleteDropdown
+          suggestions={suggestions}
+          visible={showSuggestions}
+          activeIndex={activeIndex}
+          onSelect={selectSuggestion}
+          pages={popularProducts}
         />
       </div>
 
+      {/* Subtext — only when no results showing */}
+      {!query && !results && (
+        <p className="mt-3 text-center text-sm text-muted-foreground/50">
+          ✦ AI-avusteinen haku – löydä vastaus hetkessä
+        </p>
+      )}
+
+      {/* Popular products (trending with images) */}
+      {!query && !results && popularProducts.length > 0 && (
+        <PopularSection products={popularProducts} onSelect={selectTrending} />
+      )}
+
+      {/* Text-only trending fallback if no products */}
+      {!query && !results && popularProducts.length === 0 && trending.length > 0 && (
+        <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Suosittua juuri nyt
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {trending.map((item) => (
+              <button
+                key={item.query}
+                onClick={() => selectTrending(item.query)}
+                className="cursor-pointer rounded-full border border-border/40 bg-white px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-all hover:border-[hsl(145,50%,45%)]/25 hover:bg-[hsl(145,50%,45%)]/5"
+              >
+                {item.query}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Results count */}
+      {hasResults && (
+        <div className="mb-3 mt-5 flex items-center gap-1.5 text-sm font-semibold text-[hsl(145,50%,35%)]">
+          <Sparkles className="h-4 w-4" />
+          {results.results.length} osuma{results.results.length !== 1 ? "a" : ""}
+        </div>
+      )}
+
+      {/* AI summary as featured card */}
+      {hasResults && results.ai_summary && (
+        <FeaturedCard
+          result={{
+            url: results.results[0]?.url || "",
+            title: results.ai_summary.split(".")[0] || "Löydä sopivin vaihtoehto",
+            snippet: results.ai_summary,
+            score: 1,
+            reasoning: "",
+          }}
+          onTrackClick={trackClick}
+        />
+      )}
+
+      {/* Results */}
+      {hasResults && (
+        <div className="mt-2 space-y-1 rounded-2xl bg-white p-2 shadow-sm border border-border/30 animate-in fade-in slide-in-from-bottom-1 duration-200">
+          {results.results.map((r, i) => (
+            <ResultCard
+              key={`${r.url}-${i}`}
+              result={r}
+              index={i}
+              onTrackClick={trackClick}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Contact CTA — always show after results if configured */}
+      {hasResults && contactConfig && <ContactCTA config={contactConfig} />}
+
+      {/* No results */}
+      {noResults && (
+        <NoResults query={query} contact={contactConfig || results?.contact_config} />
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="mt-4 rounded-lg bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
       {/* Widget snippet */}
-      <Card className="mt-6 border-border/30">
+      <Card className="mt-12 border-border/30">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-medium text-muted-foreground">
             Upotuskoodi
@@ -76,9 +799,9 @@ export default function SearchPreview() {
         <CardContent>
           <div className="relative">
             <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">{`<script
-  src="YOUR_DOMAIN/widget.js"
+  src="YOUR_API_URL/widget.js"
   data-site-id="${siteId}"
-  data-api-url="${apiUrl}">
+  data-api-url="YOUR_API_URL">
 </script>`}</pre>
             <Button
               variant="ghost"
