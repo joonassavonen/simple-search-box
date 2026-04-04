@@ -189,7 +189,7 @@ function ResultCard({
 
         {/* Snippet */}
         {snippet && (
-          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground line-clamp-2">
+          <p className="mt-1 sm:mt-1.5 text-xs sm:text-[13px] leading-relaxed text-muted-foreground line-clamp-2">
             {snippet}
           </p>
         )}
