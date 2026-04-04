@@ -50,7 +50,7 @@ export default function Sites() {
     }
   }
 
-  function pollJob(siteId: number, jobId: number) {
+  function pollJob(siteId: string, jobId: string) {
     const interval = setInterval(async () => {
       try {
         const status = await api.getCrawlJob(jobId);
