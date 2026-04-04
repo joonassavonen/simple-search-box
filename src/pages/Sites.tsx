@@ -11,8 +11,8 @@ import { toast } from "sonner";
 export default function Sites() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
-  const [crawling, setCrawling] = useState<Record<number, boolean>>({});
-  const [jobStatus, setJobStatus] = useState<Record<number, CrawlJob>>({});
+  const [crawling, setCrawling] = useState<Record<string, boolean>>({});
+  const [jobStatus, setJobStatus] = useState<Record<string, CrawlJob>>({});
 
   const loadSites = useCallback(async () => {
     try {
@@ -43,14 +43,14 @@ export default function Sites() {
     setCrawling((prev) => ({ ...prev, [site.id]: true }));
     try {
       const job = await api.triggerCrawl(site.id);
-      pollJob(site.id, job.job_id);
+      pollJob(site.id, job.job_id as string);
     } catch (e: any) {
       toast.error("Crawl failed: " + e.message);
       setCrawling((prev) => ({ ...prev, [site.id]: false }));
     }
   }
 
-  function pollJob(siteId: number, jobId: number) {
+  function pollJob(siteId: string, jobId: string) {
     const interval = setInterval(async () => {
       try {
         const status = await api.getCrawlJob(jobId);

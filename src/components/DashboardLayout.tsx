@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, BarChart3, PlusCircle, BookOpen, Menu, X } from "lucide-react";
+import { Search, BarChart3, PlusCircle, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const NAV = [
   { path: "/", label: "Sites", icon: Search },
@@ -60,15 +61,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="border-t p-2">
-          <a
-            href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/docs`}
-            target="_blank"
-            rel="noopener"
-            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           >
-            <BookOpen className="h-4 w-4" />
-            API Docs
-          </a>
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
         </div>
       </aside>
 

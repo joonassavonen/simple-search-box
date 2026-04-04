@@ -34,6 +34,11 @@ export default function Analytics() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!siteId) {
+      setLoading(false);
+      setError("No site selected. Go to Sites and click Analytics on a specific site.");
+      return;
+    }
     async function load() {
       try {
         const [s, st] = await Promise.all([
