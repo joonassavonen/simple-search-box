@@ -706,11 +706,9 @@ export default function SearchPreview() {
         />
       </div>
 
-      {/* Subtext — only when no results showing */}
-      {!query && !results && (
-        <p className="mt-3 text-center text-sm text-muted-foreground/50">
-          ✦ AI-avusteinen haku – löydä vastaus hetkessä
-        </p>
+      {/* Subtext removed */}
+      {false && (
+        <p></p>
       )}
 
       {/* Popular products (trending with images) */}
