@@ -294,26 +294,17 @@ export const api = {
   // --- Learning Stats (Backend fetch) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    return backendFetch<LearningStats>(`/api/sites/${siteId}/learning-stats`);
+    // TODO: migrate to edge function
+    return { site_id: siteId, boost_pairs: 0, synonym_count: 0, top_boosted: [], position_clicks: [] };
   },
 
   async discoverSynonyms(siteId: string): Promise<{ discovered: number }> {
-    return backendFetch<{ discovered: number }>(`/api/sites/${siteId}/discover-synonyms`, {
-      method: "POST",
-    });
+    // TODO: migrate to edge function
+    return { discovered: 0 };
   },
 
-  // --- Click tracking (Backend fetch) ---
-
   async trackClick(searchLogId: number, clickedUrl: string, clickPosition?: number, sessionId?: string): Promise<void> {
-    await backendFetch<{ ok: boolean }>("/api/search/click", {
-      method: "POST",
-      body: JSON.stringify({
-        search_log_id: searchLogId,
-        clicked_url: clickedUrl,
-        click_position: clickPosition ?? null,
-        session_id: sessionId ?? null,
-      }),
-    });
+    // TODO: migrate to edge function
+    console.warn("trackClick not yet implemented");
   },
 };
