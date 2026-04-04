@@ -122,7 +122,7 @@ async function doCrawl(jobId: string, siteId: string) {
         }
 
         const html = await pageRes.text();
-        const title = extractTitle(html);
+        const title = extractTitle(html) || titleFromUrl(url);
         const content = extractTextContent(html);
 
         if (!content || content.length < 10) {
