@@ -256,22 +256,18 @@ export const api = {
   // --- Demo (Backend fetch) ---
 
   async setupDemo(): Promise<Site> {
-    const data = await backendFetch<{ site: Site }>("/api/demo/setup");
-    return data.site;
+    // TODO: migrate to edge function
+    throw new Error("Demo setup not yet available");
   },
 
-  // --- Trending & Suggestions (Backend fetch) ---
-
   async getTrending(siteId: string, limit = 5): Promise<{ trending: TrendingItem[] }> {
-    return backendFetch<{ trending: TrendingItem[] }>(
-      `/api/sites/${siteId}/trending?limit=${limit}`,
-    );
+    // TODO: migrate to edge function
+    return { trending: [] };
   },
 
   async getSuggestions(siteId: string, query: string, limit = 5): Promise<{ suggestions: string[] }> {
-    return backendFetch<{ suggestions: string[] }>(
-      `/api/sites/${siteId}/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`,
-    );
+    // TODO: migrate to edge function
+    return { suggestions: [] };
   },
 
   // --- Contact Config (Backend fetch) ---
