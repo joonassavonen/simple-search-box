@@ -56,6 +56,7 @@ export interface SearchResponse {
   fallback_message?: string;
   search_log_id?: number;
   contact_config?: ContactConfig | null;
+  ai_summary?: string;
   error?: string;
 }
 
