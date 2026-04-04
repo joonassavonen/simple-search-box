@@ -63,6 +63,7 @@ export type Database = {
           id: string
           last_indexed_at: string
           meta_description: string | null
+          schema_data: Json | null
           site_id: string
           title: string | null
           updated_at: string
@@ -75,6 +76,7 @@ export type Database = {
           id?: string
           last_indexed_at?: string
           meta_description?: string | null
+          schema_data?: Json | null
           site_id: string
           title?: string | null
           updated_at?: string
@@ -87,6 +89,7 @@ export type Database = {
           id?: string
           last_indexed_at?: string
           meta_description?: string | null
+          schema_data?: Json | null
           site_id?: string
           title?: string | null
           updated_at?: string
