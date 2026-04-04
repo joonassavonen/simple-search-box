@@ -1,5 +1,28 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// ---------------------------------------------------------------------------
+// Backend API URL — set via env var or defaults to localhost
+// ---------------------------------------------------------------------------
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+
+async function backendFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const url = `${BACKEND_URL}${path}`;
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(body.detail || body.error || `Backend error ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 export interface Site {
   id: string;
   name: string;
@@ -50,6 +73,8 @@ export interface SearchResponse {
   language: string;
   response_ms: number;
   fallback_message?: string;
+  search_log_id?: number;
+  contact_config?: ContactConfig | null;
   error?: string;
 }
 
@@ -86,7 +111,13 @@ export interface LearningStats {
   position_clicks: { position: number; clicks: number }[];
 }
 
+// ---------------------------------------------------------------------------
+// API object — uses backend fetch for search/crawl/learning, Supabase for CRUD
+// ---------------------------------------------------------------------------
+
 export const api = {
+  // --- Sites (Supabase direct) ---
+
   async listSites(): Promise<Site[]> {
     const { data, error } = await supabase
       .from("sites")
@@ -124,15 +155,34 @@ export const api = {
     return data as Site;
   },
 
-  async triggerCrawl(siteId: string, _sitemapUrl?: string): Promise<CrawlJob> {
-    const { data, error } = await supabase
-      .from("crawl_jobs")
-      .insert({ site_id: siteId })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
+  // --- Crawl (Backend fetch) ---
+
+  async triggerCrawl(siteId: string, sitemapUrl?: string): Promise<CrawlJob> {
+    const body: Record<string, unknown> = { site_id: siteId };
+    if (sitemapUrl) body.sitemap_url = sitemapUrl;
+    const data = await backendFetch<{ job_id: number; status: string; site_id: number }>("/api/crawl", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
     return {
-      job_id: data.id,
+      job_id: String(data.job_id),
+      status: data.status,
+      pages_found: 0,
+      pages_indexed: 0,
+      error: null,
+    };
+  },
+
+  async getCrawlJob(jobId: string): Promise<CrawlJob> {
+    const data = await backendFetch<{
+      job_id: number;
+      status: string;
+      pages_found: number;
+      pages_indexed: number;
+      error: string | null;
+    }>(`/api/crawl/${jobId}`);
+    return {
+      job_id: String(data.job_id),
       status: data.status,
       pages_found: data.pages_found,
       pages_indexed: data.pages_indexed,
@@ -140,21 +190,16 @@ export const api = {
     };
   },
 
-  async getCrawlJob(jobId: string): Promise<CrawlJob> {
-    const { data, error } = await supabase
-      .from("crawl_jobs")
-      .select("*")
-      .eq("id", jobId)
-      .single();
-    if (error) throw new Error(error.message);
-    return {
-      job_id: data.id,
-      status: data.status,
-      pages_found: data.pages_found,
-      pages_indexed: data.pages_indexed,
-      error: data.error,
-    };
+  // --- Search (Backend fetch — TF-IDF + Claude re-ranking) ---
+
+  async search(siteId: string, query: string): Promise<SearchResponse> {
+    return backendFetch<SearchResponse>("/api/search", {
+      method: "POST",
+      body: JSON.stringify({ site_id: siteId, query, max_results: 5 }),
+    });
   },
+
+  // --- Stats (Supabase direct) ---
 
   async getStats(siteId: string): Promise<SiteStats> {
     const { count: pagesIndexed } = await supabase
@@ -210,124 +255,63 @@ export const api = {
     };
   },
 
+  // --- Demo (Backend fetch) ---
+
   async setupDemo(): Promise<Site> {
-    const site = await api.createSite({
-      name: "Demo Site",
-      domain: "demo.example.com",
-      sitemap_url: "https://demo.example.com/sitemap.xml",
-    });
-    return site;
+    const data = await backendFetch<{ site: Site }>("/api/demo/setup");
+    return data.site;
   },
 
-  async search(siteId: string, query: string): Promise<SearchResponse> {
-    const start = Date.now();
+  // --- Trending & Suggestions (Backend fetch) ---
 
-    const { data: pages } = await supabase
-      .from("pages")
-      .select("url, title, content")
-      .eq("site_id", siteId)
-      .or(`title.ilike.%${query}%,content.ilike.%${query}%`)
-      .limit(5);
-
-    const responseMs = Date.now() - start;
-    const results: SearchResult[] = (pages || []).map((p) => ({
-      url: p.url,
-      title: p.title || p.url,
-      score: 0.7,
-      snippet: p.content?.substring(0, 200) || "",
-      reasoning: "Text match",
-    }));
-
-    await supabase.from("search_logs").insert({
-      site_id: siteId,
-      query,
-      results_count: results.length,
-      language: /[äöåÄÖÅ]/.test(query) ? "fi" : "en",
-      response_ms: responseMs,
-    });
-
-    return {
-      results,
-      language: /[äöåÄÖÅ]/.test(query) ? "fi" : "en",
-      response_ms: responseMs,
-      fallback_message: results.length === 0 ? "No results found. Try a different query." : undefined,
-    };
+  async getTrending(siteId: string, limit = 5): Promise<{ trending: TrendingItem[] }> {
+    return backendFetch<{ trending: TrendingItem[] }>(
+      `/api/sites/${siteId}/trending?limit=${limit}`,
+    );
   },
 
-  // --- Learning features ---
+  async getSuggestions(siteId: string, query: string, limit = 5): Promise<{ suggestions: string[] }> {
+    return backendFetch<{ suggestions: string[] }>(
+      `/api/sites/${siteId}/suggestions?q=${encodeURIComponent(query)}&limit=${limit}`,
+    );
+  },
+
+  // --- Contact Config (Backend fetch) ---
 
   async getContactConfig(siteId: string): Promise<ContactConfig> {
-    const { data, error } = await supabase
-      .from("site_contact_configs")
-      .select("*")
-      .eq("site_id", siteId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    return data || {
-      site_id: siteId,
-      enabled: false,
-      email: null,
-      phone: null,
-      chat_url: null,
-      cta_text_fi: "Etkö löytänyt etsimääsi? Ota yhteyttä!",
-      cta_text_en: "Didn't find what you need? Contact us!",
-    };
+    return backendFetch<ContactConfig>(`/api/sites/${siteId}/contact-config`);
   },
 
   async updateContactConfig(siteId: string, config: Partial<ContactConfig>): Promise<ContactConfig> {
-    const { data, error } = await supabase
-      .from("site_contact_configs")
-      .upsert({ site_id: siteId, ...config }, { onConflict: "site_id" })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return data as ContactConfig;
+    return backendFetch<ContactConfig>(`/api/sites/${siteId}/contact-config`, {
+      method: "PUT",
+      body: JSON.stringify(config),
+    });
   },
 
-  async getTrending(siteId: string, limit = 5): Promise<{ trending: TrendingItem[] }> {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data } = await supabase
-      .from("search_logs")
-      .select("query")
-      .eq("site_id", siteId)
-      .gte("created_at", sevenDaysAgo);
-
-    const counts: Record<string, number> = {};
-    for (const log of data || []) {
-      const q = log.query.toLowerCase();
-      counts[q] = (counts[q] || 0) + 1;
-    }
-
-    const trending = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, limit)
-      .map(([query, count]) => ({ query, count }));
-
-    return { trending };
-  },
+  // --- Learning Stats (Backend fetch) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    const { count: boostPairs } = await supabase
-      .from("query_url_boosts")
-      .select("*", { count: "exact", head: true })
-      .eq("site_id", siteId);
-
-    const { count: synonymCount } = await supabase
-      .from("learned_synonyms")
-      .select("*", { count: "exact", head: true })
-      .eq("site_id", siteId);
-
-    return {
-      site_id: siteId,
-      boost_pairs: boostPairs || 0,
-      synonym_count: synonymCount || 0,
-      top_boosted: [],
-      position_clicks: [],
-    };
+    return backendFetch<LearningStats>(`/api/sites/${siteId}/learning-stats`);
   },
 
-  async discoverSynonyms(_siteId: string): Promise<{ discovered: number }> {
-    // Synonym discovery runs server-side; this is a placeholder
-    return { discovered: 0 };
+  async discoverSynonyms(siteId: string): Promise<{ discovered: number }> {
+    return backendFetch<{ discovered: number }>(`/api/sites/${siteId}/discover-synonyms`, {
+      method: "POST",
+    });
+  },
+
+  // --- Click tracking (Backend fetch) ---
+
+  async trackClick(searchLogId: number, clickedUrl: string, clickPosition?: number, sessionId?: string): Promise<void> {
+    await backendFetch<{ ok: boolean }>("/api/search/click", {
+      method: "POST",
+      body: JSON.stringify({
+        search_log_id: searchLogId,
+        clicked_url: clickedUrl,
+        click_position: clickPosition ?? null,
+        session_id: sessionId ?? null,
+      }),
+    });
   },
 };
