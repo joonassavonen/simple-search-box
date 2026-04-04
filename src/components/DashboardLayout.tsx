@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, BarChart3, PlusCircle, BookOpen, Menu, X } from "lucide-react";
+import { Search, BarChart3, PlusCircle, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const NAV = [
   { path: "/", label: "Sites", icon: Search },
