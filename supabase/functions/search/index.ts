@@ -70,16 +70,25 @@ Deno.serve(async (req) => {
     const scored = (pages || []).map((page) => {
       const titleLower = (page.title || "").toLowerCase();
       const contentLower = (page.content || "").toLowerCase();
+      const metaLower = (page.meta_description || "").toLowerCase();
       let score = 0;
       const matchedWords: string[] = [];
 
       for (const word of words) {
-        const titleMatches = (titleLower.match(new RegExp(escapeRegex(word), "g")) || []).length;
-        const contentMatches = (contentLower.match(new RegExp(escapeRegex(word), "g")) || []).length;
+        // Use word boundary-like matching: require at least 3 chars match
+        // and the word must appear as a substantial substring
+        const regex = new RegExp(escapeRegex(word), "gi");
+        const titleMatches = (titleLower.match(regex) || []).length;
+        const contentMatches = (contentLower.match(regex) || []).length;
+        const metaMatches = (metaLower.match(regex) || []).length;
 
         if (titleMatches > 0) {
           score += titleMatches * 10;
           matchedWords.push(word);
+        }
+        if (metaMatches > 0) {
+          score += metaMatches * 5;
+          if (!matchedWords.includes(word)) matchedWords.push(word);
         }
         if (contentMatches > 0) {
           score += Math.min(contentMatches, 20);
@@ -87,8 +96,14 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (matchedWords.length === words.length && words.length > 1) {
+      // Require ALL query words to match for multi-word queries
+      if (words.length > 1 && matchedWords.length === words.length) {
         score *= 1.5;
+      }
+
+      // For multi-word queries, require at least half the words to match
+      if (words.length > 1 && matchedWords.length < Math.ceil(words.length / 2)) {
+        score = 0;
       }
 
       // Prefer meta description as snippet, fallback to content extract
@@ -110,9 +125,10 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Get top candidates from keyword search
+    // Get top candidates from keyword search — require minimum score
+    const minScore = words.length > 1 ? 5 : 3;
     const keywordResults = scored
-      .filter((r) => r.score > 0)
+      .filter((r) => r.score >= minScore)
       .sort((a, b) => b.score - a.score)
       .slice(0, 15);
 
