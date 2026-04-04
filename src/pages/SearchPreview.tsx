@@ -402,7 +402,7 @@ function ContactCTA({ config }: { config: ContactConfig }) {
       {config.phone && (
         <a
           href={`tel:${config.phone}`}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(145,45%,35%)] px-6 py-4 text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,45%,30%)]"
+          className="flex w-full items-center justify-center gap-2 rounded-lg sm:rounded-xl bg-[hsl(145,45%,35%)] px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,45%,30%)]"
         >
           <Phone className="h-5 w-5" />
           Soita {config.phone}
