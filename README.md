@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Simple Search Box
 
-TODO: Document your project here
+A minimal search box built with React, Vite, and Tailwind CSS.
