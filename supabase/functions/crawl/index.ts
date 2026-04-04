@@ -301,7 +301,7 @@ function extractJsonLd(html: string): Record<string, any> | null {
   return null;
 }
 
-
+function extractTitle(html: string): string | null {
   // Try <title> first
   const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
   if (titleMatch) {
