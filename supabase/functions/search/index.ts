@@ -157,7 +157,8 @@ Deno.serve(async (req) => {
         if (originalMatched.length === words.length) {
           score *= 1.5;
         }
-        if (originalMatched.length < Math.ceil(words.length / 2)) {
+        // Stricter: require at least 60% of words to match
+        if (originalMatched.length < Math.ceil(words.length * 0.6)) {
           score = 0;
         }
       }
@@ -194,7 +195,7 @@ Deno.serve(async (req) => {
     });
 
     // Get top candidates from keyword search — require minimum score
-    const minScore = words.length > 1 ? 5 : 3;
+    const minScore = words.length > 1 ? 8 : 5;
     const keywordResults = scored
       .filter((r) => r.score >= minScore)
       .sort((a, b) => b.score - a.score)
@@ -221,13 +222,13 @@ Deno.serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: `You are a search assistant. The user searched a website. Given the query and page contents:
+                content: `You are a search assistant for a company website. The user searched the site. Given the query and page contents:
 1. Return a JSON object with:
-   - "summary": A helpful 1-2 sentence answer in the same language as the query (Finnish or English). Be concise and direct. Reference specific pages if helpful.
-   - "ranking": An array of page indices (1-based) ordered by relevance to the query. ONLY include pages that are genuinely relevant to what the user is searching for. If a page doesn't actually contain information about the search topic, DO NOT include it. Max 8.
+   - "summary": A helpful 1-2 sentence answer written in FIRST PERSON PLURAL ("me"-form: "Tarjoamme...", "Meiltä löydät...", "Palvelemme..."). Write as if YOU are the company speaking to the customer. Use the same language as the query (Finnish or English). Be concise and direct.
+   - "ranking": An array of page indices (1-based) ordered by relevance to the query. ONLY include pages that are DIRECTLY and specifically relevant to the search topic. Max 5.
    - "reasoning": For each ranked page, a short reason why it's relevant.
-2. CRITICAL: If no pages are truly relevant to the query, you MUST return {"summary": null, "ranking": [], "reasoning": []}. Do NOT force irrelevant pages into results.
-3. Be strict about relevance — a page about heat pumps is NOT relevant to a search for antennas, even if both are on the same website.
+2. CRITICAL: If no pages are truly relevant to the query, return {"summary": null, "ranking": [], "reasoning": []}.
+3. Be VERY strict about relevance — only include pages whose main topic matches the query. A general page that briefly mentions a keyword is NOT a relevant result. Prefer pages with the search terms in their title.
 Return ONLY valid JSON.`
               },
               {

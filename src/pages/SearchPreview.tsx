@@ -436,8 +436,8 @@ function SearchDropdown({
               className="group mx-2 mb-1 flex w-[calc(100%-16px)] cursor-pointer items-center gap-3 rounded-lg border border-[hsl(145,40%,85%)] bg-[hsl(145,40%,96%)] p-3 text-left transition-all hover:shadow-md"
             >
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-foreground line-clamp-2">{results.ai_summary.split(".")[0]}</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{results.ai_summary}</p>
+                <h3 className="text-sm font-bold text-foreground">{results.ai_summary.split(".")[0]}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-3">{results.ai_summary}</p>
               </div>
               <ExternalLink className="h-3.5 w-3.5 shrink-0 text-[hsl(145,50%,40%)]" />
             </button>
