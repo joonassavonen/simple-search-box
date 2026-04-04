@@ -1,0 +1,1 @@
+ALTER TABLE public.pages ADD CONSTRAINT pages_site_id_url_unique UNIQUE (site_id, url);

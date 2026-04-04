@@ -158,12 +158,19 @@ export const api = {
   // --- Crawl (Backend fetch) ---
 
   async triggerCrawl(siteId: string, sitemapUrl?: string): Promise<CrawlJob> {
+    // Create the job record
     const { data, error } = await supabase
       .from("crawl_jobs")
       .insert({ site_id: siteId, status: "pending" })
       .select()
       .single();
     if (error) throw new Error(error.message);
+
+    // Fire-and-forget: invoke the crawl edge function in the background
+    supabase.functions.invoke("crawl", {
+      body: { job_id: data.id, site_id: siteId },
+    }).catch((err) => console.error("Background crawl invocation failed:", err));
+
     return {
       job_id: data.id,
       status: data.status,
