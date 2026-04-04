@@ -436,7 +436,12 @@ function ContactCTA({ config }: { config: ContactConfig }) {
 // No results
 // ---------------------------------------------------------------------------
 
-function NoResults({ query, contact }: { query: string; contact?: ContactConfig | null }) {
+function NoResults({ query, contact, suggestions, onSuggestionClick }: { 
+  query: string; 
+  contact?: ContactConfig | null;
+  suggestions?: string[];
+  onSuggestionClick?: (q: string) => void;
+}) {
   return (
     <div className="mt-8 text-center animate-in fade-in duration-300">
       <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
@@ -446,6 +451,22 @@ function NoResults({ query, contact }: { query: string; contact?: ContactConfig 
       <p className="mt-1 text-xs text-muted-foreground">
         Kokeile eri hakusanoja tai tarkista kirjoitusasu.
       </p>
+      {suggestions && suggestions.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Tarkoititko ehkä:</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => onSuggestionClick?.(s)}
+                className="rounded-full bg-[hsl(145,40%,95%)] px-3 py-1 text-xs font-medium text-[hsl(145,50%,30%)] hover:bg-[hsl(145,40%,88%)] transition-colors"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {contact && <ContactCTA config={contact} />}
     </div>
   );
