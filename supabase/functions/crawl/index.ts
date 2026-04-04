@@ -224,6 +224,16 @@ Deno.serve(async (req) => {
   }
 });
 
+function extractMetaDescription(html: string): string | null {
+  const match = html.match(/<meta\s+[^>]*name\s*=\s*["']description["'][^>]*content\s*=\s*["'](.*?)["'][^>]*>/i)
+    || html.match(/<meta\s+[^>]*content\s*=\s*["'](.*?)["'][^>]*name\s*=\s*["']description["'][^>]*>/i);
+  if (match) {
+    const desc = decodeEntities(match[1].trim());
+    if (desc.length > 10) return desc;
+  }
+  return null;
+}
+
 function extractTitle(html: string): string | null {
   // Try <title> first
   const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
