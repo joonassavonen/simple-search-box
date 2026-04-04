@@ -773,10 +773,13 @@ export default function SearchPreview() {
   async function doSearch(q: string) {
     setLoading(true);
     setError(null);
-    setShowSuggestions(false);
+    // Don't hide suggestions — they merge with results in the dropdown
     try {
       const data = await api.search(siteId!, q);
       setResults(data);
+      // Hide autocomplete suggestions once results arrive
+      setShowSuggestions(false);
+      setSuggestions([]);
     } catch (e: any) {
       setError(e.message);
       setResults(null);
