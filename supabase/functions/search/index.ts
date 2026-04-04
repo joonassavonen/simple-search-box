@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
     });
 
     // Get top candidates from keyword search — require minimum score
-    const minScore = words.length > 1 ? 5 : 3;
+    const minScore = words.length > 1 ? 8 : 5;
     const keywordResults = scored
       .filter((r) => r.score >= minScore)
       .sort((a, b) => b.score - a.score)
