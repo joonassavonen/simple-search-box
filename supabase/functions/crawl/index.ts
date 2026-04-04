@@ -24,8 +24,8 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Update job to running
-    await supabase.from("crawl_jobs").update({ status: "running" }).eq("id", job_id);
+    // Update job to running (discovering sitemap)
+    await supabase.from("crawl_jobs").update({ status: "discovering" }).eq("id", job_id);
 
     // Get site info
     const { data: site, error: siteErr } = await supabase
