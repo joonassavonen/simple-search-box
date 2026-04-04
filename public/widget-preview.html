@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget Preview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; background: #f5f6f8; }
+
+    header {
+      background: #1a3a6b;
+      color: white;
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo { font-size: 20px; font-weight: 700; }
+    nav a { color: rgba(255,255,255,0.7); text-decoration: none; margin-left: 20px; font-size: 13px; }
+
+    .hero {
+      background: linear-gradient(135deg, #1a3a6b 0%, #2563eb 100%);
+      color: white;
+      padding: 60px 40px;
+      text-align: center;
+    }
+    .hero h1 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+    .hero p { font-size: 16px; opacity: 0.85; max-width: 500px; margin: 0 auto; }
+
+    .content {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 24px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .card {
+      background: white;
+      border: 1px solid #e2e6ea;
+      border-radius: 10px;
+      padding: 24px;
+    }
+    .card h3 { font-size: 16px; margin-bottom: 6px; }
+    .card p { color: #6b7280; font-size: 13px; line-height: 1.5; }
+
+    footer {
+      background: #1a1a2e;
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      padding: 20px;
+      font-size: 12px;
+      margin-top: 60px;
+    }
+
+    .preview-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #fef3c7;
+      color: #92400e;
+      text-align: center;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      z-index: 999999;
+      border-bottom: 1px solid #fcd34d;
+    }
+    body { padding-top: 30px; }
+  </style>
+</head>
+<body>
+
+  <div class="preview-banner">
+    🔍 Widget-esikatselu — näet widgetin kuten asiakkaasi näkisi sen
+  </div>
+
+  <header>
+    <div class="logo">Demo Yritys Oy</div>
+    <nav>
+      <a href="#">Tuotteet</a>
+      <a href="#">Palvelut</a>
+      <a href="#">Tuki</a>
+      <a href="#">Yhteystiedot</a>
+    </nav>
+  </header>
+
+  <div class="hero">
+    <h1>Tervetuloa sivustollemme</h1>
+    <p>Tämä on esikatselusivu, jolla voit testata hakuwidgetin toimintaa. Klikkaa oikean alakulman hakupainiketta.</p>
+  </div>
+
+  <div class="content">
+    <div class="cards">
+      <div class="card">
+        <h3>🏠 Tuotteet</h3>
+        <p>Laaja valikoima tuotteita kotiin ja yritykselle.</p>
+      </div>
+      <div class="card">
+        <h3>🔧 Palvelut</h3>
+        <p>Ammattitaitoiset asennus- ja huoltopalvelut.</p>
+      </div>
+      <div class="card">
+        <h3>📞 Asiakaspalvelu</h3>
+        <p>Autamme sinua arkisin klo 8–16.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    &copy; 2025 Demo Yritys Oy — FindAI widget-esikatselu
+  </footer>
+
+  <script>
+    // Read siteId and apiUrl from URL params
+    const params = new URLSearchParams(window.location.search);
+    const siteId = params.get('siteId') || '1';
+    const apiUrl = params.get('apiUrl') || '';
+
+    // Dynamically inject the widget script
+    const s = document.createElement('script');
+    s.src = '/widget.js';
+    s.setAttribute('data-site-id', siteId);
+    if (apiUrl) {
+      s.setAttribute('data-api-url', apiUrl);
+    }
+    document.body.appendChild(s);
+  </script>
+
+</body>
+</html>
