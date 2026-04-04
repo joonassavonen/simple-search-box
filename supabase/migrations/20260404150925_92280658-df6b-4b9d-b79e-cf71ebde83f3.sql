@@ -1,0 +1,1 @@
+DELETE FROM pages WHERE url LIKE '%sitemap%' OR url LIKE '%.xml%';
