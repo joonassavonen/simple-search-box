@@ -115,7 +115,6 @@ function ResultCard({
   onTrackClick: (url: string, position: number) => void;
 }) {
   const title = cleanTitle(result.title, result.url);
-  const domain = shortDomain(result.url);
   const path = shortPath(result.url);
   const snippet = cleanSnippet(result.snippet);
   const s = result.schema_data;
