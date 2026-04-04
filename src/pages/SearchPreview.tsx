@@ -118,6 +118,10 @@ function ResultCard({
   const path = shortPath(result.url);
   const snippet = cleanSnippet(result.snippet);
   const s = result.schema_data;
+  const isProduct = s?.type === "Product";
+  const isArticle = s?.type === "Article";
+  const isEvent = s?.type === "Event";
+  const isFAQ = s?.type === "FAQPage";
 
   return (
     <a
@@ -130,130 +134,181 @@ function ResultCard({
       }}
       className="group block rounded-xl border border-border/50 bg-card transition-all duration-200 hover:border-primary/25 hover:shadow-lg hover:shadow-primary/[0.04] active:scale-[0.995]"
     >
-      <div className="flex gap-4 p-4">
-        {/* Product image (if available from schema) */}
-        {s?.image && (
-          <div className="hidden shrink-0 sm:block">
-            <img
-              src={s.image}
-              alt=""
-              className="h-20 w-20 rounded-lg border border-border/30 object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).parentElement!.style.display = "none";
-              }}
-            />
-          </div>
-        )}
-
-        {/* Content */}
-        <div className="min-w-0 flex-1">
-          {/* Breadcrumb — path only, no domain */}
-          {path && (
-            <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground/70">
-              <span className="truncate">{path}</span>
+      {/* Product card — horizontal layout with large image */}
+      {isProduct ? (
+        <div className="flex gap-0">
+          {s.image && (
+            <div className="hidden shrink-0 sm:block">
+              <img
+                src={s.image}
+                alt={s.name || title}
+                className="h-full w-32 rounded-l-xl border-r border-border/30 object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).parentElement!.style.display = "none";
+                }}
+              />
             </div>
           )}
-
-          {/* Title */}
-          <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary">
-            {title}
-          </h3>
-
-          {/* Schema-enriched info row */}
-          {s && (
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-              {/* Price */}
-              {s.type === "Product" && s.price && (
-                <span className="text-base font-bold text-foreground">
-                  {s.currency === "EUR" ? "\u20AC" : s.currency || ""}
-                  {s.price}
+          <div className="min-w-0 flex-1 p-4">
+            {path && (
+              <div className="mb-1 text-[11px] text-muted-foreground/60 truncate">{path}</div>
+            )}
+            <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary">
+              {title}
+            </h3>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              {s.price && (
+                <span className="text-lg font-bold text-foreground">
+                  {s.price}{s.currency === "EUR" ? " €" : ` ${s.currency || ""}`}
                 </span>
               )}
-
-              {/* Rating */}
               {s.rating && (
                 <span className="flex items-center gap-1 text-sm">
-                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  <span className="font-semibold">{s.rating}</span>
+                  <span className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-3.5 w-3.5 ${
+                          i < Math.round(Number(s.rating))
+                            ? "fill-amber-400 text-amber-400"
+                            : "fill-muted text-muted"
+                        }`}
+                      />
+                    ))}
+                  </span>
                   {s.reviewCount && (
-                    <span className="text-xs text-muted-foreground">
-                      ({s.reviewCount} arvostelua)
-                    </span>
+                    <span className="text-xs text-muted-foreground">({s.reviewCount})</span>
                   )}
                 </span>
               )}
-
-              {/* Availability */}
               {s.availability && (
-                <span
-                  className={`text-xs font-medium ${
+                <Badge
+                  variant="secondary"
+                  className={`text-[10px] ${
                     s.availability.includes("InStock")
-                      ? "text-emerald-600"
-                      : "text-orange-500"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-orange-200 bg-orange-50 text-orange-700"
                   }`}
                 >
-                  {s.availability.includes("InStock") ? "Varastossa" : "Ei varastossa"}
-                </span>
-              )}
-
-              {/* Article author + date */}
-              {s.type === "Article" && s.author && (
-                <span className="text-xs text-muted-foreground">{s.author}</span>
-              )}
-              {s.type === "Article" && s.datePublished && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(s.datePublished).toLocaleDateString("fi-FI")}
-                </span>
-              )}
-
-              {/* Event */}
-              {s.type === "Event" && s.startDate && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(s.startDate).toLocaleDateString("fi-FI")}
-                </span>
-              )}
-              {s.type === "Event" && s.location && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <MapPin className="h-3 w-3" />
-                  {s.location}
-                </span>
-              )}
-
-              {/* Type badge — only for non-obvious types */}
-              {s.type && s.type !== "Product" && (
-                <Badge variant="secondary" className="text-[10px]">
-                  {s.type}
+                  {s.availability.includes("InStock") ? "✓ Varastossa" : "Ei varastossa"}
                 </Badge>
               )}
             </div>
-          )}
+            {snippet && (
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">{snippet}</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* Standard / Article / Event / FAQ card */
+        <div className="p-4">
+          <div className="flex gap-4">
+            {/* Article/Event image */}
+            {(isArticle || isEvent) && s?.image && (
+              <div className="hidden shrink-0 sm:block">
+                <img
+                  src={s.image}
+                  alt=""
+                  className="h-20 w-28 rounded-lg border border-border/30 object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).parentElement!.style.display = "none";
+                  }}
+                />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              {path && (
+                <div className="mb-1 text-[11px] text-muted-foreground/60 truncate">{path}</div>
+              )}
 
-          {/* Snippet */}
-          {snippet && (
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">
-              {snippet}
-            </p>
-          )}
+              {/* Type indicator */}
+              {(isArticle || isEvent || isFAQ) && (
+                <div className="mb-1 flex items-center gap-1.5">
+                  {isArticle && (
+                    <Badge variant="secondary" className="gap-1 text-[10px] font-normal">
+                      <Calendar className="h-2.5 w-2.5" />
+                      Artikkeli
+                    </Badge>
+                  )}
+                  {isEvent && (
+                    <Badge variant="secondary" className="gap-1 text-[10px] font-normal">
+                      <Calendar className="h-2.5 w-2.5" />
+                      Tapahtuma
+                    </Badge>
+                  )}
+                  {isFAQ && (
+                    <Badge variant="secondary" className="gap-1 text-[10px] font-normal">
+                      UKK
+                    </Badge>
+                  )}
+                </div>
+              )}
 
-          {/* FAQ preview */}
-          {s?.type === "FAQPage" && s.questions && s.questions.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {s.questions.slice(0, 2).map((faq, i) => (
-                <div key={i} className="rounded-md bg-muted/40 px-3 py-1.5">
+              <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary">
+                {title}
+              </h3>
+
+              {/* Article meta */}
+              {isArticle && (s.author || s.datePublished) && (
+                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                  {s.author && <span>{s.author}</span>}
+                  {s.author && s.datePublished && <span>·</span>}
+                  {s.datePublished && (
+                    <span>{new Date(s.datePublished).toLocaleDateString("fi-FI")}</span>
+                  )}
+                </div>
+              )}
+
+              {/* Event meta */}
+              {isEvent && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  {s.startDate && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(s.startDate).toLocaleDateString("fi-FI", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                  )}
+                  {s.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {s.location}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Snippet */}
+              {snippet && !isFAQ && (
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">{snippet}</p>
+              )}
+            </div>
+
+            {/* Arrow on hover */}
+            <div className="hidden shrink-0 self-center sm:flex">
+              <ExternalLink className="h-4 w-4 text-muted-foreground/0 transition-all group-hover:text-muted-foreground/40" />
+            </div>
+          </div>
+
+          {/* FAQ questions */}
+          {isFAQ && s.questions && s.questions.length > 0 && (
+            <div className="mt-3 space-y-1.5 border-t border-border/30 pt-3">
+              {s.questions.slice(0, 3).map((faq, i) => (
+                <div key={i} className="rounded-lg bg-muted/40 px-3 py-2">
                   <p className="text-xs font-medium text-foreground">{faq.q}</p>
+                  {faq.a && (
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground line-clamp-2">{faq.a}</p>
+                  )}
                 </div>
               ))}
             </div>
           )}
         </div>
-
-        {/* Arrow indicator on hover */}
-        <div className="hidden shrink-0 self-center sm:flex">
-          <ExternalLink className="h-4 w-4 text-muted-foreground/0 transition-all group-hover:text-muted-foreground/40" />
-        </div>
-      </div>
+      )}
     </a>
   );
 }
