@@ -610,8 +610,8 @@ export default function SearchPreview() {
   }
 
   function trackClick(url: string, position: number) {
-    if (results?.search_log_id) {
-      api.trackClick(results.search_log_id, url, position, sessionId.current).catch(() => {});
+    if (siteId && query) {
+      api.trackClick(siteId, query, url).catch(() => {});
     }
     window.open(url, "_blank", "noopener");
   }
