@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Search,
   ArrowLeft,
@@ -21,160 +20,89 @@ import {
   Star,
   Calendar,
   MapPin,
-  Tag,
   ShoppingCart,
-  FileText,
-  HelpCircle,
   Mail,
   Phone,
   MessageCircle,
-  Sparkles,
-  Clock,
   Globe,
   ChevronRight,
-  Zap,
   Copy,
   Check,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// Score ring — circular indicator
+// Helpers
 // ---------------------------------------------------------------------------
 
-function ScoreRing({ score }: { score: number }) {
-  const pct = Math.round(score * 100);
-  const r = 18;
-  const c = 2 * Math.PI * r;
-  const offset = c - (score * c);
-  const color =
-    pct >= 80 ? "text-emerald-500" :
-    pct >= 60 ? "text-amber-500" :
-    pct >= 40 ? "text-orange-400" :
-    "text-gray-400";
-
-  return (
-    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
-      <svg className="h-12 w-12 -rotate-90" viewBox="0 0 44 44">
-        <circle cx="22" cy="22" r={r} fill="none" strokeWidth="3" className="stroke-muted/40" />
-        <circle
-          cx="22" cy="22" r={r} fill="none" strokeWidth="3"
-          strokeDasharray={c} strokeDashoffset={offset}
-          strokeLinecap="round"
-          className={`${color} stroke-current transition-all duration-700`}
-        />
-      </svg>
-      <span className={`absolute text-xs font-bold ${color}`}>{pct}</span>
-    </div>
-  );
+/** Extract a clean display title — never show raw URLs */
+function cleanTitle(title: string, url: string): string {
+  // If it looks like a URL, derive a human name from the path
+  if (!title || title.startsWith("http") || title.includes("://")) {
+    try {
+      const path = new URL(url).pathname.replace(/\/$/, "");
+      const segment = path.split("/").pop() || "";
+      const cleaned = segment
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
+      return cleaned || new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  }
+  return title;
 }
 
-// ---------------------------------------------------------------------------
-// Schema badges
-// ---------------------------------------------------------------------------
-
-function SchemaIcon({ type }: { type: string }) {
-  switch (type) {
-    case "Product": return <ShoppingCart className="h-3 w-3" />;
-    case "Article": return <FileText className="h-3 w-3" />;
-    case "FAQPage": return <HelpCircle className="h-3 w-3" />;
-    case "Event": return <Calendar className="h-3 w-3" />;
-    default: return <Tag className="h-3 w-3" />;
+/** Extract short readable domain + path */
+function shortDomain(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname;
+  } catch {
+    return url;
   }
 }
 
-function SchemaRichData({ result }: { result: SearchResult }) {
-  const s = result.schema_data;
-  if (!s) return null;
+function shortPath(url: string): string {
+  try {
+    const path = new URL(url).pathname.replace(/\/$/, "");
+    if (!path || path === "/") return "";
+    return decodeURIComponent(path)
+      .replace(/^\//, "")
+      .split("/")
+      .map((seg) =>
+        seg
+          .replace(/[-_]/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase())
+      )
+      .join(" > ");
+  } catch {
+    return "";
+  }
+}
 
-  return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
-      <Badge variant="secondary" className="gap-1 text-[11px] font-medium">
-        <SchemaIcon type={s.type} />
-        {s.type}
-      </Badge>
-
-      {/* Product */}
-      {s.type === "Product" && s.price && (
-        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-sm font-bold text-emerald-700">
-          {s.currency === "EUR" ? "\u20AC" : s.currency || ""}{s.price}
-        </span>
-      )}
-      {s.rating && (
-        <span className="flex items-center gap-1 text-sm">
-          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-          <span className="font-semibold text-amber-700">{s.rating}</span>
-          {s.reviewCount && (
-            <span className="text-xs text-muted-foreground">({s.reviewCount})</span>
-          )}
-        </span>
-      )}
-      {s.availability && (
-        <Badge variant={s.availability.includes("InStock") ? "default" : "secondary"}
-          className={`text-[10px] ${s.availability.includes("InStock") ? "bg-emerald-500" : ""}`}>
-          {s.availability.includes("InStock") ? "In Stock" : "Out of Stock"}
-        </Badge>
-      )}
-
-      {/* Article */}
-      {s.type === "Article" && s.author && (
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <span className="font-medium">{s.author}</span>
-        </span>
-      )}
-      {s.type === "Article" && s.datePublished && (
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Calendar className="h-3 w-3" />
-          {new Date(s.datePublished).toLocaleDateString("fi-FI")}
-        </span>
-      )}
-
-      {/* Event */}
-      {s.type === "Event" && s.startDate && (
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Calendar className="h-3 w-3" />
-          {new Date(s.startDate).toLocaleDateString("fi-FI")}
-        </span>
-      )}
-      {s.type === "Event" && s.location && (
-        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <MapPin className="h-3 w-3" />
-          {s.location}
-        </span>
-      )}
-
-      {/* Product image */}
-      {s.image && s.type === "Product" && (
-        <img
-          src={s.image}
-          alt=""
-          className="ml-auto h-10 w-10 rounded-md object-cover shadow-sm"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-        />
-      )}
-    </div>
-  );
+/** Clean snippet — strip nav/header/footer cruft */
+function cleanSnippet(snippet: string): string {
+  if (!snippet) return "";
+  // Remove common nav/footer patterns
+  return snippet
+    .replace(/Siirry sisältöön/gi, "")
+    .replace(/Kirjaudu sisään/gi, "")
+    .replace(/Luo tili/gi, "")
+    .replace(/Unohditko salasanasi\??/gi, "")
+    .replace(/Palauta salasana/gi, "")
+    .replace(/Sähköposti\s+Salasana/gi, "")
+    .replace(/Ota yhteyttä\s+Varaa huolto/gi, "")
+    .replace(/Google\s*★+\s*-?\s*/g, "")
+    .replace(/\|\s*\+?\d+\s*arvostelua/g, "")
+    .replace(/\d{2,3}\s+\d{4}\s+\d{4}/g, "") // phone numbers
+    .replace(/Uusi asiakas\?/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
-// FAQ accordion
-// ---------------------------------------------------------------------------
-
-function FaqSection({ questions }: { questions: { q: string; a: string }[] }) {
-  if (!questions?.length) return null;
-  return (
-    <div className="mt-2 space-y-1">
-      {questions.slice(0, 3).map((faq, i) => (
-        <div key={i} className="rounded-md bg-muted/50 px-3 py-2">
-          <p className="text-xs font-medium">{faq.q}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{faq.a}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Single result card
+// Single result card — user-facing, no developer metrics
 // ---------------------------------------------------------------------------
 
 function ResultCard({
@@ -186,72 +114,158 @@ function ResultCard({
   index: number;
   onTrackClick: (url: string, position: number) => void;
 }) {
-  const domain = result.url.replace(/^https?:\/\//, "").split("/")[0];
-  const path = result.url.replace(/^https?:\/\/[^/]+/, "") || "/";
+  const title = cleanTitle(result.title, result.url);
+  const domain = shortDomain(result.url);
+  const path = shortPath(result.url);
+  const snippet = cleanSnippet(result.snippet);
+  const s = result.schema_data;
 
   return (
-    <div
-      className="group relative rounded-xl border border-border/60 bg-card p-4 transition-all duration-200 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5"
-      onClick={() => onTrackClick(result.url, index)}
+    <a
+      href={result.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => {
+        e.preventDefault();
+        onTrackClick(result.url, index);
+      }}
+      className="group block rounded-xl border border-border/50 bg-card transition-all duration-200 hover:border-primary/25 hover:shadow-lg hover:shadow-primary/[0.04] active:scale-[0.995]"
     >
-      {/* Top row: domain + score */}
-      <div className="flex items-start gap-3">
+      <div className="flex gap-4 p-4">
+        {/* Product image (if available from schema) */}
+        {s?.image && (
+          <div className="hidden shrink-0 sm:block">
+            <img
+              src={s.image}
+              alt=""
+              className="h-20 w-20 rounded-lg border border-border/30 object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).parentElement!.style.display = "none";
+              }}
+            />
+          </div>
+        )}
+
+        {/* Content */}
         <div className="min-w-0 flex-1">
-          {/* Breadcrumb URL */}
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+          {/* Breadcrumb */}
+          <div className="mb-1 flex items-center gap-1 text-xs text-muted-foreground/70">
             <Globe className="h-3 w-3 shrink-0" />
             <span className="truncate">{domain}</span>
-            {path !== "/" && (
+            {path && (
               <>
                 <ChevronRight className="h-2.5 w-2.5 shrink-0" />
-                <span className="truncate">{decodeURIComponent(path).replace(/^\//, "").replace(/\//g, " > ")}</span>
+                <span className="truncate">{path}</span>
               </>
             )}
           </div>
 
           {/* Title */}
-          <a
-            href={result.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-base font-semibold text-foreground transition-colors hover:text-primary"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {result.title || domain}
-            <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-60" />
-          </a>
+          <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-primary">
+            {title}
+          </h3>
 
-          {/* Snippet */}
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground line-clamp-3">
-            {result.snippet}
-          </p>
+          {/* Schema-enriched info row */}
+          {s && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {/* Price */}
+              {s.type === "Product" && s.price && (
+                <span className="text-base font-bold text-foreground">
+                  {s.currency === "EUR" ? "\u20AC" : s.currency || ""}
+                  {s.price}
+                </span>
+              )}
 
-          {/* AI reasoning */}
-          {result.reasoning && (
-            <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-primary/5 px-3 py-2">
-              <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-              <p className="text-xs leading-relaxed text-primary/80">{result.reasoning}</p>
+              {/* Rating */}
+              {s.rating && (
+                <span className="flex items-center gap-1 text-sm">
+                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                  <span className="font-semibold">{s.rating}</span>
+                  {s.reviewCount && (
+                    <span className="text-xs text-muted-foreground">
+                      ({s.reviewCount} arvostelua)
+                    </span>
+                  )}
+                </span>
+              )}
+
+              {/* Availability */}
+              {s.availability && (
+                <span
+                  className={`text-xs font-medium ${
+                    s.availability.includes("InStock")
+                      ? "text-emerald-600"
+                      : "text-orange-500"
+                  }`}
+                >
+                  {s.availability.includes("InStock") ? "Varastossa" : "Ei varastossa"}
+                </span>
+              )}
+
+              {/* Article author + date */}
+              {s.type === "Article" && s.author && (
+                <span className="text-xs text-muted-foreground">{s.author}</span>
+              )}
+              {s.type === "Article" && s.datePublished && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(s.datePublished).toLocaleDateString("fi-FI")}
+                </span>
+              )}
+
+              {/* Event */}
+              {s.type === "Event" && s.startDate && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(s.startDate).toLocaleDateString("fi-FI")}
+                </span>
+              )}
+              {s.type === "Event" && s.location && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3" />
+                  {s.location}
+                </span>
+              )}
+
+              {/* Type badge — only for non-obvious types */}
+              {s.type && s.type !== "Product" && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {s.type}
+                </Badge>
+              )}
             </div>
           )}
 
-          {/* Schema rich data */}
-          <SchemaRichData result={result} />
+          {/* Snippet */}
+          {snippet && (
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">
+              {snippet}
+            </p>
+          )}
 
-          {/* FAQ questions */}
-          {result.schema_data?.type === "FAQPage" && result.schema_data.questions && (
-            <FaqSection questions={result.schema_data.questions} />
+          {/* FAQ preview */}
+          {s?.type === "FAQPage" && s.questions && s.questions.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {s.questions.slice(0, 2).map((faq, i) => (
+                <div key={i} className="rounded-md bg-muted/40 px-3 py-1.5">
+                  <p className="text-xs font-medium text-foreground">{faq.q}</p>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Score ring */}
-        <ScoreRing score={result.score} />
+        {/* Arrow indicator on hover */}
+        <div className="hidden shrink-0 self-center sm:flex">
+          <ExternalLink className="h-4 w-4 text-muted-foreground/0 transition-all group-hover:text-muted-foreground/40" />
+        </div>
       </div>
-    </div>
+    </a>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Trending section
+// Trending pills
 // ---------------------------------------------------------------------------
 
 function TrendingSection({
@@ -264,23 +278,19 @@ function TrendingSection({
   if (!items.length) return null;
 
   return (
-    <div className="mt-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        <TrendingUp className="h-4 w-4" />
-        <span>Suositut haut</span>
+    <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        <TrendingUp className="h-3.5 w-3.5" />
+        Suositut haut
       </div>
       <div className="flex flex-wrap gap-2">
         {items.map((item) => (
           <button
             key={item.query}
             onClick={() => onSelect(item.query)}
-            className="group flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3.5 py-2 text-sm font-medium text-foreground transition-all hover:border-primary/30 hover:bg-primary/5 hover:shadow-sm"
+            className="rounded-full border border-border/50 bg-card px-3.5 py-1.5 text-sm text-foreground transition-all hover:border-primary/30 hover:bg-primary/5"
           >
-            <Search className="h-3 w-3 text-muted-foreground transition-colors group-hover:text-primary" />
             {item.query}
-            <Badge variant="secondary" className="ml-1 h-5 rounded-full px-1.5 text-[10px]">
-              {item.count}
-            </Badge>
           </button>
         ))}
       </div>
@@ -306,18 +316,17 @@ function AutocompleteDropdown({
   if (!visible || !suggestions.length) return null;
 
   return (
-    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border/60 bg-card shadow-lg shadow-black/5 animate-in fade-in slide-in-from-top-1 duration-150">
+    <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border/60 bg-card shadow-lg animate-in fade-in slide-in-from-top-1 duration-150">
       {suggestions.map((s, i) => (
         <button
           key={s}
           onClick={() => onSelect(s)}
-          className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-muted/80 ${
-            i === activeIndex ? "bg-muted/80" : ""
+          className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted/60 ${
+            i === activeIndex ? "bg-muted/60" : ""
           }`}
         >
-          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <span className="font-medium">{s}</span>
-          <ChevronRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
+          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+          <span>{s}</span>
         </button>
       ))}
     </div>
@@ -331,37 +340,33 @@ function AutocompleteDropdown({
 function ContactCTA({ config }: { config: ContactConfig }) {
   if (!config.enabled) return null;
 
-  const isFinnish = true; // could detect from UI language
-  const ctaText = isFinnish ? config.cta_text_fi : config.cta_text_en;
-
   return (
-    <div className="mt-6 rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 p-6 text-center animate-in fade-in slide-in-from-bottom-3 duration-500">
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-        <MessageCircle className="h-6 w-6 text-primary" />
-      </div>
-      <p className="mb-4 text-base font-semibold text-foreground">{ctaText}</p>
-      <div className="flex flex-wrap justify-center gap-3">
+    <div className="mt-6 rounded-xl border border-border/50 bg-muted/30 p-6 text-center animate-in fade-in slide-in-from-bottom-3 duration-400">
+      <p className="mb-4 text-sm font-medium text-foreground">
+        {config.cta_text_fi}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
         {config.email && (
-          <Button variant="outline" size="sm" className="gap-2" asChild>
+          <Button variant="outline" size="sm" className="gap-2 text-xs" asChild>
             <a href={`mailto:${config.email}`}>
-              <Mail className="h-4 w-4" />
-              {config.email}
+              <Mail className="h-3.5 w-3.5" />
+              Sähköposti
             </a>
           </Button>
         )}
         {config.phone && (
-          <Button variant="outline" size="sm" className="gap-2" asChild>
+          <Button variant="outline" size="sm" className="gap-2 text-xs" asChild>
             <a href={`tel:${config.phone}`}>
-              <Phone className="h-4 w-4" />
+              <Phone className="h-3.5 w-3.5" />
               {config.phone}
             </a>
           </Button>
         )}
         {config.chat_url && (
-          <Button size="sm" className="gap-2" asChild>
+          <Button size="sm" className="gap-2 text-xs" asChild>
             <a href={config.chat_url} target="_blank" rel="noopener noreferrer">
-              <MessageCircle className="h-4 w-4" />
-              Avaa chat
+              <MessageCircle className="h-3.5 w-3.5" />
+              Chat
             </a>
           </Button>
         )}
@@ -371,17 +376,17 @@ function ContactCTA({ config }: { config: ContactConfig }) {
 }
 
 // ---------------------------------------------------------------------------
-// No results message
+// No results
 // ---------------------------------------------------------------------------
 
 function NoResults({ query, contact }: { query: string; contact?: ContactConfig | null }) {
   return (
-    <div className="mt-8 text-center animate-in fade-in duration-300">
-      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-        <Search className="h-7 w-7 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold">Ei tuloksia haulle "{query}"</h3>
-      <p className="mt-1 text-sm text-muted-foreground">
+    <div className="mt-10 text-center animate-in fade-in duration-300">
+      <Search className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
+      <p className="text-sm font-medium text-foreground">
+        Ei tuloksia haulle "{query}"
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
         Kokeile eri hakusanoja tai tarkista kirjoitusasu.
       </p>
       {contact && <ContactCTA config={contact} />}
@@ -390,7 +395,7 @@ function NoResults({ query, contact }: { query: string; contact?: ContactConfig 
 }
 
 // ---------------------------------------------------------------------------
-// Main component
+// Main
 // ---------------------------------------------------------------------------
 
 export default function SearchPreview() {
@@ -401,21 +406,17 @@ export default function SearchPreview() {
   const [loading, setLoading] = useState(false);
   const [site, setSite] = useState<Site | null>(null);
 
-  // Learning features state
   const [trending, setTrending] = useState<TrendingItem[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-
-  // Widget snippet copy
   const [copied, setCopied] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const suggestRef = useRef<ReturnType<typeof setTimeout>>();
   const inputRef = useRef<HTMLInputElement>(null);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Session ID for click tracking
   const sessionId = useRef(
     sessionStorage.getItem("findai-session") ||
     (() => {
@@ -425,17 +426,15 @@ export default function SearchPreview() {
     })()
   );
 
-  // Load site + trending on mount
   useEffect(() => {
     if (!siteId) return;
     api.getSite(siteId).then(setSite).catch(() => {});
     api.getTrending(siteId).then((d) => setTrending(d.trending)).catch(() => {});
   }, [siteId]);
 
-  // Close suggestions on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setShowSuggestions(false);
       }
     }
@@ -443,7 +442,6 @@ export default function SearchPreview() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Fetch autocomplete suggestions
   const fetchSuggestions = useCallback(
     (q: string) => {
       clearTimeout(suggestRef.current);
@@ -470,10 +468,7 @@ export default function SearchPreview() {
     setQuery(q);
     setError(null);
     clearTimeout(debounceRef.current);
-
-    // Fetch suggestions while typing
     fetchSuggestions(q);
-
     if (!q.trim()) {
       setResults(null);
       return;
@@ -512,7 +507,6 @@ export default function SearchPreview() {
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (!showSuggestions || !suggestions.length) return;
-
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : 0));
@@ -546,34 +540,27 @@ export default function SearchPreview() {
   const noResults = results && results.results && results.results.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-2xl">
       {/* Header */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-              <Zap className="h-4 w-4 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">Search Preview</h1>
-          </div>
-          {site && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {site.name} &middot; {site.domain}
-            </p>
-          )}
+          <h1 className="text-lg font-semibold tracking-tight">
+            {site?.name || "Search Preview"}
+          </h1>
+          <p className="text-xs text-muted-foreground">{site?.domain}</p>
         </div>
         <Button variant="ghost" size="sm" asChild>
           <Link to="/">
-            <ArrowLeft className="mr-1 h-4 w-4" />
+            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
             Takaisin
           </Link>
         </Button>
       </div>
 
       {/* Search box */}
-      <div ref={searchContainerRef} className="relative mb-2">
+      <div ref={containerRef} className="relative">
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/50" />
           <input
             ref={inputRef}
             type="text"
@@ -582,15 +569,14 @@ export default function SearchPreview() {
             onChange={(e) => handleInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            className="h-14 w-full rounded-2xl border border-border/60 bg-card pl-12 pr-12 text-base shadow-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary/30 focus:ring-2 focus:ring-primary/10 focus:shadow-lg focus:shadow-primary/5"
+            className="h-12 w-full rounded-xl border border-border/60 bg-card pl-11 pr-11 text-[15px] shadow-sm outline-none transition-all placeholder:text-muted-foreground/40 focus:border-primary/30 focus:shadow-md"
             autoFocus
           />
           {loading && (
-            <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-primary" />
+            <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground/50" />
           )}
         </div>
 
-        {/* Autocomplete dropdown */}
         <AutocompleteDropdown
           suggestions={suggestions}
           visible={showSuggestions}
@@ -599,36 +585,21 @@ export default function SearchPreview() {
         />
       </div>
 
-      {/* Trending — shown when input is empty and no results */}
+      {/* Trending */}
       {!query && !results && (
         <TrendingSection items={trending} onSelect={selectTrending} />
       )}
 
-      {/* Results meta bar */}
+      {/* Results count — minimal */}
       {hasResults && (
-        <div className="mb-4 mt-6 flex items-center gap-3">
-          <span className="text-sm font-medium">
-            {results.results.length} tulosta
-          </span>
-          <Separator orientation="vertical" className="h-4" />
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Globe className="h-3 w-3" />
-            {results.language === "fi" ? "Suomi" : "English"}
-          </Badge>
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Clock className="h-3 w-3" />
-            {results.response_ms} ms
-          </Badge>
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Sparkles className="h-3 w-3" />
-            AI-ranked
-          </Badge>
-        </div>
+        <p className="mb-3 mt-5 text-xs text-muted-foreground">
+          {results.results.length} tulosta
+        </p>
       )}
 
-      {/* Results list */}
+      {/* Results */}
       {hasResults && (
-        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="space-y-2 animate-in fade-in slide-in-from-bottom-1 duration-200">
           {results.results.map((r, i) => (
             <ResultCard
               key={`${r.url}-${i}`}
@@ -642,37 +613,33 @@ export default function SearchPreview() {
 
       {/* No results */}
       {noResults && (
-        <NoResults
-          query={query}
-          contact={results.contact_config}
-        />
+        <NoResults query={query} contact={results.contact_config} />
       )}
 
-      {/* Fallback message */}
+      {/* Fallback */}
       {results?.fallback_message && !noResults && (
-        <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground">
+        <div className="mt-4 rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
           {results.fallback_message}
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive animate-in fade-in duration-200">
-          Hakuvirhe: {error}
+        <div className="mt-4 rounded-lg bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
         </div>
       )}
 
-      {/* Widget embed snippet */}
-      <Card className="mt-10 overflow-hidden border-border/40">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-            <Copy className="h-4 w-4 text-muted-foreground" />
-            Widget-upotuskoodi
+      {/* Widget snippet */}
+      <Card className="mt-12 border-border/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium text-muted-foreground">
+            Upotuskoodi
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="relative">
-            <pre className="overflow-x-auto rounded-lg bg-muted/70 p-4 text-xs leading-relaxed">{`<script
+            <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">{`<script
   src="YOUR_API_URL/widget.js"
   data-site-id="${siteId}"
   data-api-url="YOUR_API_URL">
@@ -681,10 +648,14 @@ export default function SearchPreview() {
               variant="ghost"
               size="sm"
               onClick={copySnippet}
-              className="absolute right-2 top-2 h-8 gap-1.5 text-xs"
+              className="absolute right-1 top-1 h-7 gap-1 text-[10px]"
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? "Kopioitu!" : "Kopioi"}
+              {copied ? (
+                <Check className="h-3 w-3 text-emerald-500" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              {copied ? "Kopioitu" : "Kopioi"}
             </Button>
           </div>
         </CardContent>
