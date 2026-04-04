@@ -141,14 +141,10 @@ export default function Sites() {
                 </CardHeader>
 
                 <CardContent className="pb-3">
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid grid-cols-2 gap-2 text-center">
                     <div>
                       <div className="text-lg font-semibold">{site.page_count}</div>
                       <div className="text-xs text-muted-foreground">Pages</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold">{site.id}</div>
-                      <div className="text-xs text-muted-foreground">Site ID</div>
                     </div>
                     <div>
                       <div className="text-lg font-semibold">
