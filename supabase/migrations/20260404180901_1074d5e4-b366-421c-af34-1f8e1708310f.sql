@@ -1,0 +1,1 @@
+ALTER TABLE public.pages ADD COLUMN schema_data jsonb DEFAULT NULL;

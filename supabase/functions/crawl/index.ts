@@ -126,6 +126,7 @@ async function doCrawl(jobId: string, siteId: string) {
         const html = await pageRes.text();
         const title = extractTitle(html) || titleFromUrl(url);
         const metaDesc = extractMetaDescription(html);
+        const schemaData = extractJsonLd(html);
         const content = extractTextContent(html);
 
         if (!content || content.length < 10) {
@@ -142,6 +143,7 @@ async function doCrawl(jobId: string, siteId: string) {
               title: title || url,
               content: content.slice(0, 50000),
               meta_description: metaDesc || null,
+              schema_data: schemaData || null,
               last_indexed_at: new Date().toISOString(),
             },
             { onConflict: "site_id,url" }
@@ -230,6 +232,71 @@ function extractMetaDescription(html: string): string | null {
   if (match) {
     const desc = decodeEntities(match[1].trim());
     if (desc.length > 10) return desc;
+  }
+  return null;
+}
+
+function extractJsonLd(html: string): Record<string, any> | null {
+  const scripts = [...html.matchAll(/<script[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+  if (scripts.length === 0) return null;
+
+  for (const match of scripts) {
+    try {
+      const data = JSON.parse(match[1].trim());
+      const items = Array.isArray(data) ? data : data["@graph"] ? data["@graph"] : [data];
+
+      for (const item of items) {
+        const type = item["@type"];
+        if (!type) continue;
+
+        if (type === "Product" || (Array.isArray(type) && type.includes("Product"))) {
+          const offer = item.offers || (item.offers?.[0]);
+          return {
+            type: "Product",
+            name: item.name,
+            description: item.description?.slice(0, 300),
+            price: offer?.price || offer?.lowPrice,
+            currency: offer?.priceCurrency,
+            availability: offer?.availability,
+            image: typeof item.image === "string" ? item.image : item.image?.[0] || item.image?.url,
+            rating: item.aggregateRating?.ratingValue,
+            reviewCount: item.aggregateRating?.reviewCount,
+          };
+        }
+
+        if (type === "Article" || type === "NewsArticle" || type === "BlogPosting") {
+          return {
+            type: "Article",
+            name: item.headline || item.name,
+            description: item.description?.slice(0, 300),
+            datePublished: item.datePublished,
+            author: typeof item.author === "string" ? item.author : item.author?.name,
+            image: typeof item.image === "string" ? item.image : item.image?.[0] || item.image?.url,
+          };
+        }
+
+        if (type === "Event") {
+          return {
+            type: "Event",
+            name: item.name,
+            description: item.description?.slice(0, 300),
+            startDate: item.startDate,
+            location: typeof item.location === "string" ? item.location : item.location?.name || item.location?.address?.addressLocality,
+            image: typeof item.image === "string" ? item.image : item.image?.[0],
+          };
+        }
+
+        if (type === "FAQPage") {
+          const questions = (item.mainEntity || []).slice(0, 5).map((q: any) => ({
+            q: q.name,
+            a: q.acceptedAnswer?.text?.slice(0, 200),
+          }));
+          return { type: "FAQPage", questions };
+        }
+      }
+    } catch {
+      continue;
+    }
   }
   return null;
 }

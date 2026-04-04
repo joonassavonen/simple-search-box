@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     // Fetch all pages for the site
     const { data: pages, error: pagesErr } = await supabase
       .from("pages")
-      .select("url, title, content, meta_description")
+      .select("url, title, content, meta_description, schema_data")
       .eq("site_id", site_id)
       .limit(500);
 
@@ -103,6 +103,7 @@ Deno.serve(async (req) => {
         url: page.url,
         title: page.title || page.url,
         content: page.content || "",
+        schema_data: page.schema_data || null,
         score,
         snippet,
         matchedWords,
@@ -196,6 +197,7 @@ Return ONLY valid JSON.`
         score: Math.round(Math.min(r.score / maxScore, 1) * 100) / 100,
         snippet: r.snippet,
         reasoning: (r as any).aiReasoning || `Matched: ${r.matchedWords.join(", ")}`,
+        schema_data: (r as any).schema_data || null,
       }));
 
     const responseMs = Date.now() - startTime;
