@@ -279,14 +279,22 @@ export const api = {
   // --- Contact Config (Backend fetch) ---
 
   async getContactConfig(siteId: string): Promise<ContactConfig> {
-    return backendFetch<ContactConfig>(`/api/sites/${siteId}/contact-config`);
+    // TODO: migrate to edge function or DB table
+    return {
+      site_id: siteId,
+      enabled: false,
+      email: null,
+      phone: null,
+      chat_url: null,
+      cta_text_fi: "Ota yhteyttä",
+      cta_text_en: "Contact us",
+    };
   },
 
   async updateContactConfig(siteId: string, config: Partial<ContactConfig>): Promise<ContactConfig> {
-    return backendFetch<ContactConfig>(`/api/sites/${siteId}/contact-config`, {
-      method: "PUT",
-      body: JSON.stringify(config),
-    });
+    // TODO: migrate to edge function or DB table
+    console.warn("updateContactConfig not yet implemented on backend");
+    return { site_id: siteId, enabled: false, email: null, phone: null, chat_url: null, cta_text_fi: "", cta_text_en: "", ...config } as ContactConfig;
   },
 
   // --- Learning Stats (Backend fetch) ---
