@@ -128,7 +128,7 @@ function ResultCard({
     <button
       type="button"
       onClick={() => onTrackClick(result.url, index)}
-      className="group flex w-full cursor-pointer items-start gap-4 rounded-xl border border-transparent bg-white p-4 text-left transition-all duration-150 hover:border-[hsl(145,50%,40%)]/10 hover:shadow-md"
+      className="group flex w-full cursor-pointer items-start gap-3 sm:gap-4 rounded-lg sm:rounded-xl border border-transparent bg-white p-3 sm:p-4 text-left transition-all duration-150 hover:border-[hsl(145,50%,40%)]/10 hover:shadow-md"
     >
       {/* Product image */}
       {isProduct && s?.image && !imgError && (
