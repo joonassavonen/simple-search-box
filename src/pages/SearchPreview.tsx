@@ -128,7 +128,7 @@ function ResultCard({
     <button
       type="button"
       onClick={() => onTrackClick(result.url, index)}
-      className="group flex w-full cursor-pointer items-start gap-4 rounded-xl border border-transparent bg-white p-4 text-left transition-all duration-150 hover:border-[hsl(145,50%,40%)]/10 hover:shadow-md"
+      className="group flex w-full cursor-pointer items-start gap-3 sm:gap-4 rounded-lg sm:rounded-xl border border-transparent bg-white p-3 sm:p-4 text-left transition-all duration-150 hover:border-[hsl(145,50%,40%)]/10 hover:shadow-md"
     >
       {/* Product image */}
       {isProduct && s?.image && !imgError && (
@@ -136,14 +136,14 @@ function ResultCard({
           <img
             src={s.image}
             alt={s.name || title}
-            className="h-16 w-16 rounded-lg border border-border/30 object-contain bg-white"
+            className="h-14 w-14 sm:h-16 sm:w-16 rounded-lg border border-border/30 object-contain bg-white"
             onError={() => setImgError(true)}
           />
         </div>
       )}
 
       <div className="min-w-0 flex-1">
-        <h3 className="text-[15px] font-semibold leading-snug text-foreground group-hover:text-[hsl(145,50%,35%)]">
+        <h3 className="text-sm sm:text-[15px] font-semibold leading-snug text-foreground group-hover:text-[hsl(145,50%,35%)]">
           {title}
         </h3>
 
@@ -189,7 +189,7 @@ function ResultCard({
 
         {/* Snippet */}
         {snippet && (
-          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground line-clamp-2">
+          <p className="mt-1 sm:mt-1.5 text-xs sm:text-[13px] leading-relaxed text-muted-foreground line-clamp-2">
             {snippet}
           </p>
         )}
@@ -402,7 +402,7 @@ function ContactCTA({ config }: { config: ContactConfig }) {
       {config.phone && (
         <a
           href={`tel:${config.phone}`}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(145,45%,35%)] px-6 py-4 text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,45%,30%)]"
+          className="flex w-full items-center justify-center gap-2 rounded-lg sm:rounded-xl bg-[hsl(145,45%,35%)] px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,45%,30%)]"
         >
           <Phone className="h-5 w-5" />
           Soita {config.phone}
@@ -413,7 +413,7 @@ function ContactCTA({ config }: { config: ContactConfig }) {
           href={config.chat_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(145,55%,50%)] px-6 py-4 text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,55%,45%)]"
+          className="flex w-full items-center justify-center gap-2 rounded-lg sm:rounded-xl bg-[hsl(145,55%,50%)] px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-[15px] font-semibold text-white transition-all hover:bg-[hsl(145,55%,45%)]"
         >
           <MessageCircle className="h-5 w-5" />
           Lähetä WhatsApp-viesti
@@ -422,7 +422,7 @@ function ContactCTA({ config }: { config: ContactConfig }) {
       {config.email && (
         <a
           href={`mailto:${config.email}`}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-white px-6 py-4 text-[15px] font-medium text-foreground transition-all hover:bg-muted/30"
+          className="flex w-full items-center justify-center gap-2 rounded-lg sm:rounded-xl border border-border/50 bg-white px-4 sm:px-6 py-3 sm:py-4 text-sm sm:text-[15px] font-medium text-foreground transition-all hover:bg-muted/30"
         >
           <Mail className="h-5 w-5" />
           {config.email}
@@ -658,19 +658,20 @@ export default function SearchPreview() {
   const noResults = results && results.results && results.results.length === 0;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl px-1 sm:px-0">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">
+      <div className="mb-4 sm:mb-6 flex items-center justify-between">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-lg font-semibold tracking-tight truncate">
             {site?.name || "Search Preview"}
           </h1>
-          <p className="text-xs text-muted-foreground">{site?.domain}</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{site?.domain}</p>
         </div>
-        <Button variant="ghost" size="sm" className="cursor-pointer" asChild>
+        <Button variant="ghost" size="sm" className="cursor-pointer shrink-0 text-xs sm:text-sm" asChild>
           <Link to="/">
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-            Takaisin
+            <ArrowLeft className="mr-1 h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span className="hidden sm:inline">Takaisin</span>
+            <span className="sm:hidden">←</span>
           </Link>
         </Button>
       </div>
@@ -679,7 +680,7 @@ export default function SearchPreview() {
       <div ref={containerRef} className="relative">
         <div className="relative flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-muted-foreground/40" />
+            <Search className="absolute left-3 sm:left-4 top-1/2 h-4 w-4 sm:h-[18px] sm:w-[18px] -translate-y-1/2 text-muted-foreground/40" />
             <input
               ref={inputRef}
               type="text"
@@ -690,7 +691,7 @@ export default function SearchPreview() {
               onFocus={() => {
                 if (suggestions.length > 0) setShowSuggestions(true);
               }}
-              className="h-[52px] w-full rounded-2xl border-2 border-border/50 bg-white pl-11 pr-10 text-[15px] shadow-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-[hsl(145,50%,45%)] focus:shadow-md focus:shadow-[hsl(145,50%,45%)]/10"
+              className="h-11 sm:h-[52px] w-full rounded-xl sm:rounded-2xl border-2 border-border/50 bg-white pl-9 sm:pl-11 pr-9 sm:pr-10 text-sm sm:text-[15px] shadow-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-[hsl(145,50%,45%)] focus:shadow-md focus:shadow-[hsl(145,50%,45%)]/10"
               autoFocus
             />
             {query && !loading && (
@@ -710,9 +711,9 @@ export default function SearchPreview() {
           {query.trim() && (
             <button
               onClick={() => doSearch(query)}
-              className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-xl bg-amber-400 text-white shadow-md transition-all hover:bg-amber-500 active:scale-95"
+              className="flex h-10 w-10 sm:h-[48px] sm:w-[48px] shrink-0 items-center justify-center rounded-lg sm:rounded-xl bg-amber-400 text-white shadow-md transition-all hover:bg-amber-500 active:scale-95"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           )}
         </div>
@@ -781,7 +782,7 @@ export default function SearchPreview() {
 
       {/* Results */}
       {hasResults && (
-        <div className="mt-2 space-y-1 rounded-2xl bg-white p-2 shadow-sm border border-border/30 animate-in fade-in slide-in-from-bottom-1 duration-200">
+        <div className="mt-2 space-y-0.5 sm:space-y-1 rounded-xl sm:rounded-2xl bg-white p-1.5 sm:p-2 shadow-sm border border-border/30 animate-in fade-in slide-in-from-bottom-1 duration-200">
           {results.results.map((r, i) => (
             <ResultCard
               key={`${r.url}-${i}`}
@@ -814,7 +815,7 @@ export default function SearchPreview() {
       )}
 
       {/* Widget snippet */}
-      <Card className="mt-12 border-border/30">
+      <Card className="mt-8 sm:mt-12 border-border/30">
         <CardHeader className="pb-2">
           <CardTitle className="text-xs font-medium text-muted-foreground">
             Upotuskoodi
