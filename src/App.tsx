@@ -13,6 +13,7 @@ import Analytics from "./pages/Analytics";
 import SearchPreview from "./pages/SearchPreview";
 import Auth from "./pages/Auth";
 import ContactConfig from "./pages/ContactConfig";
+import Integrations from "./pages/Integrations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
