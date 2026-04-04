@@ -57,6 +57,7 @@ export interface SearchResponse {
   search_log_id?: number;
   contact_config?: ContactConfig | null;
   ai_summary?: string;
+  suggestions?: string[];
   error?: string;
 }
 
