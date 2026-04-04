@@ -1,0 +1,1 @@
+ALTER TABLE public.pages ADD COLUMN meta_description text DEFAULT NULL;
