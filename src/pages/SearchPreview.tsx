@@ -658,19 +658,20 @@ export default function SearchPreview() {
   const noResults = results && results.results && results.results.length === 0;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl px-1 sm:px-0">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight">
+      <div className="mb-4 sm:mb-6 flex items-center justify-between">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-lg font-semibold tracking-tight truncate">
             {site?.name || "Search Preview"}
           </h1>
-          <p className="text-xs text-muted-foreground">{site?.domain}</p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{site?.domain}</p>
         </div>
-        <Button variant="ghost" size="sm" className="cursor-pointer" asChild>
+        <Button variant="ghost" size="sm" className="cursor-pointer shrink-0 text-xs sm:text-sm" asChild>
           <Link to="/">
-            <ArrowLeft className="mr-1 h-3.5 w-3.5" />
-            Takaisin
+            <ArrowLeft className="mr-1 h-3 w-3 sm:h-3.5 sm:w-3.5" />
+            <span className="hidden sm:inline">Takaisin</span>
+            <span className="sm:hidden">←</span>
           </Link>
         </Button>
       </div>
