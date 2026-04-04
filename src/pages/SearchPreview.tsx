@@ -136,7 +136,7 @@ function ResultCard({
           <img
             src={s.image}
             alt={s.name || title}
-            className="h-16 w-16 rounded-lg border border-border/30 object-contain bg-white"
+            className="h-14 w-14 sm:h-16 sm:w-16 rounded-lg border border-border/30 object-contain bg-white"
             onError={() => setImgError(true)}
           />
         </div>
