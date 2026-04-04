@@ -17,7 +17,14 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    const { site_id, query } = await req.json();
+    const body = await req.json();
+    const { site_id, query, action } = body;
+
+    // Handle click tracking action
+    if (action === "click") {
+      return await handleClick(body);
+    }
+
     if (!site_id || !query) {
       return new Response(JSON.stringify({ error: "site_id and query required" }), {
         status: 400,
@@ -57,6 +64,56 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- LEARNING: Expand query with synonyms ---
+    let expandedWords = [...words];
+    const { data: synonyms } = await supabase
+      .from("search_synonyms")
+      .select("query_to, confidence")
+      .eq("site_id", site_id)
+      .eq("query_from", query.trim().toLowerCase())
+      .order("confidence", { ascending: false })
+      .limit(3);
+
+    const synonymQueries: string[] = [];
+    if (synonyms && synonyms.length > 0) {
+      for (const syn of synonyms) {
+        const synWords = syn.query_to.split(/\s+/).filter((w: string) => w.length >= 2);
+        for (const sw of synWords) {
+          if (!expandedWords.includes(sw)) expandedWords.push(sw);
+        }
+        synonymQueries.push(syn.query_to);
+      }
+    }
+
+    // --- LEARNING: Get click boost data ---
+    const { data: clickData } = await supabase
+      .from("search_clicks")
+      .select("page_url, click_count")
+      .eq("site_id", site_id)
+      .eq("query", query.trim().toLowerCase());
+
+    const clickBoosts: Record<string, number> = {};
+    if (clickData) {
+      for (const c of clickData) {
+        clickBoosts[c.page_url] = c.click_count;
+      }
+    }
+
+    // Also get general popularity (all queries)
+    const { data: popularPages } = await supabase
+      .from("search_clicks")
+      .select("page_url, click_count")
+      .eq("site_id", site_id)
+      .order("click_count", { ascending: false })
+      .limit(50);
+
+    const popularityBoosts: Record<string, number> = {};
+    if (popularPages) {
+      for (const p of popularPages) {
+        popularityBoosts[p.page_url] = p.click_count;
+      }
+    }
+
     // Fetch all pages for the site
     const { data: pages, error: pagesErr } = await supabase
       .from("pages")
@@ -74,9 +131,7 @@ Deno.serve(async (req) => {
       let score = 0;
       const matchedWords: string[] = [];
 
-      for (const word of words) {
-        // Use word boundary-like matching: require at least 3 chars match
-        // and the word must appear as a substantial substring
+      for (const word of expandedWords) {
         const regex = new RegExp(escapeRegex(word), "gi");
         const titleMatches = (titleLower.match(regex) || []).length;
         const contentMatches = (contentLower.match(regex) || []).length;
@@ -96,17 +151,30 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Require ALL query words to match for multi-word queries
-      if (words.length > 1 && matchedWords.length === words.length) {
-        score *= 1.5;
+      // Require ALL original query words to match for multi-word queries
+      if (words.length > 1) {
+        const originalMatched = words.filter(w => matchedWords.includes(w));
+        if (originalMatched.length === words.length) {
+          score *= 1.5;
+        }
+        if (originalMatched.length < Math.ceil(words.length / 2)) {
+          score = 0;
+        }
       }
 
-      // For multi-word queries, require at least half the words to match
-      if (words.length > 1 && matchedWords.length < Math.ceil(words.length / 2)) {
-        score = 0;
+      // --- LEARNING BOOST: Click-based boosting ---
+      const queryClickBoost = clickBoosts[page.url] || 0;
+      const generalPopularity = popularityBoosts[page.url] || 0;
+      
+      if (queryClickBoost > 0 && score > 0) {
+        // Strong boost for pages clicked on this exact query
+        score += Math.min(queryClickBoost * 3, 30);
+      }
+      if (generalPopularity > 0 && score > 0) {
+        // Mild boost for generally popular pages
+        score += Math.min(generalPopularity * 0.5, 10);
       }
 
-      // Prefer meta description as snippet, fallback to content extract
       let snippet = "";
       if (page.meta_description) {
         snippet = page.meta_description;
@@ -174,7 +242,6 @@ Return ONLY valid JSON.`
           const aiData = await aiResponse.json();
           const content = aiData.choices?.[0]?.message?.content || "";
           
-          // Parse JSON from response (handle markdown code blocks)
           const jsonMatch = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
           const parsed = JSON.parse(jsonMatch);
 
@@ -188,7 +255,6 @@ Return ONLY valid JSON.`
               .filter(Boolean);
             
             if (reranked.length > 0) {
-              // Add reasoning from AI
               const reasons = parsed.reasoning || [];
               reranked.forEach((r: any, i: number) => {
                 if (reasons[i]) r.aiReasoning = reasons[i];
@@ -201,6 +267,60 @@ Return ONLY valid JSON.`
         }
       } catch (aiErr) {
         console.error("AI re-ranking failed, falling back to keyword:", aiErr);
+      }
+    }
+
+    // --- LEARNING: Zero-result suggestions ---
+    let suggestions: string[] = [];
+    if (finalResults.length === 0) {
+      // Find similar successful past queries
+      const { data: pastQueries } = await supabase
+        .from("search_logs")
+        .select("query, results_count")
+        .eq("site_id", site_id)
+        .gt("results_count", 0)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (pastQueries) {
+        const queryLower = query.trim().toLowerCase();
+        const scored = pastQueries
+          .map(pq => {
+            const pqLower = pq.query.toLowerCase();
+            // Score similarity: shared characters, length similarity, etc.
+            let sim = 0;
+            const qWords = queryLower.split(/\s+/);
+            const pqWords = pqLower.split(/\s+/);
+            
+            // Check partial word matches
+            for (const qw of qWords) {
+              for (const pw of pqWords) {
+                if (pw.includes(qw) || qw.includes(pw)) sim += 3;
+                else if (levenshtein(qw, pw) <= 2) sim += 2;
+              }
+            }
+            return { query: pq.query, sim };
+          })
+          .filter(s => s.sim > 0 && s.query.toLowerCase() !== queryLower)
+          .sort((a, b) => b.sim - a.sim);
+
+        // Deduplicate
+        const seen = new Set<string>();
+        for (const s of scored) {
+          const key = s.query.toLowerCase();
+          if (!seen.has(key)) {
+            seen.add(key);
+            suggestions.push(s.query);
+          }
+          if (suggestions.length >= 3) break;
+        }
+      }
+
+      // Also check synonyms in reverse — maybe there's a synonym for what they searched
+      if (synonymQueries.length > 0) {
+        for (const sq of synonymQueries) {
+          if (!suggestions.includes(sq)) suggestions.push(sq);
+        }
       }
     }
 
@@ -233,7 +353,8 @@ Return ONLY valid JSON.`
       language,
       response_ms: responseMs,
       ai_summary: aiSummary || undefined,
-      fallback_message: results.length === 0 ? "No results found. Try different keywords." : undefined,
+      suggestions: suggestions.length > 0 ? suggestions : undefined,
+      fallback_message: results.length === 0 ? "Ei tuloksia. Kokeile eri hakusanoja." : undefined,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -245,6 +366,49 @@ Return ONLY valid JSON.`
     });
   }
 });
+
+// Handle click tracking
+async function handleClick(body: any) {
+  const { site_id, query, url } = body;
+  if (!site_id || !query || !url) {
+    return new Response(JSON.stringify({ error: "site_id, query, url required" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+  // Upsert click count
+  const normalizedQuery = query.trim().toLowerCase();
+  
+  // Try to find existing
+  const { data: existing } = await supabase
+    .from("search_clicks")
+    .select("id, click_count")
+    .eq("site_id", site_id)
+    .eq("query", normalizedQuery)
+    .eq("page_url", url)
+    .single();
+
+  if (existing) {
+    await supabase
+      .from("search_clicks")
+      .update({ 
+        click_count: existing.click_count + 1,
+        last_clicked_at: new Date().toISOString()
+      })
+      .eq("id", existing.id);
+  } else {
+    await supabase
+      .from("search_clicks")
+      .insert({ site_id, query: normalizedQuery, page_url: url, click_count: 1 });
+  }
+
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -271,4 +435,22 @@ function extractSnippet(content: string, words: string[], maxLen = 200): string 
   if (end < content.length) snippet = snippet + "...";
 
   return snippet;
+}
+
+// Simple Levenshtein distance for fuzzy matching
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
 }
