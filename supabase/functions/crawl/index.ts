@@ -79,6 +79,20 @@ async function doCrawl(jobId: string, siteId: string) {
       urls = [baseUrl];
     }
 
+    // Filter out non-HTML URLs (sitemaps, images, PDFs, etc.)
+    urls = urls.filter((u) => {
+      const lower = u.toLowerCase();
+      return !lower.includes("sitemap") &&
+        !lower.endsWith(".xml") &&
+        !lower.endsWith(".pdf") &&
+        !lower.endsWith(".jpg") &&
+        !lower.endsWith(".png") &&
+        !lower.endsWith(".gif") &&
+        !lower.endsWith(".svg") &&
+        !lower.endsWith(".css") &&
+        !lower.endsWith(".js");
+    });
+
     // Cap at 50 pages for MVP
     const totalFound = urls.length;
     urls = urls.slice(0, 50);
