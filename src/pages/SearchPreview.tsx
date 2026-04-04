@@ -889,13 +889,21 @@ export default function SearchPreview() {
           )}
         </div>
 
-        {/* Autocomplete */}
-        <AutocompleteDropdown
+        {/* Unified search dropdown: autocomplete + results */}
+        <SearchDropdown
           suggestions={suggestions}
           visible={showSuggestions}
           activeIndex={activeIndex}
           onSelect={selectSuggestion}
           pages={popularProducts}
+          results={results}
+          loading={loading}
+          noResults={!!noResults}
+          query={query}
+          onTrackClick={trackClick}
+          zeroSuggestions={results?.suggestions}
+          onSuggestionClick={selectSuggestion}
+          contactConfig={contactConfig}
         />
       </div>
 
@@ -927,55 +935,6 @@ export default function SearchPreview() {
             ))}
           </div>
         </div>
-      )}
-
-      {/* Results count */}
-      {hasResults && (
-        <div className="mb-3 mt-5 flex items-center gap-1.5 text-sm font-semibold text-[hsl(145,50%,35%)]">
-          <Sparkles className="h-4 w-4" />
-          {results.results.length} osuma{results.results.length !== 1 ? "a" : ""}
-        </div>
-      )}
-
-      {/* AI summary as featured card */}
-      {hasResults && results.ai_summary && (
-        <FeaturedCard
-          result={{
-            url: results.results[0]?.url || "",
-            title: results.ai_summary.split(".")[0] || "Löydä sopivin vaihtoehto",
-            snippet: results.ai_summary,
-            score: 1,
-            reasoning: "",
-          }}
-          onTrackClick={trackClick}
-        />
-      )}
-
-      {/* Results */}
-      {hasResults && (
-        <div className="mt-2 space-y-0.5 sm:space-y-1 rounded-xl sm:rounded-2xl bg-white p-1.5 sm:p-2 shadow-sm border border-border/30 animate-in fade-in slide-in-from-bottom-1 duration-200">
-          {results.results.map((r, i) => (
-            <ResultCard
-              key={`${r.url}-${i}`}
-              result={r}
-              index={i}
-              onTrackClick={trackClick}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Contact CTA — always show after results if configured */}
-      {hasResults && contactConfig && <ContactCTA config={contactConfig} />}
-
-      {/* No results */}
-      {noResults && (
-        <NoResults 
-          query={query} 
-          contact={contactConfig || results?.contact_config}
-          suggestions={results?.suggestions}
-          onSuggestionClick={(q) => selectSuggestion(q)}
-        />
       )}
 
       {/* Error */}
