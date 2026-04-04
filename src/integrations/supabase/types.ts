@@ -14,7 +14,174 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      crawl_jobs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          pages_found: number
+          pages_indexed: number
+          site_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          pages_found?: number
+          pages_indexed?: number
+          site_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          pages_found?: number
+          pages_indexed?: number
+          site_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crawl_jobs_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pages: {
+        Row: {
+          content: string | null
+          created_at: string
+          embedding: string | null
+          id: string
+          last_indexed_at: string
+          site_id: string
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          last_indexed_at?: string
+          site_id: string
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          last_indexed_at?: string
+          site_id?: string
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pages_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      search_logs: {
+        Row: {
+          clicked: boolean
+          created_at: string
+          id: string
+          language: string | null
+          query: string
+          response_ms: number | null
+          results_count: number
+          site_id: string
+        }
+        Insert: {
+          clicked?: boolean
+          created_at?: string
+          id?: string
+          language?: string | null
+          query: string
+          response_ms?: number | null
+          results_count?: number
+          site_id: string
+        }
+        Update: {
+          clicked?: boolean
+          created_at?: string
+          id?: string
+          language?: string | null
+          query?: string
+          response_ms?: number | null
+          results_count?: number
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_logs_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sites: {
+        Row: {
+          api_key: string
+          created_at: string
+          domain: string
+          id: string
+          is_active: boolean
+          last_crawled_at: string | null
+          name: string
+          page_count: number
+          sitemap_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key?: string
+          created_at?: string
+          domain: string
+          id?: string
+          is_active?: boolean
+          last_crawled_at?: string | null
+          name: string
+          page_count?: number
+          sitemap_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          domain?: string
+          id?: string
+          is_active?: boolean
+          last_crawled_at?: string | null
+          name?: string
+          page_count?: number
+          sitemap_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
