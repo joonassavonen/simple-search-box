@@ -158,31 +158,30 @@ export const api = {
   // --- Crawl (Backend fetch) ---
 
   async triggerCrawl(siteId: string, sitemapUrl?: string): Promise<CrawlJob> {
-    const body: Record<string, unknown> = { site_id: siteId };
-    if (sitemapUrl) body.sitemap_url = sitemapUrl;
-    const data = await backendFetch<{ job_id: number; status: string; site_id: number }>("/api/crawl", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
+    const { data, error } = await supabase
+      .from("crawl_jobs")
+      .insert({ site_id: siteId, status: "pending" })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
     return {
-      job_id: String(data.job_id),
+      job_id: data.id,
       status: data.status,
-      pages_found: 0,
-      pages_indexed: 0,
-      error: null,
+      pages_found: data.pages_found,
+      pages_indexed: data.pages_indexed,
+      error: data.error,
     };
   },
 
   async getCrawlJob(jobId: string): Promise<CrawlJob> {
-    const data = await backendFetch<{
-      job_id: number;
-      status: string;
-      pages_found: number;
-      pages_indexed: number;
-      error: string | null;
-    }>(`/api/crawl/${jobId}`);
+    const { data, error } = await supabase
+      .from("crawl_jobs")
+      .select("*")
+      .eq("id", jobId)
+      .single();
+    if (error) throw new Error(error.message);
     return {
-      job_id: String(data.job_id),
+      job_id: data.id,
       status: data.status,
       pages_found: data.pages_found,
       pages_indexed: data.pages_indexed,
