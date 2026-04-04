@@ -69,6 +69,7 @@ const App = () => {
               <Route path="/analytics/:siteId" element={<Analytics />} />
               <Route path="/search/:siteId" element={<SearchPreview />} />
               <Route path="/settings/:siteId" element={<ContactConfig />} />
+              <Route path="/integrations" element={<Integrations />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </DashboardLayout>
