@@ -157,7 +157,8 @@ Deno.serve(async (req) => {
         if (originalMatched.length === words.length) {
           score *= 1.5;
         }
-        if (originalMatched.length < Math.ceil(words.length / 2)) {
+        // Stricter: require at least 60% of words to match
+        if (originalMatched.length < Math.ceil(words.length * 0.6)) {
           score = 0;
         }
       }
