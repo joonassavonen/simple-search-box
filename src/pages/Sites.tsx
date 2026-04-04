@@ -175,20 +175,20 @@ export default function Sites() {
                   </div>
                 </CardContent>
 
-                <CardFooter className="gap-2 pt-0">
-                  <Button variant="ghost" size="sm" asChild>
+                <CardFooter className="flex-wrap gap-1.5 pt-0">
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
                     <Link to={`/analytics/${site.id}`}>
                       <BarChart3 className="mr-1 h-3 w-3" />
                       Analytics
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="sm" asChild>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
                     <Link to={`/search/${site.id}`}>
                       <Search className="mr-1 h-3 w-3" />
-                      Test Search
+                      Test
                     </Link>
                   </Button>
-                  <Button variant="ghost" size="sm" asChild>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
                     <Link to={`/settings/${site.id}`}>
                       <Settings className="mr-1 h-3 w-3" />
                       Settings
@@ -197,7 +197,7 @@ export default function Sites() {
                   <Button
                     variant="default"
                     size="sm"
-                    className="ml-auto"
+                    className="ml-auto h-8 px-2 text-xs"
                     onClick={() => triggerCrawl(site)}
                     disabled={isCrawling}
                   >
