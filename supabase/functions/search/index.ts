@@ -103,6 +103,7 @@ Deno.serve(async (req) => {
         url: page.url,
         title: page.title || page.url,
         content: page.content || "",
+        schema_data: page.schema_data || null,
         score,
         snippet,
         matchedWords,
