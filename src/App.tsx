@@ -14,6 +14,7 @@ import SearchPreview from "./pages/SearchPreview";
 import Auth from "./pages/Auth";
 import ContactConfig from "./pages/ContactConfig";
 import Integrations from "./pages/Integrations";
+import Crawl from "./pages/Crawl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
