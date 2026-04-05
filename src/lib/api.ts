@@ -61,6 +61,14 @@ export interface SearchResponse {
   error?: string;
 }
 
+export interface DailyMetric {
+  date: string;
+  searches: number;
+  clicks: number;
+  no_results: number;
+  click_rate: number;
+}
+
 export interface SiteStats {
   total_searches: number;
   searches_last_7d: number;
@@ -70,6 +78,7 @@ export interface SiteStats {
   top_queries: { query: string; count: number }[];
   failed_searches: { query: string; count: number }[];
   no_click_queries: { query: string; count: number }[];
+  daily: DailyMetric[];
 }
 
 export interface ContactConfig {
