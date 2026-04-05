@@ -958,9 +958,18 @@
     function doSearch(query) {
       renderLoading();
 
-      fetch(`${API_URL}/api/search`, {
+      const url = USE_SUPABASE
+        ? `${SUPABASE_URL}/functions/v1/search`
+        : `${API_URL}/api/search`;
+      const headers = { "Content-Type": "application/json" };
+      if (USE_SUPABASE) {
+        headers["Authorization"] = `Bearer ${SUPABASE_KEY}`;
+        headers["apikey"] = SUPABASE_KEY;
+      }
+
+      fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ query, site_id: SITE_ID, max_results: 5 }),
       })
         .then(r => { if (!r.ok) throw new Error("Search API error"); return r.json(); })
@@ -970,16 +979,34 @@
 
     function trackClick(url, position) {
       if (!currentSearchLogId) return;
-      fetch(`${API_URL}/api/search/click`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          search_log_id: currentSearchLogId,
-          clicked_url: url,
-          click_position: position || 0,
-          session_id: SESSION_ID,
-        }),
-      }).catch(() => {});
+
+      if (USE_SUPABASE) {
+        fetch(`${SUPABASE_URL}/functions/v1/search`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SUPABASE_KEY}`,
+            "apikey": SUPABASE_KEY,
+          },
+          body: JSON.stringify({
+            action: "click",
+            site_id: SITE_ID,
+            query: lastQuery,
+            url,
+          }),
+        }).catch(() => {});
+      } else {
+        fetch(`${API_URL}/api/search/click`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            search_log_id: currentSearchLogId,
+            clicked_url: url,
+            click_position: position || 0,
+            session_id: SESSION_ID,
+          }),
+        }).catch(() => {});
+      }
     }
 
     updateClearBtn();
