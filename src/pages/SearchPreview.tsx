@@ -967,37 +967,12 @@ export default function SearchPreview() {
           zeroSuggestions={results?.suggestions}
           onSuggestionClick={selectSuggestion}
           contactConfig={contactConfig}
+          popularProducts={popularProducts}
+          trending={trending}
+          inputFocused={inputFocused}
+          onSelectTrending={selectTrending}
         />
       </div>
-
-      {/* Subtext removed */}
-      {false && (
-        <p></p>
-      )}
-
-      {/* Popular products (trending with images) */}
-      {!query && !results && popularProducts.length > 0 && (
-        <PopularSection products={popularProducts} onSelect={selectTrending} />
-      )}
-
-      {/* Text-only trending fallback if no products */}
-      {!query && !results && popularProducts.length === 0 && trending.length > 0 && (
-        <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Suosittua juuri nyt
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {trending.map((item) => (
-              <button
-                key={item.query}
-                onClick={() => selectTrending(item.query)}
-                className="cursor-pointer rounded-full border border-border/40 bg-white px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-all hover:border-[hsl(145,50%,45%)]/25 hover:bg-[hsl(145,50%,45%)]/5"
-              >
-                {item.query}
-              </button>
-            ))}
-          </div>
-        </div>
       )}
 
       {/* Error */}
