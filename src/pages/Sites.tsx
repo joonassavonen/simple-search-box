@@ -30,15 +30,6 @@ export default function Sites() {
     loadSites();
   }, [loadSites]);
 
-  async function setupDemo() {
-    try {
-      await api.setupDemo();
-      await loadSites();
-      toast.success("Demo site loaded!");
-    } catch (e: any) {
-      toast.error("Demo setup failed: " + e.message);
-    }
-  }
 
   async function triggerCrawl(site: Site) {
     setCrawling((prev) => ({ ...prev, [site.id]: true }));
@@ -86,17 +77,12 @@ export default function Sites() {
           <h1 className="text-2xl font-bold tracking-tight">Sites</h1>
           <p className="text-sm text-muted-foreground">Manage indexed websites</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={setupDemo}>
-            Load Demo Site
-          </Button>
-          <Button asChild>
-            <Link to="/add-site">
-              <Plus className="mr-1 h-4 w-4" />
-              Add Site
-            </Link>
-          </Button>
-        </div>
+        <Button asChild>
+          <Link to="/add-site">
+            <Plus className="mr-1 h-4 w-4" />
+            Add Site
+          </Link>
+        </Button>
       </div>
 
       {sites.length === 0 ? (
@@ -105,16 +91,11 @@ export default function Sites() {
             <Globe className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <h3 className="mb-2 text-lg font-semibold">No sites yet</h3>
             <p className="mb-6 text-sm text-muted-foreground">
-              Add a site to start indexing, or load the demo to explore FindAI.
+              Add a site to start indexing.
             </p>
-            <div className="flex justify-center gap-3">
-              <Button variant="outline" onClick={setupDemo}>
-                Load Demo Site
-              </Button>
-              <Button asChild>
-                <Link to="/add-site">Add Your Site</Link>
-              </Button>
-            </div>
+            <Button asChild>
+              <Link to="/add-site">Add Your Site</Link>
+            </Button>
           </CardContent>
         </Card>
       ) : (
