@@ -35,6 +35,8 @@ import {
   BookOpen,
   MousePointerClick,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {

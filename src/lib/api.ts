@@ -250,17 +250,17 @@ export const api = {
 
     const topQueries = Object.entries(queryCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 50)
       .map(([query, count]) => ({ query, count }));
 
     const failedSearches = Object.entries(failedCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 50)
       .map(([query, count]) => ({ query, count }));
 
     const noClickQueries = Object.entries(noClickCounts)
       .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
+      .slice(0, 50)
       .map(([query, count]) => ({ query, count }));
 
     const avgResults = logs.length > 0
