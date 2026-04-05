@@ -265,18 +265,7 @@
       display: none; font-family: inherit;
     }
     .findai-clear:hover { color: var(--text-muted); }
-    .findai-search-btn {
-      flex-shrink: 0; width: 48px; height: 48px;
-      display: none; align-items: center; justify-content: center;
-      background: var(--amber); color: #fff;
-      border: none; border-radius: 12px; cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      transition: background 0.15s, transform 0.1s;
-      font-family: inherit;
-    }
-    .findai-search-btn:hover { background: #d97706; }
-    .findai-search-btn:active { transform: scale(0.95); }
-    .findai-search-btn svg { width: 20px; height: 20px; }
+    .findai-search-btn { display: none !important; }
 
     /* Dropdown */
     .findai-dropdown {
