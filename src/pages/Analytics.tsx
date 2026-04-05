@@ -206,9 +206,21 @@ export default function Analytics() {
 
         {/* ─── Search Performance Tab ─── */}
         <TabsContent value="performance" className="space-y-4">
-          <div className="flex items-baseline gap-3 mb-2">
-            <h2 className="text-lg font-semibold">Search performance</h2>
-            <span className="text-sm text-muted-foreground">{periodLabel}</span>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-lg font-semibold">Search performance</h2>
+              <span className="text-sm text-muted-foreground">{periodLabel}</span>
+            </div>
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">7 päivää</SelectItem>
+                <SelectItem value="30">30 päivää</SelectItem>
+                <SelectItem value="90">90 päivää</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* KPI Cards */}
