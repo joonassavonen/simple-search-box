@@ -274,7 +274,7 @@ export const api = {
       const key = date.toISOString().slice(0, 10);
       dailyMap[key] = { searches: 0, clicks: 0, no_results: 0 };
     }
-    for (const l of last30) {
+    for (const l of logs) {
       const key = l.created_at.slice(0, 10);
       if (dailyMap[key]) {
         dailyMap[key].searches++;
