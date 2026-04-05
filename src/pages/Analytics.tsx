@@ -69,6 +69,52 @@ const metricLabels: Record<ChartMetric, string> = {
   click_rate: "Click rate %",
 };
 
+const QUERIES_PER_PAGE = 10;
+
+function PaginatedQueryList({
+  items,
+  emptyMessage,
+}: {
+  items: { query: string; count: number }[];
+  emptyMessage: string;
+}) {
+  const [page, setPage] = useState(0);
+  const totalPages = Math.ceil(items.length / QUERIES_PER_PAGE);
+  const paged = items.slice(page * QUERIES_PER_PAGE, (page + 1) * QUERIES_PER_PAGE);
+
+  if (items.length === 0) {
+    return <p className="text-sm text-muted-foreground italic">{emptyMessage}</p>;
+  }
+
+  return (
+    <div>
+      <div className="space-y-1">
+        {paged.map((r, i) => (
+          <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+            <span className="text-sm truncate mr-2">{r.query}</span>
+            <span className="text-sm font-medium text-muted-foreground tabular-nums">{r.count}</span>
+          </div>
+        ))}
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-3">
+          <span className="text-xs text-muted-foreground">
+            {page * QUERIES_PER_PAGE + 1}–{Math.min((page + 1) * QUERIES_PER_PAGE, items.length)} / {items.length}
+          </span>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Analytics() {
   const { siteId } = useParams();
   const [stats, setStats] = useState<SiteStats | null>(null);
