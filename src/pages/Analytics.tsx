@@ -129,6 +129,8 @@ export default function Analytics() {
   const [dateRange, setDateRange] = useState<DateRange>("30");
   const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [learningStats, setLearningStats] = useState<LearningStats | null>(null);
+  const [editingSynonym, setEditingSynonym] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ query_from: "", query_to: "" });
   const [learningRunning, setLearningRunning] = useState(false);
 
   useEffect(() => {
