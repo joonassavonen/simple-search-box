@@ -120,6 +120,11 @@ export const api = {
     return data as Site;
   },
 
+  async deleteSite(id: string): Promise<void> {
+    const { error } = await supabase.from("sites").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+  },
+
   async createSite(input: { name: string; domain: string; sitemap_url?: string }): Promise<Site> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
