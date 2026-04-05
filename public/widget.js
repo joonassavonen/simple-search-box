@@ -612,19 +612,7 @@
     dropdown.className = "findai-dropdown";
     barInner.appendChild(dropdown);
 
-    // Footer (only for modal)
-    let footer = null;
-    if (!INLINE_TARGET || POSITION !== "inline") {
-      footer = document.createElement("div");
-      footer.className = "findai-footer";
-      footer.innerHTML = `
-        <span class="findai-footer-hint">↑↓ navigate · Enter select · Esc close</span>
-        <a class="findai-brand" href="https://findai.app" target="_blank" rel="noopener">
-          ${ICON_SEARCH} FindAI
-        </a>
-      `;
-      panel.appendChild(footer);
-    }
+    // No footer
 
     shadow.appendChild(wrapper);
 
