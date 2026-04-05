@@ -90,12 +90,6 @@ export default function Sites() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sites.map((site) => {
-            const job = jobStatus[site.id];
-            const isCrawling = crawling[site.id];
-            const crawlProgress =
-              job && job.pages_found
-                ? Math.round((job.pages_indexed / job.pages_found) * 100)
-                : 0;
 
             return (
               <Card key={site.id}>
