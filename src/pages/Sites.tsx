@@ -72,7 +72,16 @@ export default function Sites() {
     }, 2000);
   }
 
-  if (loading) {
+  async function deleteSite(site: Site) {
+    try {
+      await api.deleteSite(site.id);
+      toast.success(`${site.name} deleted`);
+      await loadSites();
+    } catch (e: any) {
+      toast.error("Delete failed: " + e.message);
+    }
+  }
+
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
