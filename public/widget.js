@@ -222,7 +222,7 @@
     .findai-panel {
       width: min(640px, 94vw);
       background: var(--bg); border-radius: var(--radius);
-      box-shadow: var(--shadow); overflow: hidden;
+      box-shadow: var(--shadow); overflow: visible;
       transform: translateY(-8px); transition: transform 0.2s ease;
     }
     .findai-overlay.open .findai-panel { transform: translateY(0); }
