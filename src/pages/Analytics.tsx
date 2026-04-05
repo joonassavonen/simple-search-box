@@ -32,12 +32,22 @@ interface Synonym {
   times_used: number;
 }
 
+type ChartMetric = "searches" | "clicks" | "no_results" | "click_rate";
+
+const metricLabels: Record<ChartMetric, string> = {
+  searches: "Searches",
+  clicks: "Clicks",
+  no_results: "No results",
+  click_rate: "Click rate %",
+};
+
 export default function Analytics() {
   const { siteId } = useParams();
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [chartMetric, setChartMetric] = useState<ChartMetric>("searches");
   const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [learningRunning, setLearningRunning] = useState(false);
 
