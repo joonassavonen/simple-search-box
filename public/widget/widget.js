@@ -30,7 +30,7 @@
   const PH_FI = (script && script.getAttribute("data-placeholder-fi")) || "Hae sivustolta...";
   const PH_EN = (script && script.getAttribute("data-placeholder-en")) || "Search the site...";
 
-  if (!SITE_ID) {
+  if (!SITE_ID || SITE_ID === "0") {
     console.warn("[FindAI] Missing data-site-id attribute");
     return;
   }
