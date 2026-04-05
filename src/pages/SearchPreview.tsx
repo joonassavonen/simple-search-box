@@ -26,17 +26,21 @@ export default function SearchPreview() {
     // Clean previous widget
     containerRef.current.innerHTML = "";
 
-    const script = document.createElement("script");
-    script.src = "/widget/widget.js";
-    script.setAttribute("data-site-id", siteId);
-    script.setAttribute("data-api-url", supabaseUrl + "/functions/v1");
-    script.setAttribute("data-position", "inline");
-    script.setAttribute("data-inline-target", "#findai-preview-target");
+    // Set config for widget (since dynamically injected scripts can't use document.currentScript)
+    (window as any).__FINDAI_CONFIG = {
+      siteId: siteId,
+      apiUrl: supabaseUrl + "/functions/v1",
+      position: "inline",
+      inlineTarget: "#findai-preview-target",
+    };
 
     // Create target div for inline mode
     const target = document.createElement("div");
     target.id = "findai-preview-target";
     containerRef.current.appendChild(target);
+
+    const script = document.createElement("script");
+    script.src = "/widget/widget.js";
     containerRef.current.appendChild(script);
 
     return () => {
