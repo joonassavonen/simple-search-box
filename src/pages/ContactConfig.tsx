@@ -18,8 +18,6 @@ export default function ContactConfig() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     async function load() {
