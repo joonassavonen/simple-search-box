@@ -144,18 +144,6 @@ export default function Sites() {
                     </div>
                   </div>
 
-                  {isCrawling && (
-                    <div className="mt-3 space-y-1">
-                      <Progress value={crawlProgress || 5} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        {job
-                          ? job.pages_found > 0
-                            ? `${job.pages_indexed}/${job.pages_found} pages indexed`
-                            : "Discovering pages from sitemap..."
-                          : "Starting crawl..."}
-                      </p>
-                    </div>
-                  )}
 
                 </CardContent>
 
