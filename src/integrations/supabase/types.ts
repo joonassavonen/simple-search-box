@@ -271,6 +271,9 @@ export type Database = {
       sites: {
         Row: {
           api_key: string
+          brand_bg_color: string | null
+          brand_color: string | null
+          brand_font: string | null
           created_at: string
           domain: string
           ga_property_id: string | null
@@ -285,6 +288,9 @@ export type Database = {
         }
         Insert: {
           api_key?: string
+          brand_bg_color?: string | null
+          brand_color?: string | null
+          brand_font?: string | null
           created_at?: string
           domain: string
           ga_property_id?: string | null
@@ -299,6 +305,9 @@ export type Database = {
         }
         Update: {
           api_key?: string
+          brand_bg_color?: string | null
+          brand_color?: string | null
+          brand_font?: string | null
           created_at?: string
           domain?: string
           ga_property_id?: string | null

@@ -13,6 +13,9 @@ export interface Site {
   is_active: boolean;
   page_count: number;
   last_crawled_at: string | null;
+  brand_color: string | null;
+  brand_font: string | null;
+  brand_bg_color: string | null;
 }
 
 export interface CrawlJob {

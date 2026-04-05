@@ -105,7 +105,32 @@ async function doCrawl(jobId: string, siteId: string) {
       status: "crawling",
     }).eq("id", jobId);
 
-    // --- Phase 2: Crawl each page ---
+    // --- Phase 2: Extract brand styles from homepage ---
+    try {
+      console.log(`Extracting brand styles from ${baseUrl}`);
+      const homeRes = await fetch(baseUrl, {
+        headers: { "User-Agent": "FindAI-Crawler/1.0" },
+        redirect: "follow",
+      });
+      if (homeRes.ok) {
+        const homeHtml = await homeRes.text();
+        const brand = extractBrandStyles(homeHtml);
+        if (brand.color || brand.font || brand.bgColor) {
+          await supabase.from("sites").update({
+            brand_color: brand.color || null,
+            brand_font: brand.font || null,
+            brand_bg_color: brand.bgColor || null,
+          }).eq("id", siteId);
+          console.log(`Brand styles extracted:`, brand);
+        }
+      } else {
+        await homeRes.text();
+      }
+    } catch (e) {
+      console.log("Brand extraction failed (non-fatal):", e);
+    }
+
+    // --- Phase 3: Crawl each page ---
     let indexed = 0;
     const errors: string[] = [];
 
@@ -361,4 +386,164 @@ function decodeEntities(text: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ");
+}
+
+// --- Brand style extraction from HTML/CSS ---
+
+function extractBrandStyles(html: string): { color: string | null; font: string | null; bgColor: string | null } {
+  let color: string | null = null;
+  let font: string | null = null;
+  let bgColor: string | null = null;
+
+  // Collect all inline <style> blocks
+  const styleBlocks: string[] = [];
+  for (const m of html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)) {
+    styleBlocks.push(m[1]);
+  }
+  const allCss = styleBlocks.join("\n");
+
+  // Also check for CSS custom properties in :root
+  const rootMatch = allCss.match(/:root\s*\{([^}]+)\}/i);
+  const rootVars = rootMatch ? rootMatch[1] : "";
+
+  // 1. Extract primary color
+  // Try CSS custom properties first (--primary, --brand-color, --color-primary, etc.)
+  const colorVarPatterns = [
+    /--(?:primary|brand-color|color-primary|main-color|accent)\s*:\s*([^;]+)/i,
+    /--(?:primary-color|brand|theme-color)\s*:\s*([^;]+)/i,
+  ];
+  for (const pat of colorVarPatterns) {
+    const match = rootVars.match(pat) || allCss.match(pat);
+    if (match) {
+      const val = match[1].trim();
+      if (isColorValue(val)) {
+        color = normalizeColor(val);
+        break;
+      }
+    }
+  }
+
+  // Fallback: check <meta name="theme-color">
+  if (!color) {
+    const themeColorMatch = html.match(/<meta\s+[^>]*name\s*=\s*["']theme-color["'][^>]*content\s*=\s*["']([^"']+)["']/i)
+      || html.match(/<meta\s+[^>]*content\s*=\s*["']([^"']+)["'][^>]*name\s*=\s*["']theme-color["']/i);
+    if (themeColorMatch) {
+      color = normalizeColor(themeColorMatch[1].trim());
+    }
+  }
+
+  // Fallback: most common non-trivial color in link/button styles
+  if (!color) {
+    const btnLinkColors: Record<string, number> = {};
+    const btnPatterns = [
+      /(?:\.btn|\.button|a|\.cta|\.nav)[^{]*\{[^}]*(?:background-color|background)\s*:\s*([^;}\s]+)/gi,
+      /(?:\.btn|\.button|\.cta)[^{]*\{[^}]*color\s*:\s*([^;}\s]+)/gi,
+    ];
+    for (const pat of btnPatterns) {
+      for (const m of allCss.matchAll(pat)) {
+        const c = normalizeColor(m[1].trim());
+        if (c && !isTrivialColor(c)) {
+          btnLinkColors[c] = (btnLinkColors[c] || 0) + 1;
+        }
+      }
+    }
+    const sorted = Object.entries(btnLinkColors).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) {
+      color = sorted[0][0];
+    }
+  }
+
+  // 2. Extract font family
+  // Try CSS variables first
+  const fontVarPatterns = [
+    /--(?:font-family|font-primary|body-font|font-sans|font-base)\s*:\s*([^;]+)/i,
+  ];
+  for (const pat of fontVarPatterns) {
+    const match = rootVars.match(pat) || allCss.match(pat);
+    if (match) {
+      font = cleanFontName(match[1].trim());
+      break;
+    }
+  }
+
+  // Fallback: font-family on body or html
+  if (!font) {
+    const bodyFontMatch = allCss.match(/(?:body|html)\s*(?:,\s*[\w.*#[\]]+\s*)*\{[^}]*font-family\s*:\s*([^;]+)/i);
+    if (bodyFontMatch) {
+      font = cleanFontName(bodyFontMatch[1].trim());
+    }
+  }
+
+  // Fallback: check Google Fonts link
+  if (!font) {
+    const gfMatch = html.match(/fonts\.googleapis\.com\/css2?\?family=([^&"']+)/i);
+    if (gfMatch) {
+      font = decodeURIComponent(gfMatch[1]).split(":")[0].replace(/\+/g, " ");
+    }
+  }
+
+  // 3. Extract background color
+  const bgVarPatterns = [
+    /--(?:background|bg-color|bg|background-color)\s*:\s*([^;]+)/i,
+  ];
+  for (const pat of bgVarPatterns) {
+    const match = rootVars.match(pat) || allCss.match(pat);
+    if (match) {
+      const val = match[1].trim();
+      if (isColorValue(val)) {
+        bgColor = normalizeColor(val);
+        break;
+      }
+    }
+  }
+
+  if (!bgColor) {
+    const bodyBgMatch = allCss.match(/(?:body|html)\s*(?:,\s*[\w.*#[\]]+\s*)*\{[^}]*background(?:-color)?\s*:\s*([^;}\s]+)/i);
+    if (bodyBgMatch) {
+      const val = normalizeColor(bodyBgMatch[1].trim());
+      if (val) bgColor = val;
+    }
+  }
+
+  return { color, font, bgColor };
+}
+
+function isColorValue(val: string): boolean {
+  if (val.startsWith("#")) return true;
+  if (val.startsWith("rgb")) return true;
+  if (val.startsWith("hsl")) return true;
+  const namedColors = ["white", "black", "red", "blue", "green", "gray", "grey", "transparent", "inherit", "initial", "unset"];
+  if (namedColors.includes(val.toLowerCase())) return true;
+  return false;
+}
+
+function normalizeColor(val: string): string | null {
+  if (!val) return null;
+  // Remove !important and trim
+  val = val.replace(/!important/gi, "").trim();
+  if (val.startsWith("#") || val.startsWith("rgb") || val.startsWith("hsl")) return val;
+  if (/^[a-z]+$/i.test(val) && isColorValue(val)) return val;
+  return null;
+}
+
+function isTrivialColor(c: string): boolean {
+  const trivial = ["#fff", "#ffffff", "#000", "#000000", "white", "black", "transparent", "inherit", "initial", "#333", "#333333", "#666", "#666666", "#999", "#ccc", "#eee", "#f5f5f5", "#fafafa"];
+  return trivial.includes(c.toLowerCase());
+}
+
+function cleanFontName(val: string): string {
+  // Take the first font in the stack, remove quotes
+  const first = val.split(",")[0].trim().replace(/["']/g, "");
+  // Skip generic families
+  const generics = ["serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui", "ui-sans-serif", "ui-serif", "-apple-system", "BlinkMacSystemFont"];
+  if (generics.includes(first.toLowerCase())) {
+    // Try second font
+    const parts = val.split(",");
+    if (parts.length > 1) {
+      const second = parts[1].trim().replace(/["']/g, "");
+      if (!generics.includes(second.toLowerCase())) return second;
+    }
+    return first;
+  }
+  return first;
 }
