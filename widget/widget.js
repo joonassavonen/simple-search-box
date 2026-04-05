@@ -996,24 +996,21 @@
 
       html += `<div class="findai-results-header">${ICON_SPARKLES} ${data.results.length} osuma${data.results.length !== 1 ? "a" : ""}</div>`;
 
+      // AI summary — compact single paragraph, not a link
       if (data.ai_summary) {
-        const firstUrl = data.results[0]?.url || "#";
-        html += `
-          <a href="${escHtml(firstUrl)}" target="_blank" rel="noopener" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
-            <div class="findai-ai-summary-text">
-              <h3>${escHtml(data.ai_summary.split(".")[0])}</h3>
-              <p>${escHtml(data.ai_summary)}</p>
-            </div>
-            ${ICON_EXTERNAL}
-          </a>
-        `;
+        html += `<div class="findai-ai-summary"><p>${escHtml(data.ai_summary)}</p></div>`;
       }
 
       data.results.forEach((r, idx) => {
         const title = cleanTitle(r.title, r.url);
-        const snippet = cleanSnippet(r.snippet);
         const s = r.schema_data;
         const isProduct = s && s.type === "Product";
+
+        // Compact snippet: one line max
+        let snippet = cleanSnippet(r.snippet);
+        if (snippet && snippet.length > 100) snippet = snippet.slice(0, 100).replace(/\s+\S*$/, "") + "…";
+
+        if (idx > 0) html += '<div class="findai-results-divider"></div>';
 
         html += `<a href="${escHtml(r.url)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
 
@@ -1032,12 +1029,7 @@
           html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
         }
 
-        if (isProduct && s.availability) {
-          const inStock = s.availability.includes("InStock");
-          html += `<span class="findai-result-badge ${inStock ? "findai-badge-instock" : "findai-badge-outofstock"}">${inStock ? "✓ Varastossa" : "Ei varastossa"}</span>`;
-        }
-
-        if (snippet) {
+        if (!isProduct && snippet) {
           html += `<div class="findai-result-snippet">${escHtml(snippet)}</div>`;
         }
 
