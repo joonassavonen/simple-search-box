@@ -659,6 +659,7 @@ export default function SearchPreview() {
   const [popularProducts, setPopularProducts] = useState<PopularProduct[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [copied, setCopied] = useState(false);
   const [contactConfig, setContactConfig] = useState<ContactConfig | null>(null);
