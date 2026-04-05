@@ -131,6 +131,20 @@
     return stars;
   }
 
+  // Supabase PostgREST helper
+  function supabaseRest(table, params) {
+    const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
+    for (const [k, v] of Object.entries(params)) {
+      url.searchParams.set(k, v);
+    }
+    return fetch(url.toString(), {
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+      },
+    }).then(r => r.json());
+  }
+
   // -------------------------------------------------------------------------
   // CSS — green theme matching SearchPreview
   // -------------------------------------------------------------------------
@@ -483,6 +497,7 @@
   let suggestDebounce = null;
   let lastQuery = "";
   let trendingData = null;
+  let popularProducts = null;
   let contactConfig = null;
   let activeSuggestionIdx = -1;
 
@@ -566,13 +581,7 @@
     // Dropdown (unified: suggestions + results + trending)
     const dropdown = document.createElement("div");
     dropdown.className = "findai-dropdown";
-    // For inline mode, dropdown is relative to bar
-    if (POSITION === "inline" && INLINE_TARGET) {
-      barInner.style.position = "relative";
-      barInner.appendChild(dropdown);
-    } else {
-      barInner.appendChild(dropdown);
-    }
+    barInner.appendChild(dropdown);
 
     // Footer (only for modal)
     let footer = null;
@@ -602,17 +611,66 @@
     }
 
     // -----------------------------------------------------------------------
-    // Prefetch trending + contact config
+    // Prefetch trending, popular products & contact config
     // -----------------------------------------------------------------------
-    fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
-      .then(r => r.json())
-      .then(data => { trendingData = data.trending || []; })
-      .catch(() => {});
+    if (USE_SUPABASE) {
+      // Trending via PostgREST
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      supabaseRest("search_logs", {
+        "select": "query",
+        "site_id": `eq.${SITE_ID}`,
+        "created_at": `gte.${sevenDaysAgo}`,
+        "results_count": "gt.0",
+      }).then(data => {
+        if (!data || !Array.isArray(data)) return;
+        const counts = {};
+        for (const row of data) {
+          const q = (row.query || "").trim().toLowerCase();
+          if (q.length >= 2) counts[q] = (counts[q] || 0) + 1;
+        }
+        trendingData = Object.entries(counts)
+          .filter(([, c]) => c >= 2)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6)
+          .map(([query, count]) => ({ query, count }));
+      }).catch(() => {});
 
-    fetch(`${API_URL}/api/sites/${SITE_ID}/contact-config`)
-      .then(r => r.json())
-      .then(data => { contactConfig = data; })
-      .catch(() => {});
+      // Popular products via PostgREST
+      supabaseRest("pages", {
+        "select": "title,url,schema_data",
+        "site_id": `eq.${SITE_ID}`,
+        "schema_data": "not.is.null",
+        "limit": "50",
+      }).then(data => {
+        if (!data || !Array.isArray(data)) return;
+        const products = [];
+        for (const p of data) {
+          try {
+            const schema = typeof p.schema_data === "string" ? JSON.parse(p.schema_data) : p.schema_data;
+            if (schema?.type === "Product" && p.title) {
+              products.push({ title: p.title, url: p.url, image: schema.image || undefined });
+            }
+          } catch {}
+        }
+        popularProducts = products.slice(0, 5);
+      }).catch(() => {});
+
+      // Contact config from localStorage (same as preview)
+      try {
+        const stored = localStorage.getItem(`findai-contact-${SITE_ID}`);
+        if (stored) contactConfig = JSON.parse(stored);
+      } catch {}
+    } else {
+      fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
+        .then(r => r.json())
+        .then(data => { trendingData = data.trending || []; })
+        .catch(() => {});
+
+      fetch(`${API_URL}/api/sites/${SITE_ID}/contact-config`)
+        .then(r => r.json())
+        .then(data => { contactConfig = data; })
+        .catch(() => {});
+    }
 
     // -----------------------------------------------------------------------
     // Event handlers
@@ -732,22 +790,55 @@
     // Suggestions
     // -----------------------------------------------------------------------
     function fetchSuggestions(q) {
-      fetch(`${API_URL}/api/sites/${SITE_ID}/suggestions?q=${encodeURIComponent(q)}&limit=5`)
-        .then(r => r.json())
-        .then(data => {
+      if (USE_SUPABASE) {
+        const prefix = q.trim().toLowerCase();
+        supabaseRest("search_logs", {
+          "select": "query",
+          "site_id": `eq.${SITE_ID}`,
+          "results_count": "gt.0",
+          "query": `ilike.${prefix}%`,
+          "limit": "200",
+        }).then(data => {
           if (input.value.trim() !== q) return;
-          renderSuggestions(data.suggestions || []);
-        })
-        .catch(() => {});
+          if (!data || !Array.isArray(data)) return;
+          const counts = {};
+          for (const row of data) {
+            const rq = (row.query || "").trim().toLowerCase();
+            if (rq !== prefix && rq.length >= 2) counts[rq] = (counts[rq] || 0) + 1;
+          }
+          const suggestions = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([q]) => q);
+          renderSuggestions(suggestions);
+        }).catch(() => {});
+      } else {
+        fetch(`${API_URL}/api/sites/${SITE_ID}/suggestions?q=${encodeURIComponent(q)}&limit=5`)
+          .then(r => r.json())
+          .then(data => {
+            if (input.value.trim() !== q) return;
+            renderSuggestions(data.suggestions || []);
+          })
+          .catch(() => {});
+      }
     }
 
     function renderSuggestions(items) {
       if (!items.length) return;
       activeSuggestionIdx = -1;
+
+      // Find matching product images for suggestions
       let html = "";
       items.forEach(s => {
         const q = typeof s === "string" ? s : s.query;
-        html += `<button class="findai-suggestion" data-query="${escHtml(q)}">${ICON_SEARCH} <span>${escHtml(q)}</span></button>`;
+        let imgHtml = ICON_SEARCH;
+        if (popularProducts) {
+          const match = popularProducts.find(p => p.title && p.title.toLowerCase().includes(q.toLowerCase()));
+          if (match && match.image) {
+            imgHtml = `<img src="${escHtml(match.image)}" alt="" onerror="this.style.display='none'">`;
+          }
+        }
+        html += `<button class="findai-suggestion" data-query="${escHtml(q)}">${imgHtml} <span>${escHtml(q)}</span></button>`;
       });
       dropdown.innerHTML = html;
       showDropdown();
@@ -768,19 +859,38 @@
     // Trending
     // -----------------------------------------------------------------------
     function renderTrending() {
-      if (!trendingData || trendingData.length === 0) {
+      const hasProducts = popularProducts && popularProducts.length > 0;
+      const hasTrending = trendingData && trendingData.length > 0;
+
+      if (!hasProducts && !hasTrending) {
         hideDropdown();
         return;
       }
-      let html = '<div class="findai-trending"><div class="findai-trending-title">Suosittua juuri nyt</div><div class="findai-trending-list">';
-      trendingData.forEach(t => {
-        html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${escHtml(t.query)}</button>`;
-      });
-      html += "</div></div>";
+
+      let html = '<div class="findai-trending"><div class="findai-trending-title">Suosittua juuri nyt</div>';
+
+      if (hasProducts) {
+        html += '<div style="display:flex;flex-direction:column;gap:2px">';
+        popularProducts.forEach(p => {
+          const imgHtml = p.image
+            ? `<img src="${escHtml(p.image)}" alt="" onerror="this.style.display='none'">`
+            : `<div class="findai-trending-product-placeholder"></div>`;
+          html += `<button class="findai-trending-product" data-query="${escHtml(p.title)}">${imgHtml}<span>${escHtml(p.title)}</span></button>`;
+        });
+        html += '</div>';
+      } else if (hasTrending) {
+        html += '<div class="findai-trending-list">';
+        trendingData.forEach(t => {
+          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${escHtml(t.query)}</button>`;
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
       dropdown.innerHTML = html;
       showDropdown();
 
-      dropdown.querySelectorAll(".findai-trending-item").forEach(btn => {
+      dropdown.querySelectorAll(".findai-trending-item, .findai-trending-product").forEach(btn => {
         btn.addEventListener("click", () => {
           input.value = btn.dataset.query;
           updateClearBtn();
@@ -828,7 +938,6 @@
       }
       html += "</div>";
 
-      // Contact CTA
       const cfg = data.contact_config || contactConfig;
       if (cfg && cfg.enabled) {
         html += renderContactHtml(cfg, lang);
@@ -866,10 +975,8 @@
       currentSearchLogId = data.search_log_id;
       let html = "";
 
-      // Results count
       html += `<div class="findai-results-header">${ICON_SPARKLES} ${data.results.length} osuma${data.results.length !== 1 ? "a" : ""}</div>`;
 
-      // AI summary
       if (data.ai_summary) {
         const firstUrl = data.results[0]?.url || "#";
         html += `
@@ -883,7 +990,6 @@
         `;
       }
 
-      // Result items
       data.results.forEach((r, idx) => {
         const title = cleanTitle(r.title, r.url);
         const snippet = cleanSnippet(r.snippet);
@@ -892,7 +998,6 @@
 
         html += `<a href="${escHtml(r.url)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
 
-        // Product image
         if (isProduct && s.image) {
           html += `<img class="findai-result-img" src="${escHtml(s.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
         }
@@ -930,12 +1035,11 @@
           if (meta) html += `<div class="findai-result-meta">${meta}</div>`;
         }
 
-        html += "</div>"; // body
+        html += "</div>";
         html += `<span class="findai-result-arrow">${ICON_EXTERNAL}</span>`;
         html += "</a>";
       });
 
-      // Contact CTA
       const cfg = data.contact_config || contactConfig;
       if (cfg && cfg.enabled) {
         html += renderContactHtml(cfg, data.language || "fi");
@@ -944,7 +1048,6 @@
       dropdown.innerHTML = html;
       showDropdown();
 
-      // Click tracking
       dropdown.querySelectorAll(".findai-result, .findai-ai-summary").forEach(el => {
         el.addEventListener("click", (e) => {
           trackClick(el.dataset.url, parseInt(el.dataset.idx || "0", 10));
