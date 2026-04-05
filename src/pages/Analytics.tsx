@@ -564,19 +564,67 @@ export default function Analytics() {
                       <TableHead>Synonyymi</TableHead>
                       <TableHead className="w-24 text-right">Luottamus</TableHead>
                       <TableHead className="w-20 text-right">Käytöt</TableHead>
+                      <TableHead className="w-20 text-right">Toiminnot</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {synonyms.map((s) => (
                       <TableRow key={s.id}>
-                        <TableCell className="font-medium">{s.query_from}</TableCell>
-                        <TableCell>{s.query_to}</TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>
-                            {(s.confidence * 100).toFixed(0)}%
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
+                        {editingSynonym === s.id ? (
+                          <>
+                            <TableCell>
+                              <input
+                                className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                                value={editForm.query_from}
+                                onChange={(e) => setEditForm((f) => ({ ...f, query_from: e.target.value }))}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <input
+                                className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
+                                value={editForm.query_to}
+                                onChange={(e) => setEditForm((f) => ({ ...f, query_to: e.target.value }))}
+                              />
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>
+                                {(s.confidence * 100).toFixed(0)}%
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveEdit(s.id)}>
+                                  <Check className="h-3.5 w-3.5 text-green-600" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingSynonym(null)}>
+                                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell className="font-medium">{s.query_from}</TableCell>
+                            <TableCell>{s.query_to}</TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>
+                                {(s.confidence * 100).toFixed(0)}%
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(s)}>
+                                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSynonym(s.id)}>
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
