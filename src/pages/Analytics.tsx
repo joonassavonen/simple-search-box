@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Search, Lightbulb, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Search, Lightbulb, Loader2, AlertCircle, Brain, RefreshCw } from "lucide-react";
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
