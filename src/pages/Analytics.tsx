@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { api, Site, SiteStats } from "@/lib/api";
+import { api, Site, SiteStats, DailyMetric } from "@/lib/api";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Search, Loader2, AlertCircle, Brain, RefreshCw, TrendingUp, TrendingDown, MousePointerClick, FileSearch, SearchX, Ban } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Search, Loader2, AlertCircle, Brain, RefreshCw, FileSearch, SearchX, Ban } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface Synonym {
   id: string;
@@ -24,12 +32,22 @@ interface Synonym {
   times_used: number;
 }
 
+type ChartMetric = "searches" | "clicks" | "no_results" | "click_rate";
+
+const metricLabels: Record<ChartMetric, string> = {
+  searches: "Searches",
+  clicks: "Clicks",
+  no_results: "No results",
+  click_rate: "Click rate %",
+};
+
 export default function Analytics() {
   const { siteId } = useParams();
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [chartMetric, setChartMetric] = useState<ChartMetric>("searches");
   const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [learningRunning, setLearningRunning] = useState(false);
 
@@ -179,6 +197,64 @@ export default function Analytics() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Line Chart */}
+        <Card className="mb-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Daily trend</CardTitle>
+            <Select value={chartMetric} onValueChange={(v) => setChartMetric(v as ChartMetric)}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="searches">Searches</SelectItem>
+                <SelectItem value="clicks">Clicks</SelectItem>
+                <SelectItem value="no_results">No results</SelectItem>
+                <SelectItem value="click_rate">Click rate %</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.daily}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(d: string) => {
+                      const date = new Date(d);
+                      return `${date.getDate()}.${date.getMonth() + 1}`;
+                    }}
+                    className="text-xs"
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis className="text-xs" tick={{ fontSize: 11 }} width={40} />
+                  <Tooltip
+                    labelFormatter={(d: string) => new Date(d).toLocaleDateString("fi-FI")}
+                    formatter={(value: number) => [
+                      chartMetric === "click_rate" ? `${value}%` : value,
+                      metricLabels[chartMetric],
+                    ]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={chartMetric}
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 0, fill: "hsl(var(--primary))" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Three column tables */}
         <div className="grid gap-4 md:grid-cols-3">
