@@ -714,7 +714,7 @@
     // -----------------------------------------------------------------------
 
     function fetchSuggestions(q) {
-      fetch(`${API_URL}/api/sites/${SITE_ID}/suggestions?q=${encodeURIComponent(q)}&limit=5`)
+      fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "suggestions", query: q, limit: 5 }) })
         .then(r => r.json())
         .then(data => {
           if (input.value.trim() !== q) return; // stale
