@@ -194,12 +194,6 @@ export default function Sites() {
                     </div>
                   )}
 
-                  <div className="mt-3 flex items-center gap-1 text-xs text-muted-foreground">
-                    <span>API Key:</span>
-                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
-                      {site.api_key.slice(0, 12)}...
-                    </code>
-                  </div>
                 </CardContent>
 
 
