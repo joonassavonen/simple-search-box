@@ -533,31 +533,24 @@
       panel = document.createElement("div");
       panel.className = "findai-inline";
       wrapper.appendChild(panel);
-    } else if (POSITION === "fullscreen") {
+    } else if (POSITION === "header-icon") {
+      // Inline icon button — place inside data-inline-target or body
       trigger = document.createElement("button");
-      trigger.className = `findai-trigger pos-bottom-right`;
-      trigger.innerHTML = `${ICON_SEARCH} <span class="findai-trigger-label">Hae</span>`;
+      trigger.className = "findai-header-icon";
+      trigger.innerHTML = ICON_SEARCH;
       trigger.setAttribute("aria-label", "Open search");
       wrapper.appendChild(trigger);
 
       overlay = document.createElement("div");
-      overlay.className = "findai-fullscreen-overlay";
+      overlay.className = "findai-overlay";
       overlay.setAttribute("role", "dialog");
       overlay.setAttribute("aria-modal", "true");
       overlay.setAttribute("aria-label", "Site search");
 
-      const closeBtn = document.createElement("button");
-      closeBtn.className = "findai-fullscreen-close";
-      closeBtn.innerHTML = ICON_CLOSE;
-      closeBtn.setAttribute("aria-label", "Close");
-      overlay.appendChild(closeBtn);
-
       panel = document.createElement("div");
-      panel.className = "findai-fullscreen-panel";
+      panel.className = "findai-panel";
       overlay.appendChild(panel);
       wrapper.appendChild(overlay);
-
-      closeBtn.addEventListener("click", () => { closeSearch(); });
     } else {
       trigger = document.createElement("button");
       trigger.className = `findai-trigger pos-${POSITION}`;
