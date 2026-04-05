@@ -21,16 +21,15 @@
   // Config
   // -------------------------------------------------------------------------
   const script = document.currentScript || document.querySelector("script[data-site-id]");
-  const configFromWindow = window.__FINDAI_CONFIG || {};
-  const SITE_ID = configFromWindow.siteId || (script && script.getAttribute("data-site-id")) || "0";
-  const API_URL = (configFromWindow.apiUrl || (script && script.getAttribute("data-api-url")) || "http://localhost:8000").replace(/\/$/, "");
-  const THEME = configFromWindow.theme || (script && script.getAttribute("data-theme")) || "light";
-  const POSITION = configFromWindow.position || (script && script.getAttribute("data-position")) || "bottom-right";
-  const INLINE_TARGET = configFromWindow.inlineTarget || (script && script.getAttribute("data-inline-target")) || null;
-  const PH_FI = (script && script.getAttribute("data-placeholder-fi")) || "Hae sivustolta...";
-  const PH_EN = (script && script.getAttribute("data-placeholder-en")) || "Search the site...";
+  const SITE_ID = parseInt(script.getAttribute("data-site-id") || "0", 10);
+  const API_URL = (script.getAttribute("data-api-url") || "http://localhost:8000").replace(/\/$/, "");
+  const THEME = script.getAttribute("data-theme") || "light";
+  const POSITION = script.getAttribute("data-position") || "bottom-right";
+  const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
+  const PH_FI = script.getAttribute("data-placeholder-fi") || "Hae sivustolta...";
+  const PH_EN = script.getAttribute("data-placeholder-en") || "Search the site...";
 
-  if (!SITE_ID || SITE_ID === "0") {
+  if (!SITE_ID) {
     console.warn("[FindAI] Missing data-site-id attribute");
     return;
   }
@@ -558,28 +557,17 @@
     panel.appendChild(footer);
 
     shadow.appendChild(wrapper);
-
-    // Append to inline target or body
-    if (POSITION === "inline" && INLINE_TARGET) {
-      const target = document.querySelector(INLINE_TARGET);
-      if (target) {
-        target.appendChild(host);
-      } else {
-        document.body.appendChild(host);
-      }
-    } else {
-      document.body.appendChild(host);
-    }
+    document.body.appendChild(host);
 
     // -----------------------------------------------------------------------
     // Prefetch trending + contact config
     // -----------------------------------------------------------------------
-    fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "trending", limit: 6 }) })
+    fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
       .then(r => r.json())
       .then(data => { trendingData = data.trending || []; })
       .catch(() => {});
 
-    fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "contact-config" }) })
+    fetch(`${API_URL}/api/sites/${SITE_ID}/contact-config`)
       .then(r => r.json())
       .then(data => { contactConfig = data; })
       .catch(() => {});
@@ -714,7 +702,7 @@
     // -----------------------------------------------------------------------
 
     function fetchSuggestions(q) {
-      fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "suggestions", query: q, limit: 5 }) })
+      fetch(`${API_URL}/api/sites/${SITE_ID}/suggestions?q=${encodeURIComponent(q)}&limit=5`)
         .then(r => r.json())
         .then(data => {
           if (input.value.trim() !== q) return; // stale
@@ -952,7 +940,7 @@
       const lang = detectLang(query);
       renderLoading(lang);
 
-      fetch(`${API_URL}/search`, {
+      fetch(`${API_URL}/api/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, site_id: SITE_ID, max_results: 5 }),
@@ -967,12 +955,10 @@
 
     function trackClick(url, position) {
       if (!currentSearchLogId) return;
-      fetch(`${API_URL}/search`, {
+      fetch(`${API_URL}/api/search/click`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "click",
-          site_id: SITE_ID,
           search_log_id: currentSearchLogId,
           clicked_url: url,
           click_position: position || 0,
