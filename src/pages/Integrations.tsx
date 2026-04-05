@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { ShoppingBag, TrendingUp, Store, ExternalLink, CheckCircle2, AlertCircle, Upload, BarChart3, MousePointerClick, ArrowUpRight } from "lucide-react";
+import { useParams, Link } from "react-router-dom";
+import { ShoppingBag, TrendingUp, Store, ExternalLink, CheckCircle2, AlertCircle, BarChart3, MousePointerClick, ArrowUpRight, ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
@@ -12,51 +12,40 @@ import { toast } from "sonner";
 
 type IntegrationStatus = "not_connected" | "connected" | "coming_soon";
 
-interface GAConfig {
-  siteId: string;
-  siteName: string;
-  gaPropertyId: string | null;
-  pagesWithData: number;
-}
-
 export default function Integrations() {
-  const [sites, setSites] = useState<any[]>([]);
-  const [gaConfigs, setGaConfigs] = useState<GAConfig[]>([]);
+  const { siteId } = useParams<{ siteId: string }>();
+  const [siteName, setSiteName] = useState("");
+  const [gaPropertyId, setGaPropertyId] = useState<string | null>(null);
+  const [pagesWithData, setPagesWithData] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [editingGA, setEditingGA] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const [gaInput, setGaInput] = useState("");
 
   useEffect(() => {
+    if (!siteId) return;
     loadData();
-  }, []);
+  }, [siteId]);
 
   async function loadData() {
     try {
-      const sitesData = await api.listSites();
-      setSites(sitesData);
+      const site = await api.getSite(siteId!);
+      setSiteName(site.name);
 
-      // Load GA config for each site
-      const configs: GAConfig[] = [];
-      for (const site of sitesData) {
-        const { data: siteRow } = await supabase
-          .from("sites")
-          .select("ga_property_id" as any)
-          .eq("id", site.id)
-          .single();
+      const { data: siteRow } = await supabase
+        .from("sites")
+        .select("ga_property_id" as any)
+        .eq("id", siteId!)
+        .single();
 
-        const { count } = await supabase
-          .from("page_analytics" as any)
-          .select("*", { count: "exact", head: true })
-          .eq("site_id", site.id);
+      const propId = (siteRow as any)?.ga_property_id || null;
+      setGaPropertyId(propId);
 
-        configs.push({
-          siteId: site.id,
-          siteName: site.name,
-          gaPropertyId: (siteRow as any)?.ga_property_id || null,
-          pagesWithData: count || 0,
-        });
-      }
-      setGaConfigs(configs);
+      const { count } = await supabase
+        .from("page_analytics" as any)
+        .select("*", { count: "exact", head: true })
+        .eq("site_id", siteId!);
+
+      setPagesWithData(count || 0);
     } catch (e: any) {
       toast.error("Virhe ladattaessa: " + e.message);
     } finally {
@@ -64,33 +53,40 @@ export default function Integrations() {
     }
   }
 
-  async function saveGAProperty(siteId: string) {
+  async function saveGAProperty() {
     try {
       const { error } = await supabase
         .from("sites")
         .update({ ga_property_id: gaInput.trim() || null } as any)
-        .eq("id", siteId);
+        .eq("id", siteId!);
       if (error) throw new Error(error.message);
       toast.success("GA Property ID tallennettu");
-      setEditingGA(null);
+      setEditing(false);
       await loadData();
     } catch (e: any) {
       toast.error("Tallennus epäonnistui: " + e.message);
     }
   }
 
-  const gaStatus: IntegrationStatus = gaConfigs.some(c => c.gaPropertyId) ? "connected" : "not_connected";
+  if (!siteId) {
+    return <p className="text-muted-foreground">Site ID puuttuu.</p>;
+  }
+
+  const gaStatus: IntegrationStatus = gaPropertyId ? "connected" : "not_connected";
 
   return (
     <div>
       <div className="mb-6">
+        <Button variant="ghost" size="sm" className="mb-2 -ml-2 h-8 gap-1 text-xs text-muted-foreground" asChild>
+          <Link to="/"><ArrowLeft className="h-3.5 w-3.5" /> Takaisin</Link>
+        </Button>
         <h1 className="text-2xl font-bold tracking-tight">Integraatiot</h1>
         <p className="text-sm text-muted-foreground">
-          Yhdistä ulkoiset palvelut FindAI-hakuun
+          {loading ? "Ladataan..." : <>{siteName} — ulkoiset palvelut</>}
         </p>
       </div>
 
-      {/* Google Analytics — Full featured */}
+      {/* Google Analytics */}
       <Card className="mb-6">
         <CardHeader>
           <div className="flex items-start justify-between">
@@ -133,61 +129,53 @@ export default function Integrations() {
 
           <Separator />
 
-          {/* Per-site GA config */}
+          {/* GA config for this site */}
           {loading ? (
             <p className="text-sm text-muted-foreground">Ladataan...</p>
-          ) : sites.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Lisää ensin sivusto Sites-sivulta.</p>
           ) : (
-            <div className="space-y-3">
-              <Label className="text-xs font-medium text-muted-foreground">Sivukohtaiset asetukset</Label>
-              {gaConfigs.map((config) => (
-                <div key={config.siteId} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">{config.siteName}</p>
-                      {config.gaPropertyId ? (
-                        <p className="text-xs text-muted-foreground">
-                          Property: <code className="rounded bg-muted px-1">{config.gaPropertyId}</code>
-                          {config.pagesWithData > 0 && (
-                            <span className="ml-2 text-green-600">• {config.pagesWithData} sivua datalla</span>
-                          )}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">Ei yhdistetty</p>
+            <div className="rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  {gaPropertyId ? (
+                    <p className="text-xs text-muted-foreground">
+                      Property: <code className="rounded bg-muted px-1">{gaPropertyId}</code>
+                      {pagesWithData > 0 && (
+                        <span className="ml-2 text-green-600">• {pagesWithData} sivua datalla</span>
                       )}
-                    </div>
-                    {editingGA === config.siteId ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="G-XXXXXXXXXX tai 123456789"
-                          value={gaInput}
-                          onChange={(e) => setGaInput(e.target.value)}
-                          className="h-8 w-48 text-xs"
-                        />
-                        <Button size="sm" className="h-8 text-xs" onClick={() => saveGAProperty(config.siteId)}>
-                          Tallenna
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditingGA(null)}>
-                          Peruuta
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs"
-                        onClick={() => {
-                          setEditingGA(config.siteId);
-                          setGaInput(config.gaPropertyId || "");
-                        }}
-                      >
-                        {config.gaPropertyId ? "Muokkaa" : "Yhdistä"}
-                      </Button>
-                    )}
-                  </div>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Ei yhdistetty</p>
+                  )}
                 </div>
-              ))}
+                {editing ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="G-XXXXXXXXXX tai 123456789"
+                      value={gaInput}
+                      onChange={(e) => setGaInput(e.target.value)}
+                      className="h-8 w-48 text-xs"
+                    />
+                    <Button size="sm" className="h-8 text-xs" onClick={saveGAProperty}>
+                      Tallenna
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(false)}>
+                      Peruuta
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => {
+                      setEditing(true);
+                      setGaInput(gaPropertyId || "");
+                    }}
+                  >
+                    {gaPropertyId ? "Muokkaa" : "Yhdistä"}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
 
