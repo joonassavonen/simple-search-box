@@ -128,7 +128,7 @@ export default function Sites() {
                   </div>
                 </CardHeader>
 
-                </CardContent>
+
 
 
                 <CardFooter className="flex-wrap gap-1.5 pt-0">
