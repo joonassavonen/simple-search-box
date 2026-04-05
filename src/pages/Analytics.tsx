@@ -37,6 +37,10 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronRight,
+  Pencil,
+  Trash2,
+  Check,
+  X,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
