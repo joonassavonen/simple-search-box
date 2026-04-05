@@ -100,6 +100,7 @@ export interface LearningStats {
   site_id: string;
   boost_pairs: number;
   synonym_count: number;
+  total_learned_clicks: number;
   top_boosted: { url: string; query: string; clicks: number; ctr: number; boost: number }[];
   position_clicks: { position: number; clicks: number }[];
 }
