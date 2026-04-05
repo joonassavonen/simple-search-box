@@ -196,34 +196,16 @@
     .pos-bottom-left { bottom: 24px; left: 24px; }
     .pos-top-right { top: 24px; right: 24px; }
 
-    /* Fullscreen overlay */
-    .findai-fullscreen-overlay {
-      position: fixed; inset: 0;
-      background: var(--bg);
-      z-index: 2147483646;
-      display: flex; flex-direction: column;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
-    .findai-fullscreen-overlay.open { opacity: 1; pointer-events: all; }
-    .findai-fullscreen-panel {
-      width: 100%; max-width: 640px; margin: 0 auto;
-      flex: 1; display: flex; flex-direction: column;
-      padding: 24px 16px;
-      overflow: hidden;
-    }
-    .findai-fullscreen-close {
-      position: absolute; top: 16px; right: 16px;
+    /* Header icon trigger (for header-icon mode) */
+    .findai-header-icon {
+      display: inline-flex; align-items: center; justify-content: center;
       background: none; border: none; cursor: pointer;
-      color: var(--text-muted); padding: 8px; border-radius: 8px;
-      transition: background 0.15s; font-family: inherit;
+      color: var(--text); padding: 8px; border-radius: 8px;
+      transition: background 0.15s, color 0.15s;
+      font-family: inherit;
     }
-    .findai-fullscreen-close:hover { background: rgba(0,0,0,0.05); }
-    .findai-fullscreen-overlay .findai-dropdown {
-      position: relative; top: auto; left: auto; right: auto;
-      flex: 1; max-height: none; margin-top: 12px;
-      border: none; box-shadow: none;
-    }
+    .findai-header-icon:hover { background: rgba(0,0,0,0.06); color: hsl(var(--green)); }
+    .findai-header-icon svg { width: 20px; height: 20px; }
 
     /* Modal overlay */
     .findai-overlay {
@@ -551,31 +533,24 @@
       panel = document.createElement("div");
       panel.className = "findai-inline";
       wrapper.appendChild(panel);
-    } else if (POSITION === "fullscreen") {
+    } else if (POSITION === "header-icon") {
+      // Inline icon button — place inside data-inline-target or body
       trigger = document.createElement("button");
-      trigger.className = `findai-trigger pos-bottom-right`;
-      trigger.innerHTML = `${ICON_SEARCH} <span class="findai-trigger-label">Hae</span>`;
+      trigger.className = "findai-header-icon";
+      trigger.innerHTML = ICON_SEARCH;
       trigger.setAttribute("aria-label", "Open search");
       wrapper.appendChild(trigger);
 
       overlay = document.createElement("div");
-      overlay.className = "findai-fullscreen-overlay";
+      overlay.className = "findai-overlay";
       overlay.setAttribute("role", "dialog");
       overlay.setAttribute("aria-modal", "true");
       overlay.setAttribute("aria-label", "Site search");
 
-      const closeBtn = document.createElement("button");
-      closeBtn.className = "findai-fullscreen-close";
-      closeBtn.innerHTML = ICON_CLOSE;
-      closeBtn.setAttribute("aria-label", "Close");
-      overlay.appendChild(closeBtn);
-
       panel = document.createElement("div");
-      panel.className = "findai-fullscreen-panel";
+      panel.className = "findai-panel";
       overlay.appendChild(panel);
       wrapper.appendChild(overlay);
-
-      closeBtn.addEventListener("click", () => { closeSearch(); });
     } else {
       trigger = document.createElement("button");
       trigger.className = `findai-trigger pos-${POSITION}`;
@@ -653,7 +628,7 @@
 
     shadow.appendChild(wrapper);
 
-    if (POSITION === "inline" && INLINE_TARGET) {
+    if ((POSITION === "inline" || POSITION === "header-icon") && INLINE_TARGET) {
       const target = document.querySelector(INLINE_TARGET);
       if (target) {
         target.appendChild(host);

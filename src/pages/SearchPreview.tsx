@@ -4,14 +4,14 @@ import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Check, Search, MousePointerClick, Maximize } from "lucide-react";
+import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon } from "lucide-react";
 
-type EmbedMode = "inline" | "floating" | "fullscreen";
+type EmbedMode = "inline" | "floating" | "header-icon";
 
 const EMBED_MODES: { value: EmbedMode; label: string; icon: typeof Search; description: string }[] = [
   { value: "inline", label: "Header-haku", icon: Search, description: "Hakukenttä upotetaan suoraan sivun headeriin tai sisältöön" },
   { value: "floating", label: "Kelluva nappi", icon: MousePointerClick, description: "Kelluva \"Hae\"-nappi avaa hakumodaalin" },
-  { value: "fullscreen", label: "Kokoruutu", icon: Maximize, description: "Kelluva nappi avaa koko ruudun peittävän haun" },
+  { value: "header-icon", label: "Hakuikoni", icon: SearchIcon, description: "Hakuikoni upotetaan headeriin — klikkaus avaa overlay-haun" },
 ];
 
 function getSnippet(mode: EmbedMode, siteId: string) {
@@ -31,10 +31,12 @@ function getSnippet(mode: EmbedMode, siteId: string) {
   data-position="bottom-right">
 </script>`;
   }
-  return `<script
+  return `<div id="findai-search"></div>
+<script
   src="YOUR_DOMAIN/widget.js"
   data-site-id="${siteId}"
-  data-position="fullscreen">
+  data-position="header-icon"
+  data-inline-target="#findai-search">
 </script>`;
 }
 
@@ -71,10 +73,11 @@ export default function SearchPreview() {
     if (mode === "inline") {
       script.setAttribute("data-position", "inline");
       script.setAttribute("data-inline-target", "#findai-preview-container");
-    } else if (mode === "floating") {
-      script.setAttribute("data-position", "bottom-right");
+    } else if (mode === "header-icon") {
+      script.setAttribute("data-position", "header-icon");
+      script.setAttribute("data-inline-target", "#findai-preview-container");
     } else {
-      script.setAttribute("data-position", "fullscreen");
+      script.setAttribute("data-position", "bottom-right");
     }
 
     document.body.appendChild(script);
@@ -142,19 +145,17 @@ export default function SearchPreview() {
           <TabsContent key={mode.value} value={mode.value}>
             <p className="text-xs text-muted-foreground mb-4">{mode.description}</p>
 
-            {/* Inline preview container */}
-            {mode.value === "inline" && (
+            {/* Inline / header-icon preview container */}
+            {(mode.value === "inline" || mode.value === "header-icon") && (
               <div id="findai-preview-container" ref={containerRef} className="min-h-[60px]" />
             )}
 
-            {/* Floating / fullscreen hint */}
-            {mode.value !== "inline" && (
+            {/* Floating hint */}
+            {mode.value === "floating" && (
               <Card className="border-dashed border-border/50">
                 <CardContent className="py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {mode.value === "floating"
-                      ? "Kelluva \"Hae\"-nappi näkyy oikeassa alakulmassa →"
-                      : "Kelluva nappi avaa kokoruudun hakuikkunan →"}
+                    Kelluva "Hae"-nappi näkyy oikeassa alakulmassa →
                   </p>
                   <p className="text-[11px] text-muted-foreground/60 mt-1">
                     Klikkaa nappia testataksesi
