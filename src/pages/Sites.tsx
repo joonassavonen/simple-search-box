@@ -77,10 +77,7 @@ export default function Sites() {
           <h1 className="text-2xl font-bold tracking-tight">Sites</h1>
           <p className="text-sm text-muted-foreground">Manage indexed websites</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={setupDemo}>
-            Load Demo Site
-          </Button>
+          <Button asChild>
           <Button asChild>
             <Link to="/add-site">
               <Plus className="mr-1 h-4 w-4" />
