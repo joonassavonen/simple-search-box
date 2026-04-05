@@ -39,7 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {NAV.map((n) => {
             const Icon = n.icon;
-            const active = loc.pathname === n.path || (n.path === "/analytics" && loc.pathname.startsWith("/analytics/"));
+            const active = loc.pathname === n.path;
             return (
               <Link
                 key={n.path}
