@@ -145,19 +145,17 @@ export default function SearchPreview() {
           <TabsContent key={mode.value} value={mode.value}>
             <p className="text-xs text-muted-foreground mb-4">{mode.description}</p>
 
-            {/* Inline preview container */}
-            {mode.value === "inline" && (
+            {/* Inline / header-icon preview container */}
+            {(mode.value === "inline" || mode.value === "header-icon") && (
               <div id="findai-preview-container" ref={containerRef} className="min-h-[60px]" />
             )}
 
-            {/* Floating / fullscreen hint */}
-            {mode.value !== "inline" && (
+            {/* Floating hint */}
+            {mode.value === "floating" && (
               <Card className="border-dashed border-border/50">
                 <CardContent className="py-8 text-center">
                   <p className="text-sm text-muted-foreground">
-                    {mode.value === "floating"
-                      ? "Kelluva \"Hae\"-nappi näkyy oikeassa alakulmassa →"
-                      : "Kelluva nappi avaa kokoruudun hakuikkunan →"}
+                    Kelluva "Hae"-nappi näkyy oikeassa alakulmassa →
                   </p>
                   <p className="text-[11px] text-muted-foreground/60 mt-1">
                     Klikkaa nappia testataksesi
