@@ -1,10 +1,16 @@
 /**
  * FindAI – embeddable search widget (green theme)
  *
- * Installation:
+ * Installation (external sites):
  *   <script src="https://findai.app/widget.js"
  *           data-site-id="123"
  *           data-api-url="https://api.findai.app"></script>
+ *
+ * Installation (Supabase edge functions):
+ *   <script src="/widget.js"
+ *           data-site-id="uuid-here"
+ *           data-supabase-url="https://xxx.supabase.co"
+ *           data-supabase-key="anon-key"></script>
  *
  * Optional attributes:
  *   data-placeholder     – Placeholder text (default: "Kysy meiltä mitä vain...")
@@ -20,14 +26,17 @@
   // Config
   // -------------------------------------------------------------------------
   const script = document.currentScript || document.querySelector("script[data-site-id]");
-  const SITE_ID = parseInt(script.getAttribute("data-site-id") || "0", 10);
-  const API_URL = (script.getAttribute("data-api-url") || "http://localhost:8000").replace(/\/$/, "");
+  const SITE_ID = script.getAttribute("data-site-id") || "0";
+  const API_URL = (script.getAttribute("data-api-url") || "").replace(/\/$/, "");
+  const SUPABASE_URL = script.getAttribute("data-supabase-url") || "";
+  const SUPABASE_KEY = script.getAttribute("data-supabase-key") || "";
+  const USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_KEY);
   const THEME = script.getAttribute("data-theme") || "light";
   const POSITION = script.getAttribute("data-position") || "bottom-right";
   const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
   const PLACEHOLDER = script.getAttribute("data-placeholder") || "Kysy meiltä mitä vain...";
 
-  if (!SITE_ID) {
+  if (!SITE_ID || SITE_ID === "0") {
     console.warn("[FindAI] Missing data-site-id attribute");
     return;
   }
