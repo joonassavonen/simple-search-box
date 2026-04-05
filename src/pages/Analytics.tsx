@@ -13,20 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Search, Lightbulb, Loader2, AlertCircle, Brain, RefreshCw } from "lucide-react";
+import { ArrowLeft, Search, Loader2, AlertCircle, Brain, RefreshCw, TrendingUp, TrendingDown, MousePointerClick, FileSearch, SearchX, Ban } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-sm font-medium text-muted-foreground">{label}</div>
-        {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
-      </CardContent>
-    </Card>
-  );
-}
 
 interface Synonym {
   id: string;
@@ -59,7 +47,6 @@ export default function Analytics() {
         ]);
         setSite(s);
         setStats(st);
-        // Load synonyms
         const { data: syns } = await supabase
           .from("search_synonyms")
           .select("*")
@@ -85,7 +72,6 @@ export default function Analytics() {
         title: "Oppiminen valmis",
         description: `${result.discovered} uutta synonyymia löydetty`,
       });
-      // Reload synonyms
       const { data: syns } = await supabase
         .from("search_synonyms")
         .select("*")
@@ -121,10 +107,14 @@ export default function Analytics() {
   if (!stats || !site) return null;
 
   const ctrPct = (stats.click_through_rate * 100).toFixed(1);
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const periodLabel = `${thirtyDaysAgo.toLocaleDateString("fi-FI", { day: "numeric", month: "short" })} – ${now.toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric" })}`;
 
   return (
-    <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
             {site.name} — Analytics
@@ -147,16 +137,127 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Total Searches" value={stats.total_searches.toLocaleString()} sub="All time" />
-        <StatCard label="Searches (7 days)" value={stats.searches_last_7d.toLocaleString()} sub="Last 7 days" />
-        <StatCard label="Click-through Rate" value={`${ctrPct}%`} sub="Searches with a click" />
-        <StatCard label="Avg Results" value={stats.avg_results_per_search.toFixed(1)} sub="Per search" />
-        <StatCard label="Pages Indexed" value={stats.pages_indexed.toLocaleString()} sub="In search index" />
+      {/* Search Performance Section */}
+      <div>
+        <div className="flex items-baseline gap-3 mb-4">
+          <h2 className="text-lg font-semibold">Search performance</h2>
+          <span className="text-sm text-muted-foreground">{periodLabel}</span>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground mb-1">Click rate</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold">{ctrPct} %</span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground mb-1">Total searches</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold">{stats.total_searches.toLocaleString("fi-FI")}</span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground mb-1">Searches (7d)</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold">{stats.searches_last_7d.toLocaleString("fi-FI")}</span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-sm text-muted-foreground mb-1">Pages indexed</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold">{stats.pages_indexed.toLocaleString("fi-FI")}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Three column tables */}
+        <div className="grid gap-4 md:grid-cols-3">
+          {/* Top Searches */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <FileSearch className="h-4 w-4 text-muted-foreground" />
+                Top searches
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {stats.top_queries.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No searches yet</p>
+              ) : (
+                <div className="space-y-1">
+                  {stats.top_queries.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+                      <span className="text-sm truncate mr-2">{r.query}</span>
+                      <span className="text-sm font-medium text-muted-foreground tabular-nums">{r.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top searches with no results */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <SearchX className="h-4 w-4 text-muted-foreground" />
+                Top searches with no results
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {stats.failed_searches.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">No failed searches 🎉</p>
+              ) : (
+                <div className="space-y-1">
+                  {stats.failed_searches.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+                      <span className="text-sm truncate mr-2">{r.query}</span>
+                      <span className="text-sm font-medium text-muted-foreground tabular-nums">{r.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top searches with no clicks */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Ban className="h-4 w-4 text-muted-foreground" />
+                Top searches with no clicks
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {stats.no_click_queries.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">All searches got clicks 🎉</p>
+              ) : (
+                <div className="space-y-1">
+                  {stats.no_click_queries.map((r, i) => (
+                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+                      <span className="text-sm truncate mr-2">{r.query}</span>
+                      <span className="text-sm font-medium text-muted-foreground tabular-nums">{r.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Learning section */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-base flex items-center gap-2">
             <Brain className="h-5 w-5 text-primary" />
@@ -209,86 +310,6 @@ export default function Analytics() {
           )}
         </CardContent>
       </Card>
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Top Queries (30 days)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats.top_queries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No searches yet.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Query</TableHead>
-                    <TableHead className="w-20 text-right">Count</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stats.top_queries.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{r.query}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{r.count}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Failed Searches — Content Gaps</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {stats.failed_searches.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No failed searches. Great!</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Query</TableHead>
-                    <TableHead className="w-20 text-right">Count</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {stats.failed_searches.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Badge variant="destructive" className="mr-2 text-[10px]">!</Badge>
-                        {r.query}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="secondary">{r.count}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {stats.failed_searches.length > 0 && (
-        <Card className="mt-4">
-          <CardContent className="flex items-start gap-3 p-4">
-            <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
-            <div>
-              <p className="font-medium">Content Gap Insight</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Users searched for the queries above but didn't click any results. Consider
-                creating new content or improving existing pages to cover these topics.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
