@@ -557,11 +557,9 @@ function DropdownResultItem({
             {snippet}
           </p>
         )}
-        {s?.type === "Article" && (s.author || s.datePublished) && (
+        {s?.type === "Article" && s.datePublished && (
           <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            {s.author && <span>{s.author}</span>}
-            {s.author && s.datePublished && <span>·</span>}
-            {s.datePublished && <span>{new Date(s.datePublished).toLocaleDateString("fi-FI")}</span>}
+            <span>{new Date(s.datePublished).toLocaleDateString("fi-FI")}</span>
           </div>
         )}
       </div>
