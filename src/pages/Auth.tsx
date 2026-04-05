@@ -33,13 +33,13 @@ export default function Auth() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+    <div className="flex min-h-dvh items-center justify-center bg-muted/30 px-4">
+      <Card className="w-full max-w-sm border-border/60 shadow-lg">
+        <CardHeader className="text-center pb-4">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm">
             <Search className="h-5 w-5 text-primary-foreground" />
           </div>
-          <CardTitle>FindAI</CardTitle>
+          <CardTitle className="text-xl">FindAI</CardTitle>
           <p className="text-sm text-muted-foreground">
             {isSignUp ? "Create an account" : "Sign in to your account"}
           </p>
@@ -51,9 +51,11 @@ export default function Auth() {
               <Input
                 id="email"
                 type="email"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="rounded-lg"
               />
             </div>
             <div className="space-y-2">
@@ -61,20 +63,22 @@ export default function Auth() {
               <Input
                 id="password"
                 type="password"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
+                className="rounded-lg"
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full rounded-lg" disabled={loading}>
               {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-5 text-center text-sm">
             <button
               type="button"
-              className="text-primary underline-offset-4 hover:underline"
+              className="text-primary hover:text-primary/80 underline-offset-4 hover:underline transition-colors"
               onClick={() => setIsSignUp(!isSignUp)}
             >
               {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
