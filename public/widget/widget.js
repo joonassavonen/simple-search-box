@@ -967,7 +967,7 @@
 
     function trackClick(url, position) {
       if (!currentSearchLogId) return;
-      fetch(`${API_URL}/api/search/click`, {
+      fetch(`${API_URL}/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
