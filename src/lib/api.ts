@@ -69,6 +69,7 @@ export interface SiteStats {
   pages_indexed: number;
   top_queries: { query: string; count: number }[];
   failed_searches: { query: string; count: number }[];
+  no_click_queries: { query: string; count: number }[];
 }
 
 export interface ContactConfig {
