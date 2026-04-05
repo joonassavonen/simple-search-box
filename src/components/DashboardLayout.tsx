@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Search, BarChart3, PlusCircle, Menu, X, LogOut, Plug } from "lucide-react";
+import { Search, PlusCircle, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,8 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 const NAV = [
   { path: "/", label: "Sites", icon: Search },
-  { path: "/analytics", label: "Analytics", icon: BarChart3 },
-  { path: "/integrations", label: "Integrations", icon: Plug },
   { path: "/add-site", label: "Add Site", icon: PlusCircle },
 ];
 
@@ -41,7 +39,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="flex flex-1 flex-col gap-1 p-2">
           {NAV.map((n) => {
             const Icon = n.icon;
-            const active = loc.pathname === n.path || (n.path === "/analytics" && loc.pathname.startsWith("/analytics/"));
+            const active = loc.pathname === n.path;
             return (
               <Link
                 key={n.path}
