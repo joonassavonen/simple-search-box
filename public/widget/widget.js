@@ -558,7 +558,18 @@
     panel.appendChild(footer);
 
     shadow.appendChild(wrapper);
-    document.body.appendChild(host);
+
+    // Append to inline target or body
+    if (POSITION === "inline" && INLINE_TARGET) {
+      const target = document.querySelector(INLINE_TARGET);
+      if (target) {
+        target.appendChild(host);
+      } else {
+        document.body.appendChild(host);
+      }
+    } else {
+      document.body.appendChild(host);
+    }
 
     // -----------------------------------------------------------------------
     // Prefetch trending + contact config
