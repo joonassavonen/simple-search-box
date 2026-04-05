@@ -105,7 +105,32 @@ async function doCrawl(jobId: string, siteId: string) {
       status: "crawling",
     }).eq("id", jobId);
 
-    // --- Phase 2: Crawl each page ---
+    // --- Phase 2: Extract brand styles from homepage ---
+    try {
+      console.log(`Extracting brand styles from ${baseUrl}`);
+      const homeRes = await fetch(baseUrl, {
+        headers: { "User-Agent": "FindAI-Crawler/1.0" },
+        redirect: "follow",
+      });
+      if (homeRes.ok) {
+        const homeHtml = await homeRes.text();
+        const brand = extractBrandStyles(homeHtml);
+        if (brand.color || brand.font || brand.bgColor) {
+          await supabase.from("sites").update({
+            brand_color: brand.color || null,
+            brand_font: brand.font || null,
+            brand_bg_color: brand.bgColor || null,
+          }).eq("id", siteId);
+          console.log(`Brand styles extracted:`, brand);
+        }
+      } else {
+        await homeRes.text();
+      }
+    } catch (e) {
+      console.log("Brand extraction failed (non-fatal):", e);
+    }
+
+    // --- Phase 3: Crawl each page ---
     let indexed = 0;
     const errors: string[] = [];
 
