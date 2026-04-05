@@ -21,8 +21,6 @@ import {
 export default function Sites() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
-  const [crawling, setCrawling] = useState<Record<string, boolean>>({});
-  const [jobStatus, setJobStatus] = useState<Record<string, CrawlJob>>({});
 
   const loadSites = useCallback(async () => {
     try {
