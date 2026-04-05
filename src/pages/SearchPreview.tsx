@@ -77,7 +77,7 @@ export default function SearchPreview() {
       script.setAttribute("data-position", "header-icon");
       script.setAttribute("data-inline-target", "#findai-preview-container");
     } else {
-      script.setAttribute("data-position", "fullscreen");
+      script.setAttribute("data-position", "bottom-right");
     }
 
     document.body.appendChild(script);
