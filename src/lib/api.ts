@@ -219,10 +219,23 @@ export const api = {
     const last30 = logs.filter((l) => new Date(l.created_at) >= thirtyDaysAgo);
     const queryCounts: Record<string, number> = {};
     const failedCounts: Record<string, number> = {};
+    const noClickCounts: Record<string, number> = {};
+    const clickedQueries = new Set<string>();
+
     for (const l of last30) {
       queryCounts[l.query] = (queryCounts[l.query] || 0) + 1;
       if (l.results_count === 0) {
         failedCounts[l.query] = (failedCounts[l.query] || 0) + 1;
+      }
+      if (l.clicked) {
+        clickedQueries.add(l.query);
+      }
+    }
+
+    // No-click queries: had results but never clicked
+    for (const l of last30) {
+      if (l.results_count > 0 && !clickedQueries.has(l.query)) {
+        noClickCounts[l.query] = (noClickCounts[l.query] || 0) + 1;
       }
     }
 
@@ -232,6 +245,11 @@ export const api = {
       .map(([query, count]) => ({ query, count }));
 
     const failedSearches = Object.entries(failedCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([query, count]) => ({ query, count }));
+
+    const noClickQueries = Object.entries(noClickCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([query, count]) => ({ query, count }));
@@ -248,6 +266,7 @@ export const api = {
       pages_indexed: pagesIndexed || 0,
       top_queries: topQueries,
       failed_searches: failedSearches,
+      no_click_queries: noClickQueries,
     };
   },
 
