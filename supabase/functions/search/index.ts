@@ -246,9 +246,31 @@ Deno.serve(async (req) => {
 
     if (LOVABLE_API_KEY && keywordResults.length > 0) {
       try {
-        const pagesContext = keywordResults.slice(0, 10).map((r, i) => 
-          `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content.slice(0, 500)}`
-        ).join("\n\n");
+        const pagesContext = keywordResults.slice(0, 10).map((r, i) => {
+          const schema = r.schema_data;
+          let meta = "";
+          if (schema) {
+            if (schema.type === "Product") {
+              const parts: string[] = [];
+              if (schema.price) parts.push(`Hinta: ${schema.price}${schema.currency === "EUR" ? "€" : ""}`);
+              if (schema.rating) parts.push(`Arvosana: ${schema.rating}/5`);
+              if (schema.reviewCount) parts.push(`${schema.reviewCount} arvostelua`);
+              if (schema.availability) parts.push(schema.availability.includes("InStock") ? "Varastossa" : "Ei varastossa");
+              meta = `[TUOTE] ${parts.join(" | ")}`;
+            } else if (schema.type === "Article") {
+              const parts: string[] = [];
+              if (schema.author) parts.push(schema.author);
+              if (schema.datePublished) parts.push(schema.datePublished);
+              meta = `[ARTIKKELI] ${parts.join(" | ")}`;
+            } else if (schema.type === "Event") {
+              const parts: string[] = [];
+              if (schema.startDate) parts.push(schema.startDate);
+              if (schema.location) parts.push(schema.location);
+              meta = `[TAPAHTUMA] ${parts.join(" | ")}`;
+            }
+          }
+          return `[${i + 1}] ${r.title}\nURL: ${r.url}\n${meta ? meta + "\n" : ""}${r.content.slice(0, 400)}`;
+        }).join("\n\n");
 
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -261,18 +283,24 @@ Deno.serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: `You are a search assistant for a company website. The user searched the site. Given the query and page contents:
-1. Return a JSON object with:
-   - "summary": A helpful 1-2 sentence answer written in FIRST PERSON PLURAL ("me"-form: "Tarjoamme...", "Meiltä löydät...", "Palvelemme..."). Write as if YOU are the company speaking to the customer. Use the same language as the query (Finnish or English). Be concise and direct.
-   - "ranking": An array of page indices (1-based) ordered by relevance to the query. ONLY include pages that are DIRECTLY and specifically relevant to the search topic. Max 5.
-   - "reasoning": For each ranked page, a short reason why it's relevant.
-2. CRITICAL: If no pages are truly relevant to the query, return {"summary": null, "ranking": [], "reasoning": []}.
-3. Be VERY strict about relevance — only include pages whose main topic matches the query. A general page that briefly mentions a keyword is NOT a relevant result. Prefer pages with the search terms in their title.
-Return ONLY valid JSON.`
+                content: `Olet yrityksen sivustohaun avustaja. Vastaa käyttäjän hakuun SUORALLA VASTAUKSELLA yrityksen äänellä (me-muoto).
+
+Säännöt:
+- Vastaa samalla kielellä kuin haku (suomi/englanti)
+- Anna 1-2 lauseen KONKREETTINEN vastaus, älä kuvailua hakutuloksista
+- Tuotehaku → mainitse paras tuote nimeltä + hinta jos tiedossa. Esim: "Gree Bora 35 ilmalämpöpumppu sopii kodin viilennykseen, hinta 1 290€."
+- Tietokysymys → vastaa suoraan sisällön perusteella. Esim: "Huollon voi varata verkossa tai soittamalla 09 4289 1192."
+- Palveluhaku → kerro miten palvelun saa
+- ÄLÄ KOSKAAN kirjoita "Löytyi X tulosta", "Sivustolta löytyy", "Valikoimasta löytyy" — käyttäjä näkee tulokset itse
+- Jos sivuilta ei löydy oikeaa vastausta → summary: null
+
+Palauta JSON:
+{"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5], "reasoning": ["perustelu per sivu"]}
+Palauta VAIN validi JSON.`
               },
               {
                 role: "user",
-                content: `Query: "${query}"\n\nPages:\n${pagesContext}`
+                content: `Hakusana: "${query}"\n\nSivut:\n${pagesContext}`
               }
             ],
           }),
