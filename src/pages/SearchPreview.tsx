@@ -287,50 +287,6 @@ function FeaturedCard({
 }
 
 // ---------------------------------------------------------------------------
-// Popular products (trending with images)
-// ---------------------------------------------------------------------------
-
-function PopularSection({
-  products,
-  onSelect,
-}: {
-  products: PopularProduct[];
-  onSelect: (q: string) => void;
-}) {
-  if (!products.length) return null;
-
-  return (
-    <div className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-        Suosittua juuri nyt
-      </div>
-      <div className="space-y-1">
-        {products.map((p) => (
-          <button
-            key={p.url}
-            onClick={() => onSelect(p.title)}
-            className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted/50"
-          >
-            {p.image ? (
-              <img
-                src={p.image}
-                alt=""
-                className="h-10 w-10 shrink-0 rounded-lg border border-border/30 object-contain bg-white"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <div className="h-10 w-10 shrink-0 rounded-lg bg-muted/50" />
-            )}
-            <span className="text-[14px] font-medium text-foreground">{p.title}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Autocomplete with images
 // ---------------------------------------------------------------------------
