@@ -65,11 +65,10 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Sites />} />
               <Route path="/add-site" element={<AddSite />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/analytics/:siteId" element={<Analytics />} />
-              <Route path="/search/:siteId" element={<SearchPreview />} />
-              <Route path="/settings/:siteId" element={<ContactConfig />} />
-              <Route path="/integrations" element={<Integrations />} />
+              <Route path="/sites/:siteId/analytics" element={<Analytics />} />
+              <Route path="/sites/:siteId/search" element={<SearchPreview />} />
+              <Route path="/sites/:siteId/settings" element={<ContactConfig />} />
+              <Route path="/sites/:siteId/integrations" element={<Integrations />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </DashboardLayout>

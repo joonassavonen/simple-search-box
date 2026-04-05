@@ -7,8 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 const NAV = [
   { path: "/", label: "Sites", icon: Search },
-  { path: "/analytics", label: "Analytics", icon: BarChart3 },
-  { path: "/integrations", label: "Integrations", icon: Plug },
   { path: "/add-site", label: "Add Site", icon: PlusCircle },
 ];
 
