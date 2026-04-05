@@ -490,6 +490,52 @@ function SearchDropdown({
           )}
         </div>
       )}
+
+      {/* Trending / popular inside dropdown */}
+      {showTrending && (
+        <div className="p-3">
+          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Suosittua juuri nyt
+          </div>
+          {popularProducts && popularProducts.length > 0 ? (
+            <div className="space-y-1">
+              {popularProducts.map((p) => (
+                <button
+                  key={p.url}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onSelectTrending?.(p.title)}
+                  className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                >
+                  {p.image ? (
+                    <img
+                      src={p.image}
+                      alt=""
+                      className="h-9 w-9 shrink-0 rounded-lg border border-border/20 object-contain bg-white"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <div className="h-9 w-9 shrink-0 rounded-lg bg-muted/50" />
+                  )}
+                  <span className="text-[13px] font-medium text-foreground">{p.title}</span>
+                </button>
+              ))}
+            </div>
+          ) : trending && trending.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {trending.map((item) => (
+                <button
+                  key={item.query}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onSelectTrending?.(item.query)}
+                  className="cursor-pointer rounded-full border border-border/40 bg-white px-3 py-1.5 text-[13px] font-medium text-foreground transition-all hover:bg-muted/50"
+                >
+                  {item.query}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
