@@ -1,10 +1,16 @@
 /**
  * FindAI – embeddable search widget (green theme)
  *
- * Installation:
+ * Installation (external sites):
  *   <script src="https://findai.app/widget.js"
  *           data-site-id="123"
  *           data-api-url="https://api.findai.app"></script>
+ *
+ * Installation (Supabase edge functions):
+ *   <script src="/widget.js"
+ *           data-site-id="uuid-here"
+ *           data-supabase-url="https://xxx.supabase.co"
+ *           data-supabase-key="anon-key"></script>
  *
  * Optional attributes:
  *   data-placeholder     – Placeholder text (default: "Kysy meiltä mitä vain...")
@@ -20,14 +26,17 @@
   // Config
   // -------------------------------------------------------------------------
   const script = document.currentScript || document.querySelector("script[data-site-id]");
-  const SITE_ID = parseInt(script.getAttribute("data-site-id") || "0", 10);
-  const API_URL = (script.getAttribute("data-api-url") || "http://localhost:8000").replace(/\/$/, "");
+  const SITE_ID = script.getAttribute("data-site-id") || "0";
+  const API_URL = (script.getAttribute("data-api-url") || "").replace(/\/$/, "");
+  const SUPABASE_URL = script.getAttribute("data-supabase-url") || "";
+  const SUPABASE_KEY = script.getAttribute("data-supabase-key") || "";
+  const USE_SUPABASE = !!(SUPABASE_URL && SUPABASE_KEY);
   const THEME = script.getAttribute("data-theme") || "light";
   const POSITION = script.getAttribute("data-position") || "bottom-right";
   const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
   const PLACEHOLDER = script.getAttribute("data-placeholder") || "Kysy meiltä mitä vain...";
 
-  if (!SITE_ID) {
+  if (!SITE_ID || SITE_ID === "0") {
     console.warn("[FindAI] Missing data-site-id attribute");
     return;
   }
@@ -949,9 +958,18 @@
     function doSearch(query) {
       renderLoading();
 
-      fetch(`${API_URL}/api/search`, {
+      const url = USE_SUPABASE
+        ? `${SUPABASE_URL}/functions/v1/search`
+        : `${API_URL}/api/search`;
+      const headers = { "Content-Type": "application/json" };
+      if (USE_SUPABASE) {
+        headers["Authorization"] = `Bearer ${SUPABASE_KEY}`;
+        headers["apikey"] = SUPABASE_KEY;
+      }
+
+      fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ query, site_id: SITE_ID, max_results: 5 }),
       })
         .then(r => { if (!r.ok) throw new Error("Search API error"); return r.json(); })
@@ -961,16 +979,34 @@
 
     function trackClick(url, position) {
       if (!currentSearchLogId) return;
-      fetch(`${API_URL}/api/search/click`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          search_log_id: currentSearchLogId,
-          clicked_url: url,
-          click_position: position || 0,
-          session_id: SESSION_ID,
-        }),
-      }).catch(() => {});
+
+      if (USE_SUPABASE) {
+        fetch(`${SUPABASE_URL}/functions/v1/search`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${SUPABASE_KEY}`,
+            "apikey": SUPABASE_KEY,
+          },
+          body: JSON.stringify({
+            action: "click",
+            site_id: SITE_ID,
+            query: lastQuery,
+            url,
+          }),
+        }).catch(() => {});
+      } else {
+        fetch(`${API_URL}/api/search/click`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            search_log_id: currentSearchLogId,
+            clicked_url: url,
+            click_position: position || 0,
+            session_id: SESSION_ID,
+          }),
+        }).catch(() => {});
+      }
     }
 
     updateClearBtn();
