@@ -692,7 +692,7 @@
 
     function updateClearBtn() {
       clearBtn.style.display = input.value ? "block" : "none";
-      searchBtn.style.display = input.value.trim() ? "flex" : "none";
+      // search button removed
     }
 
     function openSearch() {
