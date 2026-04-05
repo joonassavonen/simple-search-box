@@ -339,24 +339,28 @@
 
     /* AI summary card */
     .findai-ai-summary {
-      display: flex; align-items: center; gap: 12px;
-      margin: 4px 8px 4px; padding: 12px;
+      display: block;
+      margin: 8px 12px; padding: 10px 12px;
       border: 1px solid hsl(var(--green-border));
       background: hsl(var(--green-light));
-      border-radius: 8px; cursor: pointer;
+      border-radius: 10px; cursor: pointer;
       transition: box-shadow 0.15s; text-decoration: none;
     }
-    .findai-ai-summary:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    .findai-ai-summary-text { flex: 1; min-width: 0; }
-    .findai-ai-summary h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .findai-ai-summary:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .findai-ai-summary p {
-      font-size: 12px; color: var(--text-muted);
-      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+      font-size: 13px; line-height: 1.5; color: var(--text);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      margin: 0;
+    }
+
+    /* Result divider */
+    .findai-results-divider {
+      height: 1px; background: var(--border-light); margin: 0 16px;
     }
 
     /* Result item */
     .findai-result {
-      display: flex; align-items: flex-start; gap: 12px;
+      display: flex; align-items: center; gap: 12px;
       padding: 10px 16px; cursor: pointer; width: 100%;
       border: none; background: none; text-align: left;
       text-decoration: none;
@@ -364,40 +368,40 @@
     }
     .findai-result:hover { background: rgba(0,0,0,0.02); }
     .findai-result-img {
-      width: 48px; height: 48px; border-radius: 8px;
+      width: 44px; height: 44px; border-radius: 8px;
       object-fit: contain; border: 1px solid var(--border-light);
-      background: #fff; flex-shrink: 0; margin-top: 2px;
+      background: #fff; flex-shrink: 0;
     }
     .findai-result-body { flex: 1; min-width: 0; }
     .findai-result-title {
       font-size: 14px; font-weight: 600; color: var(--text);
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       line-height: 1.3;
     }
     .findai-result:hover .findai-result-title { color: hsl(var(--green-dark)); }
     .findai-result-price {
       font-size: 13px; font-weight: 700;
-      color: hsl(145, 60%, 35%); margin-top: 2px;
+      color: hsl(145, 60%, 35%); margin-top: 1px;
     }
-    .findai-result-rating { margin-top: 2px; font-size: 11px; letter-spacing: -1px; }
+    .findai-result-rating { margin-top: 1px; font-size: 11px; letter-spacing: -1px; }
     .findai-result-badge {
-      display: inline-block; margin-top: 4px;
+      display: inline-block; margin-top: 2px;
       font-size: 10px; font-weight: 500;
       padding: 1px 6px; border-radius: 4px;
     }
     .findai-badge-instock { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
     .findai-badge-outofstock { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
     .findai-result-snippet {
-      font-size: 12px; color: var(--text-muted); margin-top: 2px;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-      line-height: 1.5;
+      font-size: 12px; color: var(--text-muted); margin-top: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.4;
     }
     .findai-result-meta {
       font-size: 10px; color: var(--text-muted); margin-top: 2px;
       display: flex; align-items: center; gap: 8px;
     }
     .findai-result-arrow {
-      flex-shrink: 0; margin-top: 4px;
+      flex-shrink: 0;
       color: transparent; transition: color 0.15s;
     }
     .findai-result:hover .findai-result-arrow { color: rgba(107,114,128,0.4); }
