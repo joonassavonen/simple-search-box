@@ -74,6 +74,7 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartMetric, setChartMetric] = useState<ChartMetric>("searches");
+  const [dateRange, setDateRange] = useState<DateRange>("30");
   const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [learningStats, setLearningStats] = useState<LearningStats | null>(null);
   const [learningRunning, setLearningRunning] = useState(false);
