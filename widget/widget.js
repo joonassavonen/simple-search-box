@@ -85,7 +85,22 @@
         return cleaned || new URL(url).hostname;
       } catch { return url; }
     }
-    return title;
+    // Decode HTML entities
+    return decodeEntities(title);
+  }
+
+  function decodeEntities(str) {
+    if (!str) return "";
+    return str
+      .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n))
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&ndash;/g, "–")
+      .replace(/&mdash;/g, "—")
+      .replace(/&nbsp;/g, " ");
   }
 
   function cleanSnippet(snippet) {
@@ -324,24 +339,28 @@
 
     /* AI summary card */
     .findai-ai-summary {
-      display: flex; align-items: center; gap: 12px;
-      margin: 4px 8px 4px; padding: 12px;
+      display: block;
+      margin: 8px 12px; padding: 10px 12px;
       border: 1px solid hsl(var(--green-border));
       background: hsl(var(--green-light));
-      border-radius: 8px; cursor: pointer;
+      border-radius: 10px; cursor: pointer;
       transition: box-shadow 0.15s; text-decoration: none;
     }
-    .findai-ai-summary:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-    .findai-ai-summary-text { flex: 1; min-width: 0; }
-    .findai-ai-summary h3 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .findai-ai-summary:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .findai-ai-summary p {
-      font-size: 12px; color: var(--text-muted);
-      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+      font-size: 13px; line-height: 1.5; color: var(--text);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      margin: 0;
+    }
+
+    /* Result divider */
+    .findai-results-divider {
+      height: 1px; background: var(--border-light); margin: 0 16px;
     }
 
     /* Result item */
     .findai-result {
-      display: flex; align-items: flex-start; gap: 12px;
+      display: flex; align-items: center; gap: 12px;
       padding: 10px 16px; cursor: pointer; width: 100%;
       border: none; background: none; text-align: left;
       text-decoration: none;
@@ -349,40 +368,40 @@
     }
     .findai-result:hover { background: rgba(0,0,0,0.02); }
     .findai-result-img {
-      width: 48px; height: 48px; border-radius: 8px;
+      width: 44px; height: 44px; border-radius: 8px;
       object-fit: contain; border: 1px solid var(--border-light);
-      background: #fff; flex-shrink: 0; margin-top: 2px;
+      background: #fff; flex-shrink: 0;
     }
     .findai-result-body { flex: 1; min-width: 0; }
     .findai-result-title {
       font-size: 14px; font-weight: 600; color: var(--text);
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       line-height: 1.3;
     }
     .findai-result:hover .findai-result-title { color: hsl(var(--green-dark)); }
     .findai-result-price {
       font-size: 13px; font-weight: 700;
-      color: hsl(145, 60%, 35%); margin-top: 2px;
+      color: hsl(145, 60%, 35%); margin-top: 1px;
     }
-    .findai-result-rating { margin-top: 2px; font-size: 11px; letter-spacing: -1px; }
+    .findai-result-rating { margin-top: 1px; font-size: 11px; letter-spacing: -1px; }
     .findai-result-badge {
-      display: inline-block; margin-top: 4px;
+      display: inline-block; margin-top: 2px;
       font-size: 10px; font-weight: 500;
       padding: 1px 6px; border-radius: 4px;
     }
     .findai-badge-instock { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
     .findai-badge-outofstock { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
     .findai-result-snippet {
-      font-size: 12px; color: var(--text-muted); margin-top: 2px;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-      line-height: 1.5;
+      font-size: 12px; color: var(--text-muted); margin-top: 1px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.4;
     }
     .findai-result-meta {
       font-size: 10px; color: var(--text-muted); margin-top: 2px;
       display: flex; align-items: center; gap: 8px;
     }
     .findai-result-arrow {
-      flex-shrink: 0; margin-top: 4px;
+      flex-shrink: 0;
       color: transparent; transition: color 0.15s;
     }
     .findai-result:hover .findai-result-arrow { color: rgba(107,114,128,0.4); }
@@ -977,24 +996,21 @@
 
       html += `<div class="findai-results-header">${ICON_SPARKLES} ${data.results.length} osuma${data.results.length !== 1 ? "a" : ""}</div>`;
 
+      // AI summary — compact single paragraph, not a link
       if (data.ai_summary) {
-        const firstUrl = data.results[0]?.url || "#";
-        html += `
-          <a href="${escHtml(firstUrl)}" target="_blank" rel="noopener" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
-            <div class="findai-ai-summary-text">
-              <h3>${escHtml(data.ai_summary.split(".")[0])}</h3>
-              <p>${escHtml(data.ai_summary)}</p>
-            </div>
-            ${ICON_EXTERNAL}
-          </a>
-        `;
+        html += `<div class="findai-ai-summary"><p>${escHtml(data.ai_summary)}</p></div>`;
       }
 
       data.results.forEach((r, idx) => {
         const title = cleanTitle(r.title, r.url);
-        const snippet = cleanSnippet(r.snippet);
         const s = r.schema_data;
         const isProduct = s && s.type === "Product";
+
+        // Compact snippet: one line max
+        let snippet = cleanSnippet(r.snippet);
+        if (snippet && snippet.length > 100) snippet = snippet.slice(0, 100).replace(/\s+\S*$/, "") + "…";
+
+        if (idx > 0) html += '<div class="findai-results-divider"></div>';
 
         html += `<a href="${escHtml(r.url)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
 
@@ -1013,12 +1029,7 @@
           html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
         }
 
-        if (isProduct && s.availability) {
-          const inStock = s.availability.includes("InStock");
-          html += `<span class="findai-result-badge ${inStock ? "findai-badge-instock" : "findai-badge-outofstock"}">${inStock ? "✓ Varastossa" : "Ei varastossa"}</span>`;
-        }
-
-        if (snippet) {
+        if (!isProduct && snippet) {
           html += `<div class="findai-result-snippet">${escHtml(snippet)}</div>`;
         }
 
