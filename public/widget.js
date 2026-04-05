@@ -628,7 +628,7 @@
 
     shadow.appendChild(wrapper);
 
-    if (POSITION === "inline" && INLINE_TARGET) {
+    if ((POSITION === "inline" || POSITION === "header-icon") && INLINE_TARGET) {
       const target = document.querySelector(INLINE_TARGET);
       if (target) {
         target.appendChild(host);
