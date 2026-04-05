@@ -87,9 +87,10 @@ export default function Analytics() {
     }
     async function load() {
       try {
+        setLoading(true);
         const [s, st, ls] = await Promise.all([
           api.getSite(siteId!),
-          api.getStats(siteId!),
+          api.getStats(siteId!, Number(dateRange)),
           api.getLearningStats(siteId!),
         ]);
         setSite(s);
@@ -109,7 +110,7 @@ export default function Analytics() {
       }
     }
     load();
-  }, [siteId]);
+  }, [siteId, dateRange]);
 
   const runLearning = async () => {
     if (!siteId) return;
