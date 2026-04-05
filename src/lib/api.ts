@@ -207,32 +207,32 @@ export const api = {
 
   // --- Stats (Supabase direct) ---
 
-  async getStats(siteId: string): Promise<SiteStats> {
+  async getStats(siteId: string, days: number = 30): Promise<SiteStats> {
     const { count: pagesIndexed } = await supabase
       .from("pages")
       .select("*", { count: "exact", head: true })
       .eq("site_id", siteId);
 
+    const now = new Date();
+    const periodAgo = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
     const { data: allLogs } = await supabase
       .from("search_logs")
       .select("*")
-      .eq("site_id", siteId);
+      .eq("site_id", siteId)
+      .gte("created_at", periodAgo.toISOString());
 
     const logs = allLogs || [];
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
     const recentLogs = logs.filter((l) => new Date(l.created_at) >= sevenDaysAgo);
     const clickedCount = logs.filter((l) => l.clicked).length;
 
-    const last30 = logs.filter((l) => new Date(l.created_at) >= thirtyDaysAgo);
     const queryCounts: Record<string, number> = {};
     const failedCounts: Record<string, number> = {};
     const noClickCounts: Record<string, number> = {};
     const clickedQueries = new Set<string>();
 
-    for (const l of last30) {
+    for (const l of logs) {
       queryCounts[l.query] = (queryCounts[l.query] || 0) + 1;
       if (l.results_count === 0) {
         failedCounts[l.query] = (failedCounts[l.query] || 0) + 1;
@@ -242,8 +242,7 @@ export const api = {
       }
     }
 
-    // No-click queries: had results but never clicked
-    for (const l of last30) {
+    for (const l of logs) {
       if (l.results_count > 0 && !clickedQueries.has(l.query)) {
         noClickCounts[l.query] = (noClickCounts[l.query] || 0) + 1;
       }
@@ -268,14 +267,14 @@ export const api = {
       ? logs.reduce((sum, l) => sum + l.results_count, 0) / logs.length
       : 0;
 
-    // Build daily time series for last 30 days
+    // Build daily time series
     const dailyMap: Record<string, { searches: number; clicks: number; no_results: number }> = {};
-    for (let d = 0; d < 30; d++) {
+    for (let d = 0; d < days; d++) {
       const date = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
       const key = date.toISOString().slice(0, 10);
       dailyMap[key] = { searches: 0, clicks: 0, no_results: 0 };
     }
-    for (const l of last30) {
+    for (const l of logs) {
       const key = l.created_at.slice(0, 10);
       if (dailyMap[key]) {
         dailyMap[key].searches++;

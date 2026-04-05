@@ -57,6 +57,7 @@ interface Synonym {
   times_used: number;
 }
 
+type DateRange = "7" | "30" | "90";
 type ChartMetric = "searches" | "clicks" | "no_results" | "click_rate";
 
 const metricLabels: Record<ChartMetric, string> = {
@@ -73,6 +74,7 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartMetric, setChartMetric] = useState<ChartMetric>("searches");
+  const [dateRange, setDateRange] = useState<DateRange>("30");
   const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [learningStats, setLearningStats] = useState<LearningStats | null>(null);
   const [learningRunning, setLearningRunning] = useState(false);
@@ -85,9 +87,10 @@ export default function Analytics() {
     }
     async function load() {
       try {
+        setLoading(true);
         const [s, st, ls] = await Promise.all([
           api.getSite(siteId!),
-          api.getStats(siteId!),
+          api.getStats(siteId!, Number(dateRange)),
           api.getLearningStats(siteId!),
         ]);
         setSite(s);
@@ -107,7 +110,7 @@ export default function Analytics() {
       }
     }
     load();
-  }, [siteId]);
+  }, [siteId, dateRange]);
 
   const runLearning = async () => {
     if (!siteId) return;
@@ -158,8 +161,9 @@ export default function Analytics() {
 
   const ctrPct = (stats.click_through_rate * 100).toFixed(1);
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const periodLabel = `${thirtyDaysAgo.toLocaleDateString("fi-FI", { day: "numeric", month: "short" })} – ${now.toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric" })}`;
+  const daysNum = Number(dateRange);
+  const periodStart = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
+  const periodLabel = `${periodStart.toLocaleDateString("fi-FI", { day: "numeric", month: "short" })} – ${now.toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric" })}`;
 
   return (
     <div className="space-y-6">
@@ -202,9 +206,21 @@ export default function Analytics() {
 
         {/* ─── Search Performance Tab ─── */}
         <TabsContent value="performance" className="space-y-4">
-          <div className="flex items-baseline gap-3 mb-2">
-            <h2 className="text-lg font-semibold">Search performance</h2>
-            <span className="text-sm text-muted-foreground">{periodLabel}</span>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-baseline gap-3">
+              <h2 className="text-lg font-semibold">Search performance</h2>
+              <span className="text-sm text-muted-foreground">{periodLabel}</span>
+            </div>
+            <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">7 päivää</SelectItem>
+                <SelectItem value="30">30 päivää</SelectItem>
+                <SelectItem value="90">90 päivää</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* KPI Cards */}
