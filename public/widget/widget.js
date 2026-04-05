@@ -952,7 +952,7 @@
       const lang = detectLang(query);
       renderLoading(lang);
 
-      fetch(`${API_URL}/api/search`, {
+      fetch(`${API_URL}/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, site_id: SITE_ID, max_results: 5 }),
