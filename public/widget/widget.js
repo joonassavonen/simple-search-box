@@ -574,12 +574,12 @@
     // -----------------------------------------------------------------------
     // Prefetch trending + contact config
     // -----------------------------------------------------------------------
-    fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
+    fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "trending", limit: 6 }) })
       .then(r => r.json())
       .then(data => { trendingData = data.trending || []; })
       .catch(() => {});
 
-    fetch(`${API_URL}/api/sites/${SITE_ID}/contact-config`)
+    fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "contact-config" }) })
       .then(r => r.json())
       .then(data => { contactConfig = data; })
       .catch(() => {});
@@ -714,7 +714,7 @@
     // -----------------------------------------------------------------------
 
     function fetchSuggestions(q) {
-      fetch(`${API_URL}/api/sites/${SITE_ID}/suggestions?q=${encodeURIComponent(q)}&limit=5`)
+      fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "suggestions", query: q, limit: 5 }) })
         .then(r => r.json())
         .then(data => {
           if (input.value.trim() !== q) return; // stale
@@ -952,7 +952,7 @@
       const lang = detectLang(query);
       renderLoading(lang);
 
-      fetch(`${API_URL}/api/search`, {
+      fetch(`${API_URL}/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, site_id: SITE_ID, max_results: 5 }),
@@ -967,10 +967,12 @@
 
     function trackClick(url, position) {
       if (!currentSearchLogId) return;
-      fetch(`${API_URL}/api/search/click`, {
+      fetch(`${API_URL}/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "click",
+          site_id: SITE_ID,
           search_log_id: currentSearchLogId,
           clicked_url: url,
           click_position: position || 0,
