@@ -208,8 +208,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Run crawl in background using EdgeRuntime.waitUntil
-    // This returns immediately so the client doesn't time out
+    // Run crawl in background
+    // @ts-ignore: EdgeRuntime is available in Supabase Edge Functions
     EdgeRuntime.waitUntil(doCrawl(job_id, site_id));
 
     return new Response(JSON.stringify({ status: "started", job_id }), {

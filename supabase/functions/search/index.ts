@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
 
       // Require ALL original query words to match for multi-word queries
       if (words.length > 1) {
-        const originalMatched = words.filter(w => matchedWords.includes(w));
+        const originalMatched = words.filter((w: string) => matchedWords.includes(w));
         if (originalMatched.length === words.length) {
           score *= 1.5;
         }
