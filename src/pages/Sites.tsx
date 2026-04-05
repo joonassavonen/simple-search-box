@@ -137,9 +137,32 @@ export default function Sites() {
                       <CardTitle className="text-base">{site.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">{site.domain}</p>
                     </div>
-                    <Badge variant={site.is_active ? "default" : "secondary"}>
-                      {site.is_active ? "Active" : "Inactive"}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant={site.is_active ? "default" : "secondary"}>
+                        {site.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {site.name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the site, all indexed pages, and search data. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteSite(site)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 </CardHeader>
 
