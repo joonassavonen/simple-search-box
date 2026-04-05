@@ -5,9 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, ShoppingBag, TrendingUp, Store, Plug } from "lucide-react";
+import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, ShoppingBag, TrendingUp, Store, Plug, Trash2 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function Sites() {
   const [sites, setSites] = useState<Site[]>([]);
@@ -59,6 +70,16 @@ export default function Sites() {
         setCrawling((prev) => ({ ...prev, [siteId]: false }));
       }
     }, 2000);
+  }
+
+  async function deleteSite(site: Site) {
+    try {
+      await api.deleteSite(site.id);
+      toast.success(`${site.name} deleted`);
+      await loadSites();
+    } catch (e: any) {
+      toast.error("Delete failed: " + e.message);
+    }
   }
 
   if (loading) {
@@ -116,9 +137,32 @@ export default function Sites() {
                       <CardTitle className="text-base">{site.name}</CardTitle>
                       <p className="text-sm text-muted-foreground">{site.domain}</p>
                     </div>
-                    <Badge variant={site.is_active ? "default" : "secondary"}>
-                      {site.is_active ? "Active" : "Inactive"}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant={site.is_active ? "default" : "secondary"}>
+                        {site.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {site.name}?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the site, all indexed pages, and search data. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deleteSite(site)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 </CardHeader>
 
