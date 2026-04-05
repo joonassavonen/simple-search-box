@@ -273,14 +273,23 @@
     }
 
     .findai-spinner {
-      width: 24px; height: 24px;
-      border: 3px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+      display: flex;
+      gap: 6px;
+      justify-content: center;
       margin: 0 auto 12px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .findai-spinner-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: findai-pulse 1.2s ease-in-out infinite;
+    }
+    .findai-spinner-dot:nth-child(2) { animation-delay: 0.15s; }
+    .findai-spinner-dot:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes findai-pulse {
+      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+      40% { opacity: 1; transform: scale(1); }
+    }
 
     .findai-result {
       display: block;
