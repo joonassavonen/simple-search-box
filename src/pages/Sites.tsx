@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, ShoppingBag, TrendingUp, Store, Plug, Trash2 } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, Plug, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
