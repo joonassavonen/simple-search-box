@@ -44,12 +44,12 @@ export default function SearchPreview() {
     containerRef.current.appendChild(script);
 
     return () => {
-      // Cleanup: remove widget elements
       if (containerRef.current) {
         containerRef.current.innerHTML = "";
       }
+      delete (window as any).__FINDAI_CONFIG;
       // Remove any floating widget elements the script may have added to body
-      document.querySelectorAll("[data-findai-widget]").forEach((el) => el.remove());
+      document.querySelectorAll(".findai-wrapper, .findai-overlay").forEach((el) => el.remove());
     };
   }, [siteId, supabaseUrl]);
 
