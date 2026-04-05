@@ -376,9 +376,18 @@ function SearchDropdown({
 
       {/* Loading */}
       {loading && (
-        <div className="flex items-center justify-center gap-2 px-4 py-6">
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/50" />
-          <span className="text-xs text-muted-foreground">Haetaan...</span>
+        <div className="flex items-center justify-center gap-1.5 px-4 py-6">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-2 w-2 rounded-full bg-muted-foreground/40"
+              style={{
+                animation: "findai-pulse 1.2s ease-in-out infinite",
+                animationDelay: `${i * 0.15}s`,
+              }}
+            />
+          ))}
+          <style>{`@keyframes findai-pulse { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }`}</style>
         </div>
       )}
 
