@@ -864,7 +864,11 @@ export default function SearchPreview() {
               onChange={(e) => handleInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => {
+                setInputFocused(true);
                 if (suggestions.length > 0) setShowSuggestions(true);
+              }}
+              onBlur={() => {
+                setTimeout(() => setInputFocused(false), 200);
               }}
               className="h-11 sm:h-[52px] w-full rounded-xl sm:rounded-2xl border-2 border-border/50 bg-white pl-9 sm:pl-11 pr-9 sm:pr-10 text-sm sm:text-[15px] shadow-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-[hsl(145,50%,45%)] focus:shadow-md focus:shadow-[hsl(145,50%,45%)]/10"
               autoFocus
