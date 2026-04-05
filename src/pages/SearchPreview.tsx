@@ -973,7 +973,6 @@ export default function SearchPreview() {
           onSelectTrending={selectTrending}
         />
       </div>
-      )}
 
       {/* Error */}
       {error && (
