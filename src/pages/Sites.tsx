@@ -38,35 +38,7 @@ export default function Sites() {
   }, [loadSites]);
 
 
-  async function triggerCrawl(site: Site) {
-    setCrawling((prev) => ({ ...prev, [site.id]: true }));
-    try {
-      const job = await api.triggerCrawl(site.id);
-      pollJob(site.id, job.job_id as string);
-    } catch (e: any) {
-      toast.error("Crawl failed: " + e.message);
-      setCrawling((prev) => ({ ...prev, [site.id]: false }));
-    }
-  }
 
-  function pollJob(siteId: string, jobId: string) {
-    const interval = setInterval(async () => {
-      try {
-        const status = await api.getCrawlJob(jobId);
-        setJobStatus((prev) => ({ ...prev, [siteId]: status }));
-
-        if (["done", "done_with_errors", "failed"].includes(status.status)) {
-          clearInterval(interval);
-          setCrawling((prev) => ({ ...prev, [siteId]: false }));
-          toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
-          await loadSites();
-        }
-      } catch {
-        clearInterval(interval);
-        setCrawling((prev) => ({ ...prev, [siteId]: false }));
-      }
-    }, 2000);
-  }
 
   async function deleteSite(site: Site) {
     try {
