@@ -100,6 +100,7 @@ export interface LearningStats {
   site_id: string;
   boost_pairs: number;
   synonym_count: number;
+  total_learned_clicks: number;
   top_boosted: { url: string; query: string; clicks: number; ctr: number; boost: number }[];
   position_clicks: { position: number; clicks: number }[];
 }
@@ -395,21 +396,24 @@ export const api = {
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
     const { data: clicks } = await supabase
-      .from("search_clicks" as any)
+      .from("search_clicks")
       .select("query, page_url, click_count")
       .eq("site_id", siteId)
       .order("click_count", { ascending: false })
       .limit(20);
 
     const { data: synonyms } = await supabase
-      .from("search_synonyms" as any)
+      .from("search_synonyms")
       .select("query_from, query_to, confidence")
       .eq("site_id", siteId);
+
+    const totalClicks = (clicks || []).reduce((sum: number, c: any) => sum + (c.click_count || 0), 0);
 
     return {
       site_id: siteId,
       boost_pairs: clicks?.length || 0,
       synonym_count: synonyms?.length || 0,
+      total_learned_clicks: totalClicks,
       top_boosted: (clicks || []).slice(0, 10).map((c: any) => ({
         url: c.page_url,
         query: c.query,
