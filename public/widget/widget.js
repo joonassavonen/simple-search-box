@@ -23,12 +23,12 @@
   const script = document.currentScript || document.querySelector("script[data-site-id]");
   const configFromWindow = window.__FINDAI_CONFIG || {};
   const SITE_ID = configFromWindow.siteId || (script && script.getAttribute("data-site-id")) || "0";
-  const API_URL = (script.getAttribute("data-api-url") || "http://localhost:8000").replace(/\/$/, "");
-  const THEME = script.getAttribute("data-theme") || "light";
-  const POSITION = script.getAttribute("data-position") || "bottom-right";
-  const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
-  const PH_FI = script.getAttribute("data-placeholder-fi") || "Hae sivustolta...";
-  const PH_EN = script.getAttribute("data-placeholder-en") || "Search the site...";
+  const API_URL = (configFromWindow.apiUrl || (script && script.getAttribute("data-api-url")) || "http://localhost:8000").replace(/\/$/, "");
+  const THEME = configFromWindow.theme || (script && script.getAttribute("data-theme")) || "light";
+  const POSITION = configFromWindow.position || (script && script.getAttribute("data-position")) || "bottom-right";
+  const INLINE_TARGET = configFromWindow.inlineTarget || (script && script.getAttribute("data-inline-target")) || null;
+  const PH_FI = (script && script.getAttribute("data-placeholder-fi")) || "Hae sivustolta...";
+  const PH_EN = (script && script.getAttribute("data-placeholder-en")) || "Search the site...";
 
   if (!SITE_ID) {
     console.warn("[FindAI] Missing data-site-id attribute");
