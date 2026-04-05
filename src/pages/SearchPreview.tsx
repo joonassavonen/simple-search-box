@@ -31,10 +31,12 @@ function getSnippet(mode: EmbedMode, siteId: string) {
   data-position="bottom-right">
 </script>`;
   }
-  return `<script
+  return `<div id="findai-search"></div>
+<script
   src="YOUR_DOMAIN/widget.js"
   data-site-id="${siteId}"
-  data-position="fullscreen">
+  data-position="header-icon"
+  data-inline-target="#findai-search">
 </script>`;
 }
 
