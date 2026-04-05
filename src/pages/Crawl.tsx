@@ -156,6 +156,51 @@ export default function Crawl() {
         </CardContent>
       </Card>
 
+      {/* Extracted brand styles */}
+      {(site?.brand_color || site?.brand_font || site?.brand_bg_color) && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Palette className="h-4 w-4" />
+              Havaitut brändityylit
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              {site.brand_color && (
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-md border border-border" style={{ backgroundColor: site.brand_color }} />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Pääväri</p>
+                    <p className="text-sm font-mono">{site.brand_color}</p>
+                  </div>
+                </div>
+              )}
+              {site.brand_bg_color && (
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-md border border-border" style={{ backgroundColor: site.brand_bg_color }} />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Taustaväri</p>
+                    <p className="text-sm font-mono">{site.brand_bg_color}</p>
+                  </div>
+                </div>
+              )}
+              {site.brand_font && (
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-md border border-border flex items-center justify-center">
+                    <Type className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Fontti</p>
+                    <p className="text-sm">{site.brand_font}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Crawl history */}
       <Card>
         <CardHeader>
