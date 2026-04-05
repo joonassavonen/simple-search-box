@@ -349,6 +349,10 @@ function SearchDropdown({
   zeroSuggestions,
   onSuggestionClick,
   contactConfig,
+  popularProducts,
+  trending,
+  inputFocused,
+  onSelectTrending,
 }: {
   suggestions: string[];
   visible: boolean;
@@ -363,12 +367,17 @@ function SearchDropdown({
   zeroSuggestions?: string[];
   onSuggestionClick?: (q: string) => void;
   contactConfig?: ContactConfig | null;
+  popularProducts?: PopularProduct[];
+  trending?: TrendingItem[];
+  inputFocused?: boolean;
+  onSelectTrending?: (q: string) => void;
 }) {
   const hasResults = results && results.results && results.results.length > 0;
   const showAutocomplete = visible && suggestions.length > 0;
   const showResults = query.trim().length > 0 && (hasResults || noResults || loading);
+  const showTrending = inputFocused && !query.trim() && !results && ((popularProducts && popularProducts.length > 0) || (trending && trending.length > 0));
 
-  if (!showAutocomplete && !showResults) return null;
+  if (!showAutocomplete && !showResults && !showTrending) return null;
 
   const getImage = (q: string) => {
     const match = pages.find((p) =>
