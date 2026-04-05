@@ -161,8 +161,9 @@ export default function Analytics() {
 
   const ctrPct = (stats.click_through_rate * 100).toFixed(1);
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const periodLabel = `${thirtyDaysAgo.toLocaleDateString("fi-FI", { day: "numeric", month: "short" })} – ${now.toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric" })}`;
+  const daysNum = Number(dateRange);
+  const periodStart = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
+  const periodLabel = `${periodStart.toLocaleDateString("fi-FI", { day: "numeric", month: "short" })} – ${now.toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric" })}`;
 
   return (
     <div className="space-y-6">
