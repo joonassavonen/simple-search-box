@@ -193,7 +193,39 @@ export default function Analytics() {
     }
   };
 
-  if (loading) {
+  const deleteSynonym = async (id: string) => {
+    const { error } = await supabase.from("search_synonyms").delete().eq("id", id);
+    if (error) {
+      toast({ title: "Virhe", description: error.message, variant: "destructive" });
+      return;
+    }
+    setSynonyms((prev) => prev.filter((s) => s.id !== id));
+    toast({ title: "Synonyymi poistettu" });
+  };
+
+  const startEdit = (s: Synonym) => {
+    setEditingSynonym(s.id);
+    setEditForm({ query_from: s.query_from, query_to: s.query_to });
+  };
+
+  const saveEdit = async (id: string) => {
+    const from = editForm.query_from.trim();
+    const to = editForm.query_to.trim();
+    if (!from || !to) return;
+    const { error } = await supabase
+      .from("search_synonyms")
+      .update({ query_from: from, query_to: to })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Virhe", description: error.message, variant: "destructive" });
+      return;
+    }
+    setSynonyms((prev) => prev.map((s) => (s.id === id ? { ...s, query_from: from, query_to: to } : s)));
+    setEditingSynonym(null);
+    toast({ title: "Synonyymi päivitetty" });
+  };
+
+
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
