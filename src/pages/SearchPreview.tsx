@@ -11,7 +11,7 @@ type EmbedMode = "inline" | "floating" | "header-icon";
 const EMBED_MODES: { value: EmbedMode; label: string; icon: typeof Search; description: string }[] = [
   { value: "inline", label: "Header-haku", icon: Search, description: "Hakukenttä upotetaan suoraan sivun headeriin tai sisältöön" },
   { value: "floating", label: "Kelluva nappi", icon: MousePointerClick, description: "Kelluva \"Hae\"-nappi avaa hakumodaalin" },
-  { value: "fullscreen", label: "Kokoruutu", icon: Maximize, description: "Kelluva nappi avaa koko ruudun peittävän haun" },
+  { value: "header-icon", label: "Hakuikoni", icon: SearchIcon, description: "Hakuikoni upotetaan headeriin — klikkaus avaa overlay-haun" },
 ];
 
 function getSnippet(mode: EmbedMode, siteId: string) {
