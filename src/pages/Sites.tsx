@@ -93,16 +93,11 @@ export default function Sites() {
             <Globe className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <h3 className="mb-2 text-lg font-semibold">No sites yet</h3>
             <p className="mb-6 text-sm text-muted-foreground">
-              Add a site to start indexing, or load the demo to explore FindAI.
+              Add a site to start indexing.
             </p>
-            <div className="flex justify-center gap-3">
-              <Button variant="outline" onClick={setupDemo}>
-                Load Demo Site
-              </Button>
-              <Button asChild>
-                <Link to="/add-site">Add Your Site</Link>
-              </Button>
-            </div>
+            <Button asChild>
+              <Link to="/add-site">Add Your Site</Link>
+            </Button>
           </CardContent>
         </Card>
       ) : (
