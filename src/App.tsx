@@ -14,6 +14,7 @@ import SearchPreview from "./pages/SearchPreview";
 import Auth from "./pages/Auth";
 import ContactConfig from "./pages/ContactConfig";
 import Integrations from "./pages/Integrations";
+import Crawl from "./pages/Crawl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -69,6 +70,7 @@ const App = () => {
               <Route path="/sites/:siteId/search" element={<SearchPreview />} />
               <Route path="/sites/:siteId/settings" element={<ContactConfig />} />
               <Route path="/sites/:siteId/integrations" element={<Integrations />} />
+              <Route path="/sites/:siteId/crawl" element={<Crawl />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </DashboardLayout>

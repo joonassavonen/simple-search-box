@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { api, Site, CrawlJob } from "@/lib/api";
+import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, Plug, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -22,8 +21,6 @@ import {
 export default function Sites() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
-  const [crawling, setCrawling] = useState<Record<string, boolean>>({});
-  const [jobStatus, setJobStatus] = useState<Record<string, CrawlJob>>({});
 
   const loadSites = useCallback(async () => {
     try {
@@ -41,35 +38,7 @@ export default function Sites() {
   }, [loadSites]);
 
 
-  async function triggerCrawl(site: Site) {
-    setCrawling((prev) => ({ ...prev, [site.id]: true }));
-    try {
-      const job = await api.triggerCrawl(site.id);
-      pollJob(site.id, job.job_id as string);
-    } catch (e: any) {
-      toast.error("Crawl failed: " + e.message);
-      setCrawling((prev) => ({ ...prev, [site.id]: false }));
-    }
-  }
 
-  function pollJob(siteId: string, jobId: string) {
-    const interval = setInterval(async () => {
-      try {
-        const status = await api.getCrawlJob(jobId);
-        setJobStatus((prev) => ({ ...prev, [siteId]: status }));
-
-        if (["done", "done_with_errors", "failed"].includes(status.status)) {
-          clearInterval(interval);
-          setCrawling((prev) => ({ ...prev, [siteId]: false }));
-          toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
-          await loadSites();
-        }
-      } catch {
-        clearInterval(interval);
-        setCrawling((prev) => ({ ...prev, [siteId]: false }));
-      }
-    }, 2000);
-  }
 
   async function deleteSite(site: Site) {
     try {
@@ -121,12 +90,6 @@ export default function Sites() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sites.map((site) => {
-            const job = jobStatus[site.id];
-            const isCrawling = crawling[site.id];
-            const crawlProgress =
-              job && job.pages_found
-                ? Math.round((job.pages_indexed / job.pages_found) * 100)
-                : 0;
 
             return (
               <Card key={site.id}>
@@ -181,18 +144,6 @@ export default function Sites() {
                     </div>
                   </div>
 
-                  {isCrawling && (
-                    <div className="mt-3 space-y-1">
-                      <Progress value={crawlProgress || 5} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        {job
-                          ? job.pages_found > 0
-                            ? `${job.pages_indexed}/${job.pages_found} pages indexed`
-                            : "Discovering pages from sitemap..."
-                          : "Starting crawl..."}
-                      </p>
-                    </div>
-                  )}
 
                 </CardContent>
 
@@ -222,19 +173,11 @@ export default function Sites() {
                       Test & Design
                     </Link>
                   </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="ml-auto h-8 px-2 text-xs"
-                    onClick={() => triggerCrawl(site)}
-                    disabled={isCrawling}
-                  >
-                    {isCrawling ? (
-                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    ) : (
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
+                    <Link to={`/sites/${site.id}/crawl`}>
                       <RefreshCw className="mr-1 h-3 w-3" />
-                    )}
-                    {isCrawling ? "Crawling..." : "Crawl"}
+                      Crawl
+                    </Link>
                   </Button>
                 </CardFooter>
               </Card>
