@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, Site, SiteStats } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowLeft, Search, Lightbulb, Loader2, AlertCircle, Brain, RefreshCw } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
@@ -26,12 +28,22 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
+interface Synonym {
+  id: string;
+  query_from: string;
+  query_to: string;
+  confidence: number;
+  times_used: number;
+}
+
 export default function Analytics() {
   const { siteId } = useParams();
   const [stats, setStats] = useState<SiteStats | null>(null);
   const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [synonyms, setSynonyms] = useState<Synonym[]>([]);
+  const [learningRunning, setLearningRunning] = useState(false);
 
   useEffect(() => {
     if (!siteId) {
@@ -47,6 +59,14 @@ export default function Analytics() {
         ]);
         setSite(s);
         setStats(st);
+        // Load synonyms
+        const { data: syns } = await supabase
+          .from("search_synonyms")
+          .select("*")
+          .eq("site_id", siteId!)
+          .order("confidence", { ascending: false })
+          .limit(50);
+        setSynonyms((syns as any[]) || []);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -55,6 +75,30 @@ export default function Analytics() {
     }
     load();
   }, [siteId]);
+
+  const runLearning = async () => {
+    if (!siteId) return;
+    setLearningRunning(true);
+    try {
+      const result = await api.discoverSynonyms(siteId);
+      toast({
+        title: "Oppiminen valmis",
+        description: `${result.discovered} uutta synonyymia löydetty`,
+      });
+      // Reload synonyms
+      const { data: syns } = await supabase
+        .from("search_synonyms")
+        .select("*")
+        .eq("site_id", siteId)
+        .order("confidence", { ascending: false })
+        .limit(50);
+      setSynonyms((syns as any[]) || []);
+    } catch (e: any) {
+      toast({ title: "Virhe", description: e.message, variant: "destructive" });
+    } finally {
+      setLearningRunning(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -110,6 +154,61 @@ export default function Analytics() {
         <StatCard label="Avg Results" value={stats.avg_results_per_search.toFixed(1)} sub="Per search" />
         <StatCard label="Pages Indexed" value={stats.pages_indexed.toLocaleString()} sub="In search index" />
       </div>
+
+      {/* Learning section */}
+      <Card className="mt-6">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            Oppiva haku — Synonyymit
+          </CardTitle>
+          <Button
+            size="sm"
+            onClick={runLearning}
+            disabled={learningRunning}
+          >
+            {learningRunning ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-1 h-4 w-4" />
+            )}
+            {learningRunning ? "Oppii..." : "Käynnistä oppiminen"}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-3">
+            Oppiminen analysoi hakuhistorian ja löytää synonyymeja sekä assosiaatioita klikkausten ja AI:n avulla.
+          </p>
+          {synonyms.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">Ei opittuja synonyymejä vielä. Käynnistä oppiminen kun hakudataa on kertynyt.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Hakulause</TableHead>
+                  <TableHead>Synonyymi</TableHead>
+                  <TableHead className="w-24 text-right">Luottamus</TableHead>
+                  <TableHead className="w-20 text-right">Käytöt</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {synonyms.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">{s.query_from}</TableCell>
+                    <TableCell>{s.query_to}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>
+                        {(s.confidence * 100).toFixed(0)}%
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Card>
@@ -179,7 +278,7 @@ export default function Analytics() {
       {stats.failed_searches.length > 0 && (
         <Card className="mt-4">
           <CardContent className="flex items-start gap-3 p-4">
-            <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-yellow-500" />
+            <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-accent-foreground" />
             <div>
               <p className="font-medium">Content Gap Insight</p>
               <p className="mt-1 text-sm text-muted-foreground">
