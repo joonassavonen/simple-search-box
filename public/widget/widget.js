@@ -579,7 +579,7 @@
       .then(data => { trendingData = data.trending || []; })
       .catch(() => {});
 
-    fetch(`${API_URL}/api/sites/${SITE_ID}/contact-config`)
+    fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "contact-config" }) })
       .then(r => r.json())
       .then(data => { contactConfig = data; })
       .catch(() => {});
