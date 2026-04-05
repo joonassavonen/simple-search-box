@@ -199,27 +199,27 @@ export default function Sites() {
 
                 <CardFooter className="flex-wrap gap-1.5 pt-0">
                   <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
-                    <Link to={`/sites/${site.id}/analytics`}>
-                      <BarChart3 className="mr-1 h-3 w-3" />
-                      Analytics
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
-                    <Link to={`/sites/${site.id}/search`}>
-                      <Search className="mr-1 h-3 w-3" />
-                      Test
-                    </Link>
-                  </Button>
-                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
                     <Link to={`/sites/${site.id}/settings`}>
                       <Settings className="mr-1 h-3 w-3" />
                       Settings
                     </Link>
                   </Button>
                   <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
+                    <Link to={`/sites/${site.id}/analytics`}>
+                      <BarChart3 className="mr-1 h-3 w-3" />
+                      Analytics
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
                     <Link to={`/sites/${site.id}/integrations`}>
                       <Plug className="mr-1 h-3 w-3" />
                       Integrations
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
+                    <Link to={`/sites/${site.id}/search`}>
+                      <Search className="mr-1 h-3 w-3" />
+                      Test & Design
                     </Link>
                   </Button>
                   <Button
@@ -234,7 +234,7 @@ export default function Sites() {
                     ) : (
                       <RefreshCw className="mr-1 h-3 w-3" />
                     )}
-                    {isCrawling ? "Crawling..." : "Re-crawl"}
+                    {isCrawling ? "Crawling..." : "Crawl"}
                   </Button>
                 </CardFooter>
               </Card>
