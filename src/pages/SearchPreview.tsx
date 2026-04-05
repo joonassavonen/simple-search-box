@@ -195,11 +195,9 @@ function ResultCard({
         )}
 
         {/* Article/Event meta */}
-        {s?.type === "Article" && (s.author || s.datePublished) && (
+        {s?.type === "Article" && s.datePublished && (
           <div className="mt-1.5 flex items-center gap-2 text-xs text-muted-foreground">
-            {s.author && <span>{s.author}</span>}
-            {s.author && s.datePublished && <span>·</span>}
-            {s.datePublished && <span>{new Date(s.datePublished).toLocaleDateString("fi-FI")}</span>}
+            <span>{new Date(s.datePublished).toLocaleDateString("fi-FI")}</span>
           </div>
         )}
 
