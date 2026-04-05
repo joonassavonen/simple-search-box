@@ -551,6 +551,31 @@
       panel = document.createElement("div");
       panel.className = "findai-inline";
       wrapper.appendChild(panel);
+    } else if (POSITION === "fullscreen") {
+      trigger = document.createElement("button");
+      trigger.className = `findai-trigger pos-bottom-right`;
+      trigger.innerHTML = `${ICON_SEARCH} <span class="findai-trigger-label">Hae</span>`;
+      trigger.setAttribute("aria-label", "Open search");
+      wrapper.appendChild(trigger);
+
+      overlay = document.createElement("div");
+      overlay.className = "findai-fullscreen-overlay";
+      overlay.setAttribute("role", "dialog");
+      overlay.setAttribute("aria-modal", "true");
+      overlay.setAttribute("aria-label", "Site search");
+
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "findai-fullscreen-close";
+      closeBtn.innerHTML = ICON_CLOSE;
+      closeBtn.setAttribute("aria-label", "Close");
+      overlay.appendChild(closeBtn);
+
+      panel = document.createElement("div");
+      panel.className = "findai-fullscreen-panel";
+      overlay.appendChild(panel);
+      wrapper.appendChild(overlay);
+
+      closeBtn.addEventListener("click", () => { closeSearch(); });
     } else {
       trigger = document.createElement("button");
       trigger.className = `findai-trigger pos-${POSITION}`;
