@@ -63,10 +63,9 @@ export default function SearchPreview() {
           <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{site?.domain}</p>
         </div>
         <Button variant="ghost" size="sm" className="cursor-pointer shrink-0 text-xs sm:text-sm" asChild>
-          <Link to="/">
+          <Link to={`/sites/${siteId}/settings`}>
             <ArrowLeft className="mr-1 h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            <span className="hidden sm:inline">Takaisin</span>
-            <span className="sm:hidden">←</span>
+            Takaisin
           </Link>
         </Button>
       </div>
