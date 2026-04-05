@@ -253,6 +253,7 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .findai-input::placeholder { color: rgba(107,114,128,0.4); }
+    .findai-input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
     .findai-input:focus {
       border-color: hsl(145, 50%, 45%);
       box-shadow: 0 4px 12px hsla(145, 50%, 45%, 0.1);
