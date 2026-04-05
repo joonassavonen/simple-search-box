@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save, Copy, Check, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ContactConfig() {
@@ -16,6 +16,8 @@ export default function ContactConfig() {
   const [config, setConfig] = useState<ContactConfigType | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showKey, setShowKey] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -51,6 +53,14 @@ export default function ContactConfig() {
 
   function update(field: string, value: string | boolean) {
     setConfig((c) => (c ? { ...c, [field]: value } : c));
+  }
+
+  function copyApiKey() {
+    if (!site) return;
+    navigator.clipboard.writeText(site.api_key).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   }
 
   if (loading) {
@@ -152,6 +162,31 @@ export default function ContactConfig() {
           </Button>
         </CardFooter>
       </Card>
+
+      {/* API Key */}
+      {site && (
+        <Card className="max-w-lg mt-6">
+          <CardHeader>
+            <CardTitle>API Key</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-sm">
+                {showKey ? site.api_key : `${site.api_key.slice(0, 12)}${"•".repeat(20)}`}
+              </code>
+              <Button variant="ghost" size="sm" onClick={() => setShowKey(!showKey)}>
+                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={copyApiKey}>
+                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Käytä tätä avainta widgetin ja API-kutsujen tunnistamiseen.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
