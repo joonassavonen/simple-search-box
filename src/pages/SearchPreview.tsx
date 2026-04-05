@@ -4,9 +4,9 @@ import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Check, Search, MousePointerClick, Maximize } from "lucide-react";
+import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon } from "lucide-react";
 
-type EmbedMode = "inline" | "floating" | "fullscreen";
+type EmbedMode = "inline" | "floating" | "header-icon";
 
 const EMBED_MODES: { value: EmbedMode; label: string; icon: typeof Search; description: string }[] = [
   { value: "inline", label: "Header-haku", icon: Search, description: "Hakukenttä upotetaan suoraan sivun headeriin tai sisältöön" },
