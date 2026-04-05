@@ -287,50 +287,6 @@ function FeaturedCard({
 }
 
 // ---------------------------------------------------------------------------
-// Popular products (trending with images)
-// ---------------------------------------------------------------------------
-
-function PopularSection({
-  products,
-  onSelect,
-}: {
-  products: PopularProduct[];
-  onSelect: (q: string) => void;
-}) {
-  if (!products.length) return null;
-
-  return (
-    <div className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-        Suosittua juuri nyt
-      </div>
-      <div className="space-y-1">
-        {products.map((p) => (
-          <button
-            key={p.url}
-            onClick={() => onSelect(p.title)}
-            className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted/50"
-          >
-            {p.image ? (
-              <img
-                src={p.image}
-                alt=""
-                className="h-10 w-10 shrink-0 rounded-lg border border-border/30 object-contain bg-white"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = "none";
-                }}
-              />
-            ) : (
-              <div className="h-10 w-10 shrink-0 rounded-lg bg-muted/50" />
-            )}
-            <span className="text-[14px] font-medium text-foreground">{p.title}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Autocomplete with images
 // ---------------------------------------------------------------------------
@@ -349,6 +305,10 @@ function SearchDropdown({
   zeroSuggestions,
   onSuggestionClick,
   contactConfig,
+  popularProducts,
+  trending,
+  inputFocused,
+  onSelectTrending,
 }: {
   suggestions: string[];
   visible: boolean;
@@ -363,12 +323,17 @@ function SearchDropdown({
   zeroSuggestions?: string[];
   onSuggestionClick?: (q: string) => void;
   contactConfig?: ContactConfig | null;
+  popularProducts?: PopularProduct[];
+  trending?: TrendingItem[];
+  inputFocused?: boolean;
+  onSelectTrending?: (q: string) => void;
 }) {
   const hasResults = results && results.results && results.results.length > 0;
   const showAutocomplete = visible && suggestions.length > 0;
   const showResults = query.trim().length > 0 && (hasResults || noResults || loading);
+  const showTrending = inputFocused && !query.trim() && !results && ((popularProducts && popularProducts.length > 0) || (trending && trending.length > 0));
 
-  if (!showAutocomplete && !showResults) return null;
+  if (!showAutocomplete && !showResults && !showTrending) return null;
 
   const getImage = (q: string) => {
     const match = pages.find((p) =>
@@ -479,6 +444,52 @@ function SearchDropdown({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Trending / popular inside dropdown */}
+      {showTrending && (
+        <div className="p-3">
+          <div className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Suosittua juuri nyt
+          </div>
+          {popularProducts && popularProducts.length > 0 ? (
+            <div className="space-y-1">
+              {popularProducts.map((p) => (
+                <button
+                  key={p.url}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onSelectTrending?.(p.title)}
+                  className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                >
+                  {p.image ? (
+                    <img
+                      src={p.image}
+                      alt=""
+                      className="h-9 w-9 shrink-0 rounded-lg border border-border/20 object-contain bg-white"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <div className="h-9 w-9 shrink-0 rounded-lg bg-muted/50" />
+                  )}
+                  <span className="text-[13px] font-medium text-foreground">{p.title}</span>
+                </button>
+              ))}
+            </div>
+          ) : trending && trending.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {trending.map((item) => (
+                <button
+                  key={item.query}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onSelectTrending?.(item.query)}
+                  className="cursor-pointer rounded-full border border-border/40 bg-white px-3 py-1.5 text-[13px] font-medium text-foreground transition-all hover:bg-muted/50"
+                >
+                  {item.query}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       )}
     </div>
@@ -659,6 +670,7 @@ export default function SearchPreview() {
   const [popularProducts, setPopularProducts] = useState<PopularProduct[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [copied, setCopied] = useState(false);
   const [contactConfig, setContactConfig] = useState<ContactConfig | null>(null);
@@ -863,7 +875,11 @@ export default function SearchPreview() {
               onChange={(e) => handleInput(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => {
+                setInputFocused(true);
                 if (suggestions.length > 0) setShowSuggestions(true);
+              }}
+              onBlur={() => {
+                setTimeout(() => setInputFocused(false), 200);
               }}
               className="h-11 sm:h-[52px] w-full rounded-xl sm:rounded-2xl border-2 border-border/50 bg-white pl-9 sm:pl-11 pr-9 sm:pr-10 text-sm sm:text-[15px] shadow-sm outline-none transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-[hsl(145,50%,45%)] focus:shadow-md focus:shadow-[hsl(145,50%,45%)]/10"
               autoFocus
@@ -907,38 +923,12 @@ export default function SearchPreview() {
           zeroSuggestions={results?.suggestions}
           onSuggestionClick={selectSuggestion}
           contactConfig={contactConfig}
+          popularProducts={popularProducts}
+          trending={trending}
+          inputFocused={inputFocused}
+          onSelectTrending={selectTrending}
         />
       </div>
-
-      {/* Subtext removed */}
-      {false && (
-        <p></p>
-      )}
-
-      {/* Popular products (trending with images) */}
-      {!query && !results && popularProducts.length > 0 && (
-        <PopularSection products={popularProducts} onSelect={selectTrending} />
-      )}
-
-      {/* Text-only trending fallback if no products */}
-      {!query && !results && popularProducts.length === 0 && trending.length > 0 && (
-        <div className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Suosittua juuri nyt
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {trending.map((item) => (
-              <button
-                key={item.query}
-                onClick={() => selectTrending(item.query)}
-                className="cursor-pointer rounded-full border border-border/40 bg-white px-3.5 py-1.5 text-[13px] font-medium text-foreground transition-all hover:border-[hsl(145,50%,45%)]/25 hover:bg-[hsl(145,50%,45%)]/5"
-              >
-                {item.query}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Error */}
       {error && (
