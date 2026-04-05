@@ -76,6 +76,20 @@ export default function Crawl() {
   const crawlProgress =
     job && job.pages_found ? Math.round((job.pages_indexed / job.pages_found) * 100) : 0;
 
+  const getHistorySummary = (entry: { status: string; pages_indexed: number; pages_found: number }) => {
+    if (entry.status === "pending") return "Queued";
+    if (entry.status === "discovering") return "Discovering pages...";
+    if (entry.status === "crawling") {
+      return entry.pages_found > 0
+        ? `${entry.pages_indexed}/${entry.pages_found} pages indexed`
+        : `${entry.pages_indexed} pages indexed`;
+    }
+    if (entry.pages_found > 0) {
+      return `${entry.pages_indexed} pages indexed / ${entry.pages_found} found`;
+    }
+    return `${entry.pages_indexed} pages indexed`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
