@@ -55,6 +55,14 @@ export default function ContactConfig() {
     setConfig((c) => (c ? { ...c, [field]: value } : c));
   }
 
+  function copyApiKey() {
+    if (!site) return;
+    navigator.clipboard.writeText(site.api_key).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
