@@ -178,8 +178,7 @@ export default function Crawl() {
                     )}
                     <div>
                       <p className="text-sm font-medium">
-                        {h.pages_indexed} pages indexed
-                        {h.pages_found > 0 && ` / ${h.pages_found} found`}
+                        {getHistorySummary(h)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(h.created_at).toLocaleString("fi-FI")}
