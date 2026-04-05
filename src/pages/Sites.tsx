@@ -173,19 +173,11 @@ export default function Sites() {
                       Test & Design
                     </Link>
                   </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="ml-auto h-8 px-2 text-xs"
-                    onClick={() => triggerCrawl(site)}
-                    disabled={isCrawling}
-                  >
-                    {isCrawling ? (
-                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                    ) : (
+                  <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" asChild>
+                    <Link to={`/sites/${site.id}/crawl`}>
                       <RefreshCw className="mr-1 h-3 w-3" />
-                    )}
-                    {isCrawling ? "Crawling..." : "Crawl"}
+                      Crawl
+                    </Link>
                   </Button>
                 </CardFooter>
               </Card>
