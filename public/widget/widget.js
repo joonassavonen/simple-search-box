@@ -574,7 +574,7 @@
     // -----------------------------------------------------------------------
     // Prefetch trending + contact config
     // -----------------------------------------------------------------------
-    fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
+    fetch(`${API_URL}/search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ site_id: SITE_ID, type: "trending", limit: 6 }) })
       .then(r => r.json())
       .then(data => { trendingData = data.trending || []; })
       .catch(() => {});
