@@ -267,6 +267,31 @@ export const api = {
       ? logs.reduce((sum, l) => sum + l.results_count, 0) / logs.length
       : 0;
 
+    // Build daily time series for last 30 days
+    const dailyMap: Record<string, { searches: number; clicks: number; no_results: number }> = {};
+    for (let d = 0; d < 30; d++) {
+      const date = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
+      const key = date.toISOString().slice(0, 10);
+      dailyMap[key] = { searches: 0, clicks: 0, no_results: 0 };
+    }
+    for (const l of last30) {
+      const key = l.created_at.slice(0, 10);
+      if (dailyMap[key]) {
+        dailyMap[key].searches++;
+        if (l.clicked) dailyMap[key].clicks++;
+        if (l.results_count === 0) dailyMap[key].no_results++;
+      }
+    }
+    const daily: import("./api").DailyMetric[] = Object.entries(dailyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, d]) => ({
+        date,
+        searches: d.searches,
+        clicks: d.clicks,
+        no_results: d.no_results,
+        click_rate: d.searches > 0 ? Math.round((d.clicks / d.searches) * 100) : 0,
+      }));
+
     return {
       total_searches: logs.length,
       searches_last_7d: recentLogs.length,
@@ -276,6 +301,7 @@ export const api = {
       top_queries: topQueries,
       failed_searches: failedSearches,
       no_click_queries: noClickQueries,
+      daily,
     };
   },
 
