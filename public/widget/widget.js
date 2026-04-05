@@ -971,6 +971,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "click",
+          site_id: SITE_ID,
           search_log_id: currentSearchLogId,
           clicked_url: url,
           click_position: position || 0,
