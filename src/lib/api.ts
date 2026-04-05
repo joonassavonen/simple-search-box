@@ -245,12 +245,6 @@ export const api = {
     };
   },
 
-  // --- Demo (Backend fetch) ---
-
-  async setupDemo(): Promise<Site> {
-    // TODO: migrate to edge function
-    throw new Error("Demo setup not yet available");
-  },
 
   // --- Trending (Supabase direct — aggregates search_logs) ---
 

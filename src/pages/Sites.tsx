@@ -30,15 +30,6 @@ export default function Sites() {
     loadSites();
   }, [loadSites]);
 
-  async function setupDemo() {
-    try {
-      await api.setupDemo();
-      await loadSites();
-      toast.success("Demo site loaded!");
-    } catch (e: any) {
-      toast.error("Demo setup failed: " + e.message);
-    }
-  }
 
   async function triggerCrawl(site: Site) {
     setCrawling((prev) => ({ ...prev, [site.id]: true }));
