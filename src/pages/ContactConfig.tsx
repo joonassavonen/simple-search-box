@@ -162,6 +162,31 @@ export default function ContactConfig() {
           </Button>
         </CardFooter>
       </Card>
+
+      {/* API Key */}
+      {site && (
+        <Card className="max-w-lg mt-6">
+          <CardHeader>
+            <CardTitle>API Key</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 rounded-md bg-muted px-3 py-2 font-mono text-sm">
+                {showKey ? site.api_key : `${site.api_key.slice(0, 12)}${"•".repeat(20)}`}
+              </code>
+              <Button variant="ghost" size="sm" onClick={() => setShowKey(!showKey)}>
+                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={copyApiKey}>
+                {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+              </Button>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Käytä tätä avainta widgetin ja API-kutsujen tunnistamiseen.
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
