@@ -785,7 +785,7 @@
       const msg = lang === "fi" ? "Haetaan..." : "Searching...";
       resultsEl.innerHTML = `
         <div class="findai-state">
-          <div class="findai-spinner"></div>
+          <div class="findai-spinner"><div class="findai-spinner-dot"></div><div class="findai-spinner-dot"></div><div class="findai-spinner-dot"></div></div>
           <div>${msg}</div>
         </div>
       `;
