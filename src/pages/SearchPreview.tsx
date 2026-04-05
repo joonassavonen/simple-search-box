@@ -73,8 +73,9 @@ export default function SearchPreview() {
     if (mode === "inline") {
       script.setAttribute("data-position", "inline");
       script.setAttribute("data-inline-target", "#findai-preview-container");
-    } else if (mode === "floating") {
-      script.setAttribute("data-position", "bottom-right");
+    } else if (mode === "header-icon") {
+      script.setAttribute("data-position", "header-icon");
+      script.setAttribute("data-inline-target", "#findai-preview-container");
     } else {
       script.setAttribute("data-position", "fullscreen");
     }
