@@ -57,6 +57,7 @@ interface Synonym {
   times_used: number;
 }
 
+type DateRange = "7" | "30" | "90";
 type ChartMetric = "searches" | "clicks" | "no_results" | "click_rate";
 
 const metricLabels: Record<ChartMetric, string> = {
