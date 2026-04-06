@@ -525,6 +525,45 @@
   const ICON_TRENDING = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
 
   // -------------------------------------------------------------------------
+  // Apply brand styles from site settings
+  // -------------------------------------------------------------------------
+  function applyBrandStyles(wrapper, styleEl, brandColor, brandFont, brandBgColor) {
+    let overrideCSS = "";
+    if (brandColor) {
+      const hsl = hexToHsl(brandColor);
+      overrideCSS += `
+        .findai-wrapper {
+          --green: ${hsl};
+          --green-light: ${hslLighten(hsl, 52)};
+          --green-border: ${hslLighten(hsl, 40)};
+          --green-dark: ${hslDarken(hsl, 5)};
+          --green-cta: ${hslDarken(hsl, 5)};
+        }
+        .findai-input:focus {
+          border-color: hsl(${hsl});
+          box-shadow: 0 4px 12px hsla(${hsl}, 0.1);
+        }
+        .findai-result-price { color: hsl(${hslDarken(hsl, 5)}); }
+      `;
+    }
+    if (brandFont) {
+      overrideCSS += `
+        :host { font-family: '${brandFont}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      `;
+    }
+    if (brandBgColor) {
+      overrideCSS += `
+        .findai-wrapper { --bg: ${brandBgColor}; }
+      `;
+    }
+    if (overrideCSS) {
+      const brandStyle = document.createElement("style");
+      brandStyle.textContent = overrideCSS;
+      styleEl.parentNode.appendChild(brandStyle);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Widget state
   // -------------------------------------------------------------------------
   let currentSearchLogId = null;
