@@ -535,12 +535,23 @@
     /* Result item */
     .findai-result {
       display: flex; align-items: flex-start; gap: 12px;
-      padding: 10px 16px; cursor: pointer; width: 100%;
+      padding: 12px 16px; cursor: pointer; width: calc(100% - 16px);
+      margin: 4px 8px 0;
       border: none; background: none; text-align: left;
       text-decoration: none;
-      transition: background 0.1s; font-family: inherit;
+      border-radius: 12px;
+      box-sizing: border-box;
+      transition: background 0.1s, box-shadow 0.1s; font-family: inherit;
     }
-    .findai-result:hover { background: rgba(0,0,0,0.02); }
+    .findai-result + .findai-result {
+      border-top: 1px solid var(--border-light);
+      padding-top: 14px;
+      margin-top: 6px;
+    }
+    .findai-result:hover {
+      background: rgba(15,23,42,0.025);
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.04);
+    }
     .findai-result-img {
       width: 48px; height: 48px; border-radius: 8px;
       object-fit: contain; border: 1px solid var(--border-light);
@@ -572,7 +583,7 @@
     .findai-badge-instock { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
     .findai-badge-outofstock { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
     .findai-result-snippet {
-      font-size: 12px; color: var(--text-muted); margin-top: 2px;
+      font-size: 12px; color: var(--text-muted); margin-top: 4px;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
       line-height: 1.5;
     }
