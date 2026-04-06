@@ -1522,7 +1522,7 @@
       if (data.ai_summary) {
         html += `
           <div class="findai-no-results-section">
-            <span class="findai-no-results-label">${escHtml(lang === "fi" ? "Vastaus" : "Answer")}</span>
+            <span class="findai-no-results-label">${escHtml(lang === "fi" ? "AI vastaus" : "AI answer")}</span>
             <div class="findai-no-results-answer">
               <p>${escHtml(data.ai_summary)}</p>
             </div>
