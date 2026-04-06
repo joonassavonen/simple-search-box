@@ -59,7 +59,7 @@ function truncateText(value: string | null | undefined, maxLength: number): stri
 }
 
 async function suggestPagesForFailedQueries(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   siteId: string,
   failedQueries: { query: string; count: number }[],
 ): Promise<{ suggestions: Record<string, FailedQuerySuggestion[]>; synonymsCreated: number }> {
