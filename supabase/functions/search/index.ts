@@ -48,6 +48,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- STRATEGY: Read optimization strategy (written by optimize agent) ---
+    const { data: strategy } = await supabase
+      .from("site_search_strategy")
+      .select("prompt_additions, contact_trigger_rules, high_ctr_patterns")
+      .eq("site_id", site_id)
+      .single();
+
+    const triggerRules = strategy?.contact_trigger_rules || { show_on_zero_results: true };
+    const highCtrPatterns: { pattern: string; top_url: string; ctr: number }[] =
+      strategy?.high_ctr_patterns || [];
+
+    // --- CONTACT CONFIG: Read from DB ---
+    const { data: contactConfig } = await supabase
+      .from("site_contact_configs")
+      .select("enabled, email, phone, chat_url, cta_text_fi, cta_text_en")
+      .eq("site_id", site_id)
+      .single();
+
     // Detect language
     const finnishChars = /[äöåÄÖÅ]/;
     const language = finnishChars.test(query) ? "fi" : "en";
@@ -146,6 +164,7 @@ Deno.serve(async (req) => {
     if (pagesErr) throw new Error(pagesErr.message);
 
     // Score each page based on word matches (keyword phase)
+    const queryLower = query.trim().toLowerCase();
     const scored = (pages || []).map((page) => {
       const titleLower = (page.title || "").toLowerCase();
       const contentLower = (page.content || "").toLowerCase();
@@ -196,6 +215,16 @@ Deno.serve(async (req) => {
       if (generalPopularity > 0 && score > 0) {
         // Mild boost for generally popular pages
         score += Math.min(generalPopularity * 0.5, 10);
+      }
+
+      // --- STRATEGY BOOST: High-CTR patterns from optimize agent ---
+      if (score > 0 && highCtrPatterns.length > 0) {
+        for (const p of highCtrPatterns) {
+          if (queryLower.includes(p.pattern) && page.url === p.top_url) {
+            score += Math.min(p.ctr * 20, 15);
+            break;
+          }
+        }
       }
 
       // --- GA ANALYTICS BOOST ---
@@ -293,7 +322,7 @@ Säännöt:
 - Palveluhaku → kerro miten palvelun saa
 - ÄLÄ KOSKAAN kirjoita "Löytyi X tulosta", "Sivustolta löytyy", "Valikoimasta löytyy" — käyttäjä näkee tulokset itse
 - Jos sivuilta ei löydy oikeaa vastausta → summary: null
-
+${strategy?.prompt_additions ? `\nLISÄOHJEET OPTIMOINTIAGENTILTA:\n${strategy.prompt_additions}` : ""}
 Palauta JSON:
 {"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5], "reasoning": ["perustelu per sivu"]}
 Palauta VAIN validi JSON.`
@@ -351,7 +380,6 @@ Palauta VAIN validi JSON.`
         .limit(200);
 
       if (pastQueries) {
-        const queryLower = query.trim().toLowerCase();
         const scored = pastQueries
           .map(pq => {
             const pqLower = pq.query.toLowerCase();
@@ -407,6 +435,50 @@ Palauta VAIN validi JSON.`
 
     const responseMs = Date.now() - startTime;
 
+    // --- STRATEGY: Decide whether to show contact CTA ---
+    let contactConfigResponse: any = undefined;
+    if (contactConfig && contactConfig.enabled &&
+        (contactConfig.phone || contactConfig.email || contactConfig.chat_url)) {
+      let shouldShowContact = false;
+
+      // Rule 1: Show on zero results
+      if (results.length === 0 && triggerRules.show_on_zero_results) {
+        shouldShowContact = true;
+      }
+
+      // Rule 2: Show on low-CTR query patterns
+      if (triggerRules.show_on_low_ctr_queries && results.length > 0) {
+        // Check total clicks for this query vs how often it was searched
+        const totalQueryClicks = Object.values(clickBoosts).reduce((s, c) => s + c, 0);
+        // If we have click data and it's low, show contact
+        if (totalQueryClicks === 0) {
+          shouldShowContact = true;
+        }
+      }
+
+      // Rule 3: Check trigger categories (keyword match)
+      const categories: string[] = triggerRules.trigger_categories || [];
+      if (categories.length > 0) {
+        for (const cat of categories) {
+          if (queryLower.includes(cat.toLowerCase())) {
+            shouldShowContact = true;
+            break;
+          }
+        }
+      }
+
+      if (shouldShowContact) {
+        contactConfigResponse = {
+          enabled: true,
+          phone: contactConfig.phone,
+          email: contactConfig.email,
+          chat_url: contactConfig.chat_url,
+          cta_text_fi: (contactConfig as any).cta_text_fi || "Etkö löytänyt etsimääsi? Ota yhteyttä!",
+          cta_text_en: (contactConfig as any).cta_text_en || "Didn't find what you need? Contact us!",
+        };
+      }
+    }
+
     // Log the search
     await supabase.from("search_logs").insert({
       site_id,
@@ -422,6 +494,7 @@ Palauta VAIN validi JSON.`
       response_ms: responseMs,
       ai_summary: aiSummary || undefined,
       suggestions: suggestions.length > 0 ? suggestions : undefined,
+      contact_config: contactConfigResponse || undefined,
       fallback_message: results.length === 0 ? "Ei tuloksia. Kokeile eri hakusanoja." : undefined,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

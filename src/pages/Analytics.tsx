@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Search, Lightbulb, Loader2, AlertCircle, Brain, RefreshCw } from "lucide-react";
+import { ArrowLeft, Search, Lightbulb, Loader2, AlertCircle, Brain, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -44,6 +44,7 @@ export default function Analytics() {
   const [error, setError] = useState<string | null>(null);
   const [synonyms, setSynonyms] = useState<Synonym[]>([]);
   const [learningRunning, setLearningRunning] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
 
   useEffect(() => {
     if (!siteId) {
@@ -75,6 +76,22 @@ export default function Analytics() {
     }
     load();
   }, [siteId]);
+
+  const runOptimization = async () => {
+    if (!siteId) return;
+    setOptimizing(true);
+    try {
+      const result = await api.runOptimization(siteId);
+      toast({
+        title: "Optimointi valmis",
+        description: `${result.high_ctr_patterns || 0} korkean CTR:n mallia, ${result.zero_result_queries || 0} nollatuloshakua analysoitu`,
+      });
+    } catch (e: any) {
+      toast({ title: "Virhe", description: e.message, variant: "destructive" });
+    } finally {
+      setOptimizing(false);
+    }
+  };
 
   const runLearning = async () => {
     if (!siteId) return;
@@ -154,6 +171,33 @@ export default function Analytics() {
         <StatCard label="Avg Results" value={stats.avg_results_per_search.toFixed(1)} sub="Per search" />
         <StatCard label="Pages Indexed" value={stats.pages_indexed.toLocaleString()} sub="In search index" />
       </div>
+
+      {/* AI Optimization Agent */}
+      <Card className="mt-6">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI-optimointiagentti
+          </CardTitle>
+          <Button
+            size="sm"
+            onClick={runOptimization}
+            disabled={optimizing}
+          >
+            {optimizing ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-1 h-4 w-4" />
+            )}
+            {optimizing ? "Optimoi..." : "Käynnistä optimointi"}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Optimointiagentti analysoi hakuhistorian, CTR-datan ja konversiot, ja kirjoittaa strategian joka ohjaa hakutekoälyä ja yhteydenotto-CTA:iden näyttämistä dynaamisesti.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Learning section */}
       <Card className="mt-6">
