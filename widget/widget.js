@@ -840,6 +840,7 @@
               };
             })
             .filter(Boolean);
+          startPlaceholderAnimation();
         } catch {
           // Fallback to search-log based trending
           const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -860,6 +861,7 @@
               .sort((a, b) => b[1] - a[1])
               .slice(0, 6)
               .map(([query, count]) => ({ query, count, source: "search_logs" }));
+            startPlaceholderAnimation();
           }).catch(() => {});
         }
       })();
@@ -913,7 +915,10 @@
     } else {
       fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
         .then(r => r.json())
-        .then(data => { trendingData = data.trending || []; })
+        .then(data => {
+          trendingData = data.trending || [];
+          startPlaceholderAnimation();
+        })
         .catch(() => {});
 
       fetch(`${API_URL}/api/sites/${SITE_ID}/contact-config`)
@@ -926,6 +931,10 @@
     // Event handlers
     // -----------------------------------------------------------------------
     let inputFocused = false;
+    let placeholderTypingTimer = null;
+    let placeholderCycleTimer = null;
+    let placeholderAnimationToken = 0;
+    let placeholderTeaserIdx = 0;
 
     function showDropdown() { dropdown.style.display = "block"; }
     function hideDropdown() { dropdown.style.display = "none"; }
@@ -933,6 +942,68 @@
     function updateClearBtn() {
       clearBtn.style.display = input.value ? "block" : "none";
       searchBtn.style.display = input.value.trim() ? "flex" : "none";
+    }
+
+    function getPlaceholderTeasers() {
+      const seen = new Set();
+      return (trendingData || [])
+        .filter(item => item && item.url && item.title)
+        .map(item => cleanTitle(item.title, item.url))
+        .map(title => title.replace(/\s+/g, " ").trim())
+        .filter(title => {
+          if (!title || title.length < 8) return false;
+          const key = title.toLowerCase();
+          if (key === PLACEHOLDER.toLowerCase() || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, 6);
+    }
+
+    function stopPlaceholderAnimation(resetPlaceholder) {
+      placeholderAnimationToken += 1;
+      clearTimeout(placeholderTypingTimer);
+      clearTimeout(placeholderCycleTimer);
+      if (resetPlaceholder) input.placeholder = PLACEHOLDER;
+    }
+
+    function startPlaceholderAnimation() {
+      stopPlaceholderAnimation(false);
+      if (inputFocused || input.value.trim()) {
+        input.placeholder = "";
+        return;
+      }
+
+      const teasers = getPlaceholderTeasers();
+      if (!teasers.length) {
+        input.placeholder = PLACEHOLDER;
+        return;
+      }
+
+      const currentToken = placeholderAnimationToken;
+      const teaser = teasers[placeholderTeaserIdx % teasers.length];
+      placeholderTeaserIdx = (placeholderTeaserIdx + 1) % teasers.length;
+      input.placeholder = "";
+
+      const typeNext = (index) => {
+        if (currentToken !== placeholderAnimationToken) return;
+        if (inputFocused || input.value.trim()) {
+          stopPlaceholderAnimation(false);
+          input.placeholder = "";
+          return;
+        }
+        input.placeholder = teaser.slice(0, index);
+        if (index < teaser.length) {
+          placeholderTypingTimer = setTimeout(() => typeNext(index + 1), 45);
+        } else {
+          placeholderCycleTimer = setTimeout(() => {
+            if (currentToken !== placeholderAnimationToken) return;
+            startPlaceholderAnimation();
+          }, 1800);
+        }
+      };
+
+      placeholderTypingTimer = setTimeout(() => typeNext(1), 250);
     }
 
     function openSearch() {
@@ -985,11 +1056,16 @@
 
     input.addEventListener("focus", () => {
       inputFocused = true;
+      stopPlaceholderAnimation(false);
+      input.placeholder = "";
       if (!input.value.trim()) renderTrending();
     });
 
     input.addEventListener("blur", () => {
-      setTimeout(() => { inputFocused = false; }, 200);
+      setTimeout(() => {
+        inputFocused = false;
+        if (!input.value.trim()) startPlaceholderAnimation();
+      }, 200);
     });
 
     input.addEventListener("input", () => {
@@ -999,10 +1075,13 @@
       clearTimeout(suggestDebounce);
 
       if (!q) {
+        if (!inputFocused) startPlaceholderAnimation();
         renderTrending();
         lastQuery = "";
         return;
       }
+
+      stopPlaceholderAnimation(false);
 
       if (q.length >= 2) {
         suggestDebounce = setTimeout(() => fetchSuggestions(q), 150);
@@ -1099,6 +1178,7 @@
     }
 
     function selectSuggestion(q) {
+      stopPlaceholderAnimation(false);
       input.value = q;
       updateClearBtn();
       lastQuery = q;
@@ -1345,6 +1425,7 @@
     // API calls
     // -----------------------------------------------------------------------
     function doSearch(query) {
+      stopPlaceholderAnimation(false);
       renderLoading();
 
       const url = USE_SUPABASE
