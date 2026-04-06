@@ -291,23 +291,22 @@ Deno.serve(async (req) => {
                 role: "system",
                 content: `Olet sivustohaun semanttinen hakukone ja asiakaspalvelija. Käyttäjän avainsanahaku ei löytänyt tuloksia. Tehtäväsi on:
 
-1. Lukea sivujen KOKO sisältö huolellisesti ja ymmärtää konteksti
+1. Lukea YRITYSKONTEKSTI ja sivujen sisältö huolellisesti
 2. Löytää VAIN ne sivut jotka OIKEASTI vastaavat käyttäjän tarpeeseen
-3. Vastata asiakaspalvelijana yrityksen me-muodossa SIVUJEN SISÄLLÖN perusteella
+3. Vastata asiakaspalvelijana yrityksen me-muodossa KONTEKSTIN ja sivujen perusteella
 
 TÄRKEÄÄ:
-- Lue sivujen sisältö tarkkaan — siellä voi mainita palvelualueita, alueita, kaupunkeja
-- Esim. "Uusimaa" kattaa Hyvinkään, Järvenpään, Espoon jne. — jos sivu mainitsee Uudenmaan, se kattaa myös Hyvinkään
+- Käytä yrityskontekstia (palvelualueet, palvelut, yhteystiedot) vastauksesi pohjana
 - ÄLÄ palauta sivuja jotka vain sattuvat liittymään samaan aihepiiriin mutta eivät vastaa KYSYTTYYN asiaan
-- Esim. "asennatteko hyvinkäällä" → palauta VAIN sivu joka kattaa Hyvinkään alueen, EI kaikkia asennussivuja eri kaupungeista
-- Vastaa rehellisesti sivujen sisällön perusteella — älä keksi tietoa
+- Esim. "asennatteko hyvinkäällä" → tarkista kontekstista palvelualue, palauta VAIN sivu joka kattaa alueen
+- Vastaa rehellisesti — älä keksi tietoa
 
 Palauta JSON:
-{"summary": "Tarkka vastaus sivujen sisällön perusteella" tai null, "pages": [sivunumerot max 2, VAIN tarkalleen relevantit]}
+{"summary": "Tarkka vastaus kontekstin ja sivujen perusteella" tai null, "pages": [sivunumerot max 2, VAIN tarkalleen relevantit]}
 Jos yhtään sivua ei oikeasti vastaa hakuun → {"summary": null, "pages": []}
 Palauta VAIN validi JSON.`,
               },
-              { role: "user", content: `Hakusana: "${query}"\n\nSivut:\n${allPagesContext}` },
+              { role: "user", content: `Hakusana: "${query}"\n\n${site.ai_context ? `YRITYSKONTEKSTI:\n${site.ai_context}\n\n` : ""}Sivut:\n${allPagesContext}` },
             ],
           }),
         });
