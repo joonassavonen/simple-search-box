@@ -774,6 +774,7 @@ export default function Analytics() {
                 </p>
               ) : (
                 <>
+                <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Hakulause</TableHead>
