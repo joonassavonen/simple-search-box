@@ -406,7 +406,7 @@ export default function Analytics() {
     <div className="space-y-6">
       {/* Header */}
       <div className={`rounded-[28px] border ${panelClass}`}>
-        <div className="flex flex-col gap-5 px-6 py-6 sm:px-8">
+        <div className="flex flex-col gap-5 px-4 py-5 sm:px-8 sm:py-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -421,10 +421,16 @@ export default function Analytics() {
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:min-w-[220px]">
-              <Button variant="ghost" asChild className="justify-start rounded-2xl border border-border bg-background/80">
+              <Button variant="ghost" asChild className="w-full justify-start rounded-2xl border border-border bg-background/80 sm:w-auto">
                 <Link to="/">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   All Sites
+                </Link>
+              </Button>
+              <Button asChild className="w-full justify-start rounded-2xl sm:w-auto">
+                <Link to={`/search/${siteId}`}>
+                  <Search className="mr-2 h-4 w-4" />
+                  Test Search
                 </Link>
               </Button>
             </div>
@@ -449,15 +455,15 @@ export default function Analytics() {
       {/* Tabs */}
       <Tabs defaultValue="performance" className="space-y-5">
         <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-[18px] border border-border bg-card p-1.5 shadow-sm sm:grid-cols-3">
-          <TabsTrigger value="performance" className="gap-2 rounded-[18px] px-4 py-3 data-[state=active]:shadow-none">
+          <TabsTrigger value="performance" className="min-w-0 gap-2 rounded-[18px] px-3 py-3 text-sm data-[state=active]:shadow-none">
             <FileSearch className="h-4 w-4" />
             Hakuanalyysi
           </TabsTrigger>
-          <TabsTrigger value="ga" className="gap-2 rounded-[18px] px-4 py-3 data-[state=active]:shadow-none">
+          <TabsTrigger value="ga" className="min-w-0 gap-2 rounded-[18px] px-3 py-3 text-sm data-[state=active]:shadow-none">
             <BarChart3 className="h-4 w-4" />
             Google Analytics
           </TabsTrigger>
-          <TabsTrigger value="learning" className="gap-2 rounded-[18px] px-4 py-3 data-[state=active]:shadow-none">
+          <TabsTrigger value="learning" className="min-w-0 gap-2 rounded-[18px] px-3 py-3 text-sm data-[state=active]:shadow-none">
             <Brain className="h-4 w-4" />
             Oppiminen
           </TabsTrigger>
@@ -465,14 +471,14 @@ export default function Analytics() {
 
         {/* ─── Search Performance Tab ─── */}
         <TabsContent value="performance" className="space-y-5">
-          <div className={`rounded-[24px] border ${panelClass} p-5 sm:p-6`}>
+          <div className={`rounded-[24px] border ${panelClass} p-4 sm:p-6`}>
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-baseline gap-3">
               <h2 className="text-xl font-semibold tracking-tight text-foreground">Hakujen suorituskyky</h2>
-              <span className="text-sm text-muted-foreground">{periodLabel}</span>
+              <span className="hidden text-sm text-muted-foreground sm:inline">{periodLabel}</span>
             </div>
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-              <SelectTrigger className="h-10 w-[140px] rounded-2xl border-border bg-background text-xs">
+              <SelectTrigger className="h-10 w-full rounded-2xl border-border bg-background text-xs sm:w-[140px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -499,7 +505,7 @@ export default function Analytics() {
                 <p className="mt-1 text-sm text-muted-foreground">Seuraa kysynnän, klikkien ja epäonnistuneiden hakujen rytmiä päiväkohtaisesti.</p>
               </div>
               <Select value={chartMetric} onValueChange={(v) => setChartMetric(v as ChartMetric)}>
-                <SelectTrigger className="h-10 w-[170px] rounded-2xl border-border bg-background text-xs">
+                <SelectTrigger className="h-10 w-full rounded-2xl border-border bg-background text-xs sm:w-[170px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -511,7 +517,7 @@ export default function Analytics() {
               </Select>
             </CardHeader>
             <CardContent className="pt-5">
-              <div className="h-[280px]">
+              <div className="h-[220px] sm:h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={stats.daily}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/80" />
@@ -580,7 +586,7 @@ export default function Analytics() {
 
           <Card className={panelClass}>
               <CardHeader className="border-b border-border pb-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
                     <SearchX className="h-4 w-4 text-primary" />
                     Haut ilman tuloksia
@@ -589,7 +595,7 @@ export default function Analytics() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 gap-1.5 rounded-2xl border-border bg-background text-xs hover:bg-muted"
+                      className="h-9 w-full gap-1.5 rounded-2xl border-border bg-background text-xs hover:bg-muted sm:w-auto"
                       onClick={analyzeFailed}
                       disabled={suggestionsLoading}
                     >
@@ -651,7 +657,7 @@ export default function Analytics() {
                 const fetched = gaPages[0]?.fetched_at;
                 return (
                   <>
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <h2 className="text-xl font-semibold tracking-tight text-foreground">Google Analytics — Key Events</h2>
                       {fetched && (
                         <span className="text-xs text-muted-foreground">
@@ -694,7 +700,8 @@ export default function Analytics() {
                     const maxWR = pagesWithBoost[0]?.weightedRate || 0.0001;
 
                     return (
-                      <Table>
+                      <div className="overflow-x-auto">
+                      <Table className="min-w-[720px]">
                         <TableHeader>
                           <TableRow>
                             <TableHead>Sivu</TableHead>
@@ -736,6 +743,7 @@ export default function Analytics() {
                           })}
                         </TableBody>
                       </Table>
+                      </div>
                     );
                   })()}
                 </CardContent>
@@ -762,7 +770,7 @@ export default function Analytics() {
                 size="sm"
                 onClick={runOptimization}
                 disabled={optimizing}
-                className="rounded-2xl"
+                className="w-full rounded-2xl sm:w-auto"
               >
                 {optimizing ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -786,7 +794,7 @@ export default function Analytics() {
                 Oppiminen erottaa nyt hyväksytyt synonyymit, AI:n ehdottamat synonyymit ja käyttäjien klikkauskäyttäytymisestä opitut query → sivu -affiniteetit.
               </p>
             </div>
-            <Button onClick={runLearning} disabled={learningRunning} className="rounded-2xl">
+            <Button onClick={runLearning} disabled={learningRunning} className="w-full rounded-2xl sm:w-auto">
               {learningRunning ? (
                 <Loader2 className="mr-1 h-4 w-4 animate-spin" />
               ) : (
@@ -865,7 +873,8 @@ export default function Analytics() {
                   Ei opittuja affiniteetteja vielä. Klikkausdataa kertyy sitä mukaa kun käyttäjät hakevat.
                 </p>
               ) : (
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[680px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Haku</TableHead>
@@ -899,6 +908,7 @@ export default function Analytics() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -917,7 +927,8 @@ export default function Analytics() {
                   Ei odottavia ehdotuksia.
                 </p>
               ) : (
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[680px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Hakulause</TableHead>
@@ -952,6 +963,7 @@ export default function Analytics() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -971,7 +983,8 @@ export default function Analytics() {
                 </p>
               ) : (
                 <>
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
                       <TableHead>Hakulause</TableHead>
@@ -1043,6 +1056,7 @@ export default function Analytics() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
                 {(() => {
                   const totalSynPages = Math.ceil(approvedSynonyms.length / QUERIES_PER_PAGE);
                   return totalSynPages > 1 ? (
@@ -1073,7 +1087,7 @@ export default function Analytics() {
                 <CardTitle className="text-sm font-medium text-foreground">Klikkausjakauma — Top affiniteetit</CardTitle>
               </CardHeader>
               <CardContent className="pt-5">
-                <div className="h-[220px]">
+                <div className="h-[200px] sm:h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={learningStats.top_affinities.slice(0, 8)}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border/80" />
