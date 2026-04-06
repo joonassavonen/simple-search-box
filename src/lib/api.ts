@@ -142,25 +142,12 @@ export interface TrendingItem {
 
 export interface LearningStats {
   site_id: string;
-  approved_synonym_count: number;
-  proposed_synonym_count: number;
+  synonym_count: number;
   affinity_count: number;
   total_affinity_clicks: number;
   top_affinities: { url: string; query: string; clicks: number; confidence: number }[];
   failed_query_suggestions: Record<string, { url: string; title: string; reason: string }[]>;
-  strategy: {
-    prompt_additions: string;
-    conversion_insights: string;
-    contact_trigger_rules: {
-      show_on_zero_results?: boolean;
-      show_on_low_ctr_queries?: boolean;
-      low_ctr_threshold?: number;
-      trigger_categories?: string[];
-    } | null;
-    last_optimized_at: string | null;
-    optimization_log: string;
-  } | null;
-  position_clicks: { position: number; clicks: number }[];
+  last_optimized_at: string | null;
 }
 
 // ---------------------------------------------------------------------------
