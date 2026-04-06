@@ -1,0 +1,1 @@
+ALTER TABLE public.sites ADD COLUMN ai_context text DEFAULT NULL;

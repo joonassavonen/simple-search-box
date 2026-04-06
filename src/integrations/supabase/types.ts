@@ -270,6 +270,7 @@ export type Database = {
       }
       sites: {
         Row: {
+          ai_context: string | null
           api_key: string
           brand_bg_color: string | null
           brand_color: string | null
@@ -287,6 +288,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_context?: string | null
           api_key?: string
           brand_bg_color?: string | null
           brand_color?: string | null
@@ -304,6 +306,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_context?: string | null
           api_key?: string
           brand_bg_color?: string | null
           brand_color?: string | null
