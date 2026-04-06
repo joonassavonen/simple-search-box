@@ -212,6 +212,8 @@ export default function Analytics() {
   const [synonymPage, setSynonymPage] = useState(0);
   const [pageSuggestions, setPageSuggestions] = useState<Record<string, { url: string; title: string; reason: string }[]>>({});
   const [optimizing, setOptimizing] = useState(false);
+  const [highCtrPatterns, setHighCtrPatterns] = useState<HighCtrPattern[]>([]);
+  const [popularityData, setPopularityData] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!siteId) {
