@@ -116,6 +116,7 @@ export interface SiteStats {
   avg_results_per_search: number;
   pages_indexed: number;
   top_queries: { query: string; count: number }[];
+  top_clicked_queries: { query: string; count: number }[];
   failed_searches: { query: string; count: number }[];
   no_click_queries: { query: string; count: number }[];
   daily: DailyMetric[];
@@ -341,6 +342,7 @@ export const api = {
     const clickedCount = logs.filter((l) => l.clicked || clickedLogIds.has(l.id)).length;
 
     const queryCounts: Record<string, number> = {};
+    const clickCounts: Record<string, number> = {};
     const failedCounts: Record<string, number> = {};
     const noClickCounts: Record<string, number> = {};
     const clickedQueries = new Set<string>();
@@ -356,7 +358,10 @@ export const api = {
     }
 
     for (const e of events) {
-      if (e.query) clickedQueries.add(e.query);
+      if (e.query) {
+        clickedQueries.add(e.query);
+        clickCounts[e.query] = (clickCounts[e.query] || 0) + 1;
+      }
     }
 
     for (const l of logs) {
@@ -371,6 +376,11 @@ export const api = {
       .map(([query, count]) => ({ query, count }));
 
     const failedSearches = Object.entries(failedCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50)
+      .map(([query, count]) => ({ query, count }));
+
+    const topClickedQueries = Object.entries(clickCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 50)
       .map(([query, count]) => ({ query, count }));
@@ -416,6 +426,7 @@ export const api = {
       avg_results_per_search: avgResults,
       pages_indexed: pagesIndexed || 0,
       top_queries: topQueries,
+      top_clicked_queries: topClickedQueries,
       failed_searches: failedSearches,
       no_click_queries: noClickQueries,
       daily,

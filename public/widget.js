@@ -1537,6 +1537,33 @@
       `;
     }
 
+    function inferClientInterventionCard(data) {
+      const cfg = data.contact_config || contactConfig;
+      const query = String(lastQuery || input.value || "").trim().toLowerCase();
+      if (!cfg || !cfg.enabled || !query || !data.results || !data.results.length) return null;
+
+      const contactIntent = /yhteystiedot|yhteystieto|puhelin|numero|sähköposti|email|asiakaspalvelu|contact|phone|call/.test(query);
+      const serviceIntent = /huolto|huoltaa|asennus|asentaa|ajanvaraus|varaa|korjaus|service|repair|maintenance|support/.test(query);
+      if (!contactIntent && !serviceIntent) return null;
+
+      const actions = [];
+      if (cfg.phone) actions.push({ label: `Soita ${cfg.phone}`, url: `tel:${cfg.phone}`, kind: "phone" });
+      if (data.results[0]?.url) actions.push({ label: contactIntent ? "Näytä yhteystiedot" : "Avaa sopiva sivu", url: data.results[0].url, kind: "page" });
+      if (actions.length < 2 && cfg.chat_url) actions.push({ label: "Lähetä viesti", url: cfg.chat_url, kind: "chat" });
+      if (actions.length < 2 && cfg.email) actions.push({ label: "Lähetä sähköposti", url: `mailto:${cfg.email}`, kind: "email" });
+      if (!actions.length) return null;
+
+      return {
+        type: contactIntent ? "contact" : "service",
+        title: contactIntent ? "Haluatko yhteystiedot heti?" : `Etsitkö palvelua hakuun "${lastQuery || input.value}"?`,
+        body: contactIntent
+          ? "Voit avata yhteystiedot tai soittaa suoraan tästä."
+          : "Hakusi viittaa vahvaan palveluintenttiin, joten tarjoamme suoran seuraavan askeleen tähän kohtaan.",
+        position: 0,
+        actions: actions.slice(0, 2),
+      };
+    }
+
     function renderResults(data) {
       if (!data.results || data.results.length === 0) {
         renderNoResults(data);
@@ -1544,6 +1571,9 @@
       }
 
       currentSearchLogId = data.search_log_id;
+      if (!data.intervention_card) {
+        data.intervention_card = inferClientInterventionCard(data);
+      }
       let html = "";
       const summaryParts = splitSummary(data.ai_summary);
 

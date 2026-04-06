@@ -208,14 +208,18 @@ export default function Analytics() {
       setError("No site selected. Go to Sites and click Analytics on a specific site.");
       return;
     }
-    async function load() {
+    let isMounted = true;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+    async function load(silent = false) {
       try {
-        setLoading(true);
+        if (!silent) setLoading(true);
         const [s, st, ls] = await Promise.all([
           api.getSite(siteId!),
           api.getStats(siteId!, Number(dateRange)),
           api.getLearningStats(siteId!),
         ]);
+        if (!isMounted) return;
         setSite(s);
         setStats(st);
         setLearningStats(ls);
@@ -233,15 +237,47 @@ export default function Analytics() {
             .order("pageviews", { ascending: false })
             .limit(200),
         ]);
+        if (!isMounted) return;
         setSynonyms((syns as any[]) || []);
         setGaPages((gaData as GAPageData[]) || []);
       } catch (e: any) {
+        if (!isMounted) return;
         setError(e.message);
       } finally {
-        setLoading(false);
+        if (!silent && isMounted) setLoading(false);
       }
     }
+
+    const queueRefresh = () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        load(true);
+      }, 300);
+    };
+
     load();
+
+    const channel = supabase
+      .channel(`analytics-live-${siteId}-${dateRange}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "search_logs",
+        filter: `site_id=eq.${siteId}`,
+      }, queueRefresh)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "search_click_events",
+        filter: `site_id=eq.${siteId}`,
+      }, queueRefresh)
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      supabase.removeChannel(channel);
+    };
   }, [siteId, dateRange]);
 
   const runOptimization = async () => {
@@ -546,7 +582,7 @@ export default function Analytics() {
           </Card>
 
           {/* Three column tables */}
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <div className="mt-5 grid gap-4 xl:grid-cols-3">
             <Card className={panelClass}>
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
@@ -556,6 +592,18 @@ export default function Analytics() {
               </CardHeader>
               <CardContent className="pt-0">
                 <PaginatedQueryList items={stats.top_queries} emptyMessage="Hakuja ei ole vielä kertynyt." />
+              </CardContent>
+            </Card>
+
+            <Card className={panelClass}>
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                  <MousePointerClick className="h-4 w-4 text-primary" />
+                  Eniten klikattuja hakuja
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <PaginatedQueryList items={stats.top_clicked_queries} emptyMessage="Klikkejä ei ole vielä kertynyt." />
               </CardContent>
             </Card>
 
