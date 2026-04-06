@@ -41,6 +41,28 @@ export interface SchemaData {
   startDate?: string;
   location?: string;
   questions?: { q: string; a: string }[];
+  telephone?: string;
+  email?: string;
+  address?: string;
+  addressLocality?: string;
+  serviceArea?: string[];
+  openingHours?: string | unknown;
+  priceRange?: string;
+  sameAs?: string[];
+  breadcrumbs?: { name: string; url?: string; position?: number }[];
+  recipeCuisine?: string | string[];
+  recipeCategory?: string | string[];
+  prepTime?: string;
+  cookTime?: string;
+  totalTime?: string;
+  recipeYield?: string | string[];
+  duration?: string;
+  actors?: string[];
+  directors?: string[];
+  employmentType?: string | string[];
+  hiringOrganization?: string;
+  jobLocation?: string;
+  validThrough?: string;
 }
 
 export interface SearchResult {

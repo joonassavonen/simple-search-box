@@ -426,7 +426,7 @@ function extractJsonLd(html: string): Record<string, any> | null {
         const type = item["@type"];
         if (!type) continue;
 
-        if (type === "Product" || (Array.isArray(type) && type.includes("Product"))) {
+        if (hasSchemaType(type, "Product")) {
           const offers = item.offers;
           const offer = Array.isArray(offers) ? offers[0] : offers?.["@type"] === "AggregateOffer" ? offers : offers;
           return {
@@ -442,7 +442,7 @@ function extractJsonLd(html: string): Record<string, any> | null {
           };
         }
 
-        if (type === "Article" || type === "NewsArticle" || type === "BlogPosting") {
+        if (hasSchemaType(type, "Article") || hasSchemaType(type, "NewsArticle") || hasSchemaType(type, "BlogPosting")) {
           return {
             type: "Article",
             name: item.headline || item.name,
@@ -453,7 +453,7 @@ function extractJsonLd(html: string): Record<string, any> | null {
           };
         }
 
-        if (type === "Event") {
+        if (hasSchemaType(type, "Event")) {
           return {
             type: "Event",
             name: item.name,
@@ -464,12 +464,103 @@ function extractJsonLd(html: string): Record<string, any> | null {
           };
         }
 
-        if (type === "FAQPage") {
+        if (hasSchemaType(type, "FAQPage")) {
           const questions = (item.mainEntity || []).slice(0, 5).map((q: any) => ({
             q: q.name,
             a: q.acceptedAnswer?.text?.slice(0, 200),
           }));
           return { type: "FAQPage", questions };
+        }
+
+        if (hasSchemaType(type, "LocalBusiness")) {
+          return {
+            type: "LocalBusiness",
+            name: item.name,
+            description: item.description?.slice(0, 300),
+            image: firstImage(item.image),
+            telephone: item.telephone,
+            email: item.email,
+            address: formatAddress(item.address),
+            addressLocality: item.address?.addressLocality,
+            serviceArea: formatServiceArea(item.areaServed || item.serviceArea),
+            openingHours: item.openingHours || item.openingHoursSpecification || null,
+            priceRange: item.priceRange,
+          };
+        }
+
+        if (hasSchemaType(type, "Organization")) {
+          return {
+            type: "Organization",
+            name: item.name,
+            description: item.description?.slice(0, 300),
+            image: firstImage(item.logo || item.image),
+            telephone: item.telephone,
+            email: item.email,
+            address: formatAddress(item.address),
+            sameAs: Array.isArray(item.sameAs) ? item.sameAs.slice(0, 10) : undefined,
+          };
+        }
+
+        if (hasSchemaType(type, "BreadcrumbList")) {
+          const breadcrumbs = (item.itemListElement || [])
+            .map((entry: any) => ({
+              name: entry.name || entry.item?.name,
+              url: typeof entry.item === "string" ? entry.item : entry.item?.["@id"] || entry.item?.url,
+              position: entry.position,
+            }))
+            .filter((entry: any) => entry.name);
+
+          if (breadcrumbs.length > 0) {
+            return {
+              type: "BreadcrumbList",
+              breadcrumbs: breadcrumbs.slice(0, 10),
+            };
+          }
+        }
+
+        if (hasSchemaType(type, "Recipe")) {
+          return {
+            type: "Recipe",
+            name: item.name,
+            description: item.description?.slice(0, 300),
+            image: firstImage(item.image),
+            recipeCuisine: item.recipeCuisine,
+            recipeCategory: item.recipeCategory,
+            prepTime: item.prepTime,
+            cookTime: item.cookTime,
+            totalTime: item.totalTime,
+            recipeYield: item.recipeYield,
+            rating: item.aggregateRating?.ratingValue,
+            reviewCount: item.aggregateRating?.reviewCount,
+          };
+        }
+
+        if (hasSchemaType(type, "Movie")) {
+          return {
+            type: "Movie",
+            name: item.name,
+            description: item.description?.slice(0, 300),
+            image: firstImage(item.image),
+            datePublished: item.datePublished,
+            duration: item.duration,
+            rating: item.aggregateRating?.ratingValue,
+            reviewCount: item.aggregateRating?.reviewCount,
+            actors: normalizePeople(item.actor),
+            directors: normalizePeople(item.director),
+          };
+        }
+
+        if (hasSchemaType(type, "JobPosting")) {
+          return {
+            type: "JobPosting",
+            name: item.title || item.name,
+            description: item.description?.replace(/<[^>]*>/g, " ").slice(0, 300),
+            datePublished: item.datePosted,
+            employmentType: item.employmentType,
+            hiringOrganization: item.hiringOrganization?.name,
+            jobLocation: item.jobLocation?.address?.addressLocality || formatAddress(item.jobLocation?.address),
+            validThrough: item.validThrough,
+          };
         }
       }
     } catch {
@@ -477,6 +568,56 @@ function extractJsonLd(html: string): Record<string, any> | null {
     }
   }
   return null;
+}
+
+function hasSchemaType(type: string | string[], expected: string): boolean {
+  return Array.isArray(type) ? type.includes(expected) : type === expected;
+}
+
+function firstImage(image: any): string | undefined {
+  if (!image) return undefined;
+  if (typeof image === "string") return image;
+  if (Array.isArray(image)) {
+    for (const entry of image) {
+      const resolved = firstImage(entry);
+      if (resolved) return resolved;
+    }
+    return undefined;
+  }
+  return image.url || image["@id"] || undefined;
+}
+
+function formatAddress(address: any): string | undefined {
+  if (!address) return undefined;
+  if (typeof address === "string") return address;
+  const parts = [
+    address.streetAddress,
+    address.postalCode,
+    address.addressLocality,
+    address.addressRegion,
+    address.addressCountry,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : undefined;
+}
+
+function formatServiceArea(area: any): string[] | undefined {
+  if (!area) return undefined;
+  const entries = Array.isArray(area) ? area : [area];
+  const normalized = entries.map((entry) => {
+    if (typeof entry === "string") return entry;
+    return entry.name || entry.addressLocality || entry.addressRegion || entry.addressCountry || undefined;
+  }).filter(Boolean);
+  return normalized.length > 0 ? normalized.slice(0, 20) : undefined;
+}
+
+function normalizePeople(value: any): string[] | undefined {
+  if (!value) return undefined;
+  const entries = Array.isArray(value) ? value : [value];
+  const normalized = entries.map((entry) => {
+    if (typeof entry === "string") return entry;
+    return entry?.name;
+  }).filter(Boolean);
+  return normalized.length > 0 ? normalized.slice(0, 10) : undefined;
 }
 
 function extractTitle(html: string): string | null {
