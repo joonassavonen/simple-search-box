@@ -14,7 +14,7 @@ const EMBED_MODES: { value: EmbedMode; label: string; icon: typeof Search; descr
   { value: "header-icon", label: "Hakuikoni", icon: SearchIcon, description: "Hakuikoni upotetaan headeriin — klikkaus avaa overlay-haun" },
 ];
 
-const WIDGET_URL = `${window.location.origin}/widget.js`;
+const WIDGET_URL = "https://findaisearch.lovable.app/widget.js";
 const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
