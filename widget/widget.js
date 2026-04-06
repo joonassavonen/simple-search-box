@@ -1637,13 +1637,14 @@
       if (!data.intervention_card) {
         data.intervention_card = inferClientInterventionCard(data);
       }
+      const interventionPosition = typeof data.intervention_card?.position === "number" ? data.intervention_card.position : 2;
       let html = "";
       const summaryParts = splitSummary(data.ai_summary);
       let insertedIntervention = false;
 
       html += `<div class="findai-results-header">${ICON_SPARKLES} ${data.results.length} osuma${data.results.length !== 1 ? "a" : ""}</div>`;
 
-      if (data.intervention_card && (data.intervention_card.position || 0) <= 0) {
+      if (data.intervention_card && interventionPosition <= 0) {
         html += renderInterventionCard(data.intervention_card);
         insertedIntervention = true;
       }
@@ -1665,14 +1666,14 @@
 
       visibleResults.forEach((r, idx) => {
         html += renderResultItem(r, idx);
-        if (data.intervention_card && (data.intervention_card.position || 2) > 0 && (data.intervention_card.position || 2) === idx + 2) {
+        if (data.intervention_card && interventionPosition > 0 && interventionPosition === idx + 2) {
           html += renderInterventionCard(data.intervention_card);
           insertedIntervention = true;
         }
       });
 
       const cfg = data.contact_config || contactConfig;
-      if (data.intervention_card && !insertedIntervention && (data.intervention_card.position || 0) > 0) {
+      if (data.intervention_card && !insertedIntervention && interventionPosition > 0) {
         html += renderInterventionCard(data.intervention_card);
       }
       if (!data.intervention_card && cfg && cfg.enabled) {
