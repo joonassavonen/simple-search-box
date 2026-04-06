@@ -122,12 +122,21 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
       }
     });
 
-    pagesFound = urls.length;
-    console.log(`Sitemap discovery complete: ${pagesFound} URLs found, crawling ${pagesFound}`);
+    // If resuming, filter out already-indexed URLs
+    if (resumeFromJob && alreadyIndexedUrls.size > 0) {
+      const beforeCount = urls.length;
+      urls = urls.filter(u => !alreadyIndexedUrls.has(u));
+      indexed = alreadyIndexedUrls.size; // count already-indexed pages
+      console.log(`Resume: skipped ${beforeCount - urls.length} already-indexed URLs, ${urls.length} remaining`);
+    }
+
+    pagesFound = urls.length + (resumeFromJob ? alreadyIndexedUrls.size : 0);
+    console.log(`Sitemap discovery complete: ${pagesFound} total URLs, ${urls.length} to crawl`);
 
     await updateJob({
       status: "running",
       pages_found: pagesFound,
+      pages_indexed: indexed,
     });
 
     try {
