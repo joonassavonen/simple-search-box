@@ -131,7 +131,7 @@
 
   function cleanSnippet(snippet) {
     if (!snippet) return "";
-    return decodeHtmlEntities(snippet)
+    const cleaned = decodeHtmlEntities(snippet)
       .replace(/Siirry sisältöön/gi, "")
       .replace(/Kirjaudu sisään/gi, "")
       .replace(/Luo tili/gi, "")
@@ -145,6 +145,35 @@
       .replace(/Uusi asiakas\?/gi, "")
       .replace(/\s{2,}/g, " ")
       .trim();
+
+    return truncateToLastSentence(cleaned, 180);
+  }
+
+  function truncateToLastSentence(text, maxLen) {
+    const normalized = String(text || "").replace(/\s+/g, " ").trim();
+    if (!normalized) return "";
+    if (normalized.length <= maxLen) return normalized;
+
+    const sliced = normalized.slice(0, maxLen);
+    const sentenceEnd = Math.max(
+      sliced.lastIndexOf(". "),
+      sliced.lastIndexOf("! "),
+      sliced.lastIndexOf("? "),
+      sliced.lastIndexOf("."),
+      sliced.lastIndexOf("!"),
+      sliced.lastIndexOf("?"),
+    );
+
+    if (sentenceEnd >= Math.floor(maxLen * 0.45)) {
+      return sliced.slice(0, sentenceEnd + 1).trim();
+    }
+
+    const wordBoundary = sliced.lastIndexOf(" ");
+    if (wordBoundary >= Math.floor(maxLen * 0.6)) {
+      return `${sliced.slice(0, wordBoundary).trim()}...`;
+    }
+
+    return `${sliced.trim()}...`;
   }
 
   function splitSummary(summary) {
