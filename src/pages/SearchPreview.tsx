@@ -83,12 +83,12 @@ export default function SearchPreview() {
       script.setAttribute("data-position", "header-icon");
       script.setAttribute("data-inline-target", "#findai-preview-container");
     } else {
-      script.setAttribute("data-position", "bottom-right");
+      script.setAttribute("data-position", floatSide);
     }
 
     document.body.appendChild(script);
     widgetScriptRef.current = script;
-  }, [siteId]);
+  }, [siteId, floatSide]);
 
   // Load widget on mount and mode change
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function SearchPreview() {
   }, [activeMode, loadWidget]);
 
   function copySnippet() {
-    const snippet = getSnippet(activeMode, siteId || "");
+    const snippet = getSnippet(activeMode, siteId || "", floatSide);
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
