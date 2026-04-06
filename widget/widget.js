@@ -1055,7 +1055,7 @@
         html += `<a href="tel:${escHtml(cfg.phone)}" class="findai-contact-btn findai-contact-phone">${phoneIcon} Soita ${escHtml(cfg.phone)}</a>`;
       }
       if (cfg.chat_url) {
-        html += `<a href="${escHtml(cfg.chat_url)}" target="_blank" rel="noopener" class="findai-contact-btn findai-contact-chat">${chatIcon} Lähetä WhatsApp-viesti</a>`;
+        html += `<a href="${escHtml(addUtm(cfg.chat_url))}" target="_blank" rel="noopener" class="findai-contact-btn findai-contact-chat">${chatIcon} Lähetä WhatsApp-viesti</a>`;
       }
       if (cfg.email) {
         html += `<a href="mailto:${escHtml(cfg.email)}" class="findai-contact-btn findai-contact-email">${mailIcon} ${escHtml(cfg.email)}</a>`;
