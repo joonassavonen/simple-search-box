@@ -498,25 +498,69 @@
 
     /* No results */
     .findai-no-results {
-      padding: 24px 16px; text-align: center;
+      padding: 18px 16px 10px;
+      text-align: left;
     }
-    .findai-no-results svg { margin: 0 auto 8px; color: rgba(107,114,128,0.3); }
-    .findai-no-results-title { font-size: 13px; font-weight: 500; color: var(--text); }
-    .findai-no-results-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .findai-no-results-header {
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-bottom: 14px;
+    }
+    .findai-no-results-icon {
+      width: 28px; height: 28px; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 999px;
+      background: var(--bg2);
+      color: rgba(107,114,128,0.55);
+    }
+    .findai-no-results-header svg { margin: 0; }
+    .findai-no-results-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
+    .findai-no-results-hint { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .findai-no-results-section {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-light);
+    }
+    .findai-no-results-section:first-of-type {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+    }
+    .findai-no-results-label {
+      display: block;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .findai-no-results-answer {
+      padding: 14px 16px;
+      border: 1px solid hsl(var(--green-border));
+      background: hsl(var(--green-light));
+      border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .findai-no-results-answer p {
+      margin: 0;
+      font-size: 13px; line-height: 1.55; color: var(--text);
+    }
     .findai-suggestions-wrap {
-      margin-top: 12px;
+      margin-top: 0;
     }
-    .findai-suggestions-label { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .findai-suggestions-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
     .findai-suggestion-pill {
       display: inline-block; margin: 3px;
       padding: 4px 10px; border-radius: 999px;
-      background: hsl(var(--green-light));
-      color: hsl(145, 50%, 30%);
+      background: var(--bg2);
+      color: var(--text);
+      border: 1px solid var(--border-light);
       font-size: 11px; font-weight: 500;
-      cursor: pointer; border: none; font-family: inherit;
-      transition: background 0.15s;
+      cursor: pointer; font-family: inherit;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
-    .findai-suggestion-pill:hover { background: hsl(145, 40%, 88%); }
+    .findai-suggestion-pill:hover {
+      background: hsl(var(--green-light));
+      border-color: hsl(var(--green-border));
+      color: hsl(var(--green-dark));
+    }
 
     /* Trending */
     .findai-trending { padding: 12px; }
@@ -1347,16 +1391,20 @@
       const q = input.value.trim();
       let html = `
         <div class="findai-no-results">
-          ${ICON_SEARCH}
-          <div class="findai-no-results-title">Ei tuloksia haulle "${escHtml(q)}"</div>
-          <div class="findai-no-results-hint">Kokeile eri hakusanoja</div>
+          <div class="findai-no-results-header">
+            <div class="findai-no-results-icon">${ICON_SEARCH}</div>
+            <div>
+              <div class="findai-no-results-title">Ei osumia haulle "${escHtml(q)}"</div>
+              <div class="findai-no-results-hint">Kokeile eri hakusanoja tai katso vastaus alta.</div>
+            </div>
+          </div>
       `;
 
       if (data.ai_summary) {
         html += `
-          <div class="findai-ai-summary" data-url="#" data-idx="0">
-            <div class="findai-ai-summary-text">
-              <h3>${escHtml(lang === "fi" ? "Vastaus" : "Answer")}</h3>
+          <div class="findai-no-results-section">
+            <span class="findai-no-results-label">${escHtml(lang === "fi" ? "Vastaus" : "Answer")}</span>
+            <div class="findai-no-results-answer">
               <p>${escHtml(data.ai_summary)}</p>
             </div>
           </div>
@@ -1364,7 +1412,7 @@
       }
 
       if (data.suggestions && data.suggestions.length > 0) {
-        html += '<div class="findai-suggestions-wrap"><div class="findai-suggestions-label">Tarkoititko:</div>';
+        html += '<div class="findai-no-results-section findai-suggestions-wrap"><div class="findai-suggestions-label">Kokeile seuraavaksi</div>';
         data.suggestions.forEach(s => {
           html += `<button class="findai-suggestion-pill" data-query="${escHtml(s)}">${escHtml(s)}</button>`;
         });
