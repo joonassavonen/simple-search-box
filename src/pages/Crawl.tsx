@@ -4,7 +4,7 @@ import { api, Site, CrawlJob } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle, XCircle, Clock, Palette, Type, PlayCircle } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle, XCircle, Clock, Palette, Type, PlayCircle, Pause, Square } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,18 +68,48 @@ export default function Crawl() {
     }
   }
 
+  async function pauseCurrentCrawl() {
+    if (!siteId || !job) return;
+    try {
+      await api.pauseCrawl(siteId, job.job_id);
+      setCrawling(false);
+      setJob((prev) => prev ? { ...prev, status: "paused", error: "Crawl paused by user." } : prev);
+      toast.success("Crawl paused");
+      await loadData();
+    } catch (e: any) {
+      toast.error("Pause failed: " + e.message);
+    }
+  }
+
+  async function cancelCurrentCrawl() {
+    if (!siteId || !job) return;
+    try {
+      await api.cancelCrawl(siteId, job.job_id);
+      setCrawling(false);
+      setJob((prev) => prev ? { ...prev, status: "cancelled", error: "Crawl stopped by user." } : prev);
+      toast.success("Crawl stopped");
+      await loadData();
+    } catch (e: any) {
+      toast.error("Stop failed: " + e.message);
+    }
+  }
+
   function pollJob(jobId: string) {
     const interval = setInterval(async () => {
       try {
         const status = await api.getCrawlJob(jobId);
         setJob(status);
-        if (["done", "error", "partial"].includes(status.status)) {
+        if (["done", "error", "partial", "paused", "cancelled"].includes(status.status)) {
           clearInterval(interval);
           setCrawling(false);
           if (status.status === "done") {
             toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
           } else if (status.status === "partial") {
             toast.info(`Indeksointi keskeytetty aikakatkaisun vuoksi (${status.pages_indexed}/${status.pages_found}). Voit jatkaa.`);
+          } else if (status.status === "paused") {
+            toast.info("Crawl paused");
+          } else if (status.status === "cancelled") {
+            toast.info("Crawl stopped");
           } else {
             toast.error(status.error || "Crawl stopped before completion");
           }
@@ -107,6 +137,12 @@ export default function Crawl() {
     }
     if (entry.status === "partial") {
       return `${entry.pages_indexed}/${entry.pages_found} — keskeytetty, jatkettavissa`;
+    }
+    if (entry.status === "paused") {
+      return `${entry.pages_indexed}/${entry.pages_found} — pausella`;
+    }
+    if (entry.status === "cancelled") {
+      return `${entry.pages_indexed}/${entry.pages_found} — pysäytetty`;
     }
     if (entry.pages_found > 0) {
       return `${entry.pages_indexed} pages indexed / ${entry.pages_found} found`;
@@ -163,6 +199,18 @@ export default function Crawl() {
                   <PlayCircle className="mr-1 h-4 w-4" />
                   Jatka
                 </Button>
+              )}
+              {crawling && job && (
+                <>
+                  <Button variant="outline" onClick={pauseCurrentCrawl}>
+                    <Pause className="mr-1 h-4 w-4" />
+                    Pause
+                  </Button>
+                  <Button variant="destructive" onClick={cancelCurrentCrawl}>
+                    <Square className="mr-1 h-4 w-4" />
+                    Stop
+                  </Button>
+                </>
               )}
               <Button onClick={triggerCrawl} disabled={crawling}>
                 {crawling ? (
@@ -252,6 +300,10 @@ export default function Crawl() {
                       <XCircle className="h-4 w-4 text-destructive" />
                     ) : h.status === "partial" ? (
                       <PlayCircle className="h-4 w-4 text-orange-500" />
+                    ) : h.status === "paused" ? (
+                      <Pause className="h-4 w-4 text-amber-500" />
+                    ) : h.status === "cancelled" ? (
+                      <Square className="h-4 w-4 text-muted-foreground" />
                     ) : (
                       <Clock className="h-4 w-4 text-muted-foreground" />
                     )}
@@ -265,13 +317,13 @@ export default function Crawl() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {h.status === "partial" && !crawling && (
+                    {(h.status === "partial" || h.status === "paused") && !crawling && (
                       <Button variant="outline" size="sm" onClick={() => resumeCrawl(h.id)}>
                         Jatka
                       </Button>
                     )}
-                    <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : h.status === "partial" ? "outline" : "secondary"}>
-                      {h.status === "partial" ? "keskeytynyt" : h.status}
+                    <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : h.status === "partial" || h.status === "paused" ? "outline" : "secondary"}>
+                      {h.status === "partial" ? "keskeytynyt" : h.status === "paused" ? "paused" : h.status === "cancelled" ? "stopped" : h.status}
                     </Badge>
                   </div>
                 </div>

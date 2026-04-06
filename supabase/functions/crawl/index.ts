@@ -37,6 +37,7 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
   let pagesFound = 0;
   const errors: string[] = [];
   let timedOut = false;
+  let interruptedStatus: "paused" | "cancelled" | null = null;
 
   // If resuming, get already-indexed URLs to skip
   let alreadyIndexedUrls = new Set<string>();
@@ -56,6 +57,19 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
     if (error) {
       console.error("Failed to update crawl job:", error);
     }
+  };
+
+  const readJobStatus = async (): Promise<string | null> => {
+    const { data, error } = await supabase
+      .from("crawl_jobs")
+      .select("status")
+      .eq("id", jobId)
+      .single();
+    if (error) {
+      console.error("Failed to read crawl job status:", error);
+      return null;
+    }
+    return data?.status || null;
   };
 
   try {
@@ -191,6 +205,12 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
         break;
       }
 
+      const currentStatus = await readJobStatus();
+      if (currentStatus === "paused" || currentStatus === "cancelled") {
+        interruptedStatus = currentStatus;
+        break;
+      }
+
       try {
         const pageRes = await fetch(url, {
           headers: { "User-Agent": "FindAI-Crawler/1.0" },
@@ -261,6 +281,12 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
 
         indexed += 1;
         if (indexed % PROGRESS_UPDATE_INTERVAL === 0) {
+          const currentStatus = await readJobStatus();
+          if (currentStatus === "paused" || currentStatus === "cancelled") {
+            interruptedStatus = currentStatus;
+            break;
+          }
+
           await updateJob({
             status: "running",
             pages_found: pagesFound,
@@ -272,16 +298,29 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
       }
     }
 
-    const finalStatus = timedOut ? "partial" : (indexed === 0 && errors.length > 0) ? "error" : "done";
+    const finalStatus =
+      interruptedStatus
+        ? interruptedStatus
+        : timedOut
+          ? "partial"
+          : (indexed === 0 && errors.length > 0)
+            ? "error"
+            : "done";
 
     await updateJob({
       status: finalStatus,
       pages_indexed: indexed,
       pages_found: pagesFound,
-      error: errors.length > 0 ? errors.slice(0, 10).join("; ") : null,
+      error: interruptedStatus === "paused"
+        ? "Crawl paused by user."
+        : interruptedStatus === "cancelled"
+          ? "Crawl stopped by user."
+          : errors.length > 0
+            ? errors.slice(0, 10).join("; ")
+            : null,
     });
 
-    if (indexed > 0) {
+    if (indexed > 0 && finalStatus === "done") {
       await supabase.from("sites").update({
         page_count: indexed,
         last_crawled_at: new Date().toISOString(),
@@ -398,6 +437,28 @@ Deno.serve(async (req) => {
       await generateAiContext(supabase, siteId);
       const { data: updated } = await supabase.from("sites").select("ai_context").eq("id", siteId).single();
       return new Response(JSON.stringify({ status: "ok", context_length: updated?.ai_context?.length || 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if ((action === "pause" || action === "cancel") && jobId && siteId) {
+      const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      const status = action === "pause" ? "paused" : "cancelled";
+      const errorText = action === "pause" ? "Crawl paused by user." : "Crawl stopped by user.";
+      const { error } = await supabase
+        .from("crawl_jobs")
+        .update({ status, error: errorText })
+        .eq("id", jobId)
+        .eq("site_id", siteId);
+
+      if (error) {
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ status, job_id: jobId }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

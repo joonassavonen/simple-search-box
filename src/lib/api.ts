@@ -244,6 +244,22 @@ export const api = {
     };
   },
 
+  async pauseCrawl(siteId: string, jobId: string): Promise<void> {
+    const { data, error } = await supabase.functions.invoke("crawl", {
+      body: { action: "pause", site_id: siteId, job_id: jobId },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+  },
+
+  async cancelCrawl(siteId: string, jobId: string): Promise<void> {
+    const { data, error } = await supabase.functions.invoke("crawl", {
+      body: { action: "cancel", site_id: siteId, job_id: jobId },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+  },
+
   // --- Search (Backend fetch — TF-IDF + Claude re-ranking) ---
 
   async search(siteId: string, query: string): Promise<SearchResponse> {
