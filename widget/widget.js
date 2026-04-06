@@ -131,6 +131,41 @@
     return stars;
   }
 
+  // Hex to HSL helper (returns "H, S%, L%" string for CSS vars)
+  function hexToHsl(hex) {
+    hex = hex.replace(/^#/, "");
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    const r = parseInt(hex.substring(0,2),16)/255;
+    const g = parseInt(hex.substring(2,4),16)/255;
+    const b = parseInt(hex.substring(4,6),16)/255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h=0, s=0, l=(max+min)/2;
+    if (max !== min) {
+      const d = max-min;
+      s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+      switch(max) {
+        case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+        case g: h = ((b-r)/d + 2)/6; break;
+        case b: h = ((r-g)/d + 4)/6; break;
+      }
+    }
+    return `${Math.round(h*360)}, ${Math.round(s*100)}%, ${Math.round(l*100)}%`;
+  }
+
+  function hslLighten(hslStr, amount) {
+    const parts = hslStr.match(/(\d+),\s*(\d+)%,\s*(\d+)%/);
+    if (!parts) return hslStr;
+    const newL = Math.min(100, parseInt(parts[3]) + amount);
+    return `${parts[1]}, ${parts[2]}%, ${newL}%`;
+  }
+
+  function hslDarken(hslStr, amount) {
+    const parts = hslStr.match(/(\d+),\s*(\d+)%,\s*(\d+)%/);
+    if (!parts) return hslStr;
+    const newL = Math.max(0, parseInt(parts[3]) - amount);
+    return `${parts[1]}, ${parts[2]}%, ${newL}%`;
+  }
+
   // Supabase PostgREST helper
   function supabaseRest(table, params) {
     const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
