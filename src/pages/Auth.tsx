@@ -34,7 +34,7 @@ export default function Auth() {
           </div>
           <CardTitle className="text-xl">FindAI</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {isSignUp ? "Create an account" : "Sign in to your account"}
+            Sign in to your account
           </p>
         </CardHeader>
         <CardContent>
