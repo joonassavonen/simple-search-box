@@ -1104,7 +1104,6 @@ export default function Analytics() {
           )}
         </TabsContent>
       </Tabs>
-      </div>
     </div>
   );
 }
