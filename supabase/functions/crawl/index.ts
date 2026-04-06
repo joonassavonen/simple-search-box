@@ -7,6 +7,17 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const FETCH_TIMEOUT_MS = 12_000;
+
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(`Timed out after ${timeoutMs}ms`), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 async function cleanupStaleJobs(supabase: any, siteId: string, currentJobId: string) {
   const staleBefore = new Date(Date.now() - 5 * 60 * 1000).toISOString();
@@ -101,7 +112,7 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
 
     try {
       console.log(`Fetching sitemap: ${sitemapUrl}`);
-      const sitemapRes = await fetch(sitemapUrl, {
+      const sitemapRes = await fetchWithTimeout(sitemapUrl, {
         headers: { "User-Agent": "FindAI-Crawler/1.0" },
       });
 
@@ -113,7 +124,7 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
           console.log(`Found sitemap index with ${sitemapIndexMatches.length} child sitemaps`);
           for (const sm of sitemapIndexMatches.slice(0, 5)) {
             try {
-              const childRes = await fetch(sm[1], {
+              const childRes = await fetchWithTimeout(sm[1], {
                 headers: { "User-Agent": "FindAI-Crawler/1.0" },
               });
               if (childRes.ok) {
@@ -176,7 +187,7 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
 
     try {
       console.log(`Extracting brand styles from ${baseUrl}`);
-      const homeRes = await fetch(baseUrl, {
+      const homeRes = await fetchWithTimeout(baseUrl, {
         headers: { "User-Agent": "FindAI-Crawler/1.0" },
         redirect: "follow",
       });
@@ -211,8 +222,14 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
         break;
       }
 
+      await updateJob({
+        status: "running",
+        pages_found: pagesFound,
+        pages_indexed: indexed,
+      });
+
       try {
-        const pageRes = await fetch(url, {
+        const pageRes = await fetchWithTimeout(url, {
           headers: { "User-Agent": "FindAI-Crawler/1.0" },
           redirect: "follow",
         });
@@ -231,7 +248,7 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
         if ((!schemaData || (schemaData?.type === "Product" && !schemaData?.price)) && url.includes("/products/")) {
           try {
             const jsonUrl = url.replace(/\?.*$/, "") + ".json";
-            const jsonRes = await fetch(jsonUrl, { headers: { "User-Agent": "FindAI-Crawler/1.0" } });
+            const jsonRes = await fetchWithTimeout(jsonUrl, { headers: { "User-Agent": "FindAI-Crawler/1.0" } });
             if (jsonRes.ok) {
               const jsonData = await jsonRes.json();
               const prod = jsonData.product;
