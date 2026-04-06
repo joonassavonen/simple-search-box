@@ -70,8 +70,8 @@ interface Synonym {
   query_to: string;
   confidence: number;
   times_used: number;
-  status: "proposed" | "approved" | "rejected";
-  source: string;
+  status?: "proposed" | "approved" | "rejected";
+  source?: string;
 }
 
 interface GAPageData {
