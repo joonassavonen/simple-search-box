@@ -76,6 +76,13 @@
   // -------------------------------------------------------------------------
   // Helpers
   // -------------------------------------------------------------------------
+  function decodeHtmlEntities(text) {
+    if (!text || !text.includes("&")) return text || "";
+    const textarea = document.createElement("textarea");
+    textarea.innerHTML = text;
+    return textarea.value;
+  }
+
   function cleanTitle(title, url) {
     if (!title || title.startsWith("http") || title.includes("://")) {
       try {
@@ -85,12 +92,12 @@
         return cleaned || new URL(url).hostname;
       } catch { return url; }
     }
-    return title;
+    return decodeHtmlEntities(title);
   }
 
   function cleanSnippet(snippet) {
     if (!snippet) return "";
-    return snippet
+    return decodeHtmlEntities(snippet)
       .replace(/Siirry sisältöön/gi, "")
       .replace(/Kirjaudu sisään/gi, "")
       .replace(/Luo tili/gi, "")
