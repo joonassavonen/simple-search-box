@@ -4,7 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { supabase } from "@/integrations/supabase/client";
+import { hasSupabaseConfig, supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import DashboardLayout from "@/components/DashboardLayout";
 import Sites from "./pages/Sites";
@@ -24,8 +24,15 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!hasSupabaseConfig || !supabase) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
 
@@ -40,6 +47,20 @@ const App = () => {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!hasSupabaseConfig) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-6">
+        <div className="max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
+          <h1 className="text-lg font-semibold">Supabase Config Missing</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>
+            {" "}in Lovable project environment variables so the app can initialize.
+          </p>
+        </div>
       </div>
     );
   }
