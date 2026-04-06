@@ -8,6 +8,25 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+async function cleanupStaleJobs(supabase: any, siteId: string, currentJobId: string) {
+  const staleBefore = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const { error } = await supabase
+    .from("crawl_jobs")
+    .update({
+      status: "partial",
+      error: "Crawl interrupted before completion. You can resume from this job.",
+    })
+    .eq("site_id", siteId)
+    .neq("id", currentJobId)
+    .in("status", ["running", "discovering", "crawling"])
+    .lt("updated_at", staleBefore)
+    .gt("pages_found", 0);
+
+  if (error) {
+    console.error("Failed to clean up stale crawl jobs:", error);
+  }
+}
+
 async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   const startedAt = Date.now();
@@ -40,6 +59,8 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
   };
 
   try {
+    await cleanupStaleJobs(supabase, siteId, jobId);
+
     await updateJob({
       status: "running",
       error: null,
