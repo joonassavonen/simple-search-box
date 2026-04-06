@@ -1554,15 +1554,19 @@
       const phoneIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
       const chatIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
       const mailIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>';
+      const basePosition = 90;
       let html = `<div class="findai-contact"><div class="findai-contact-title">${escHtml("Kysyttävää?")}</div>`;
       if (cfg.phone) {
-        html += `<a href="tel:${escHtml(cfg.phone)}" class="findai-contact-btn findai-contact-phone">${phoneIcon} Soita ${escHtml(cfg.phone)}</a>`;
+        const clickId = `findai-${SESSION_ID}-contact-phone-${Date.now()}`;
+        html += `<a href="tel:${escHtml(cfg.phone)}" class="findai-contact-btn findai-contact-phone" data-url="${escHtml(`tel:${cfg.phone}`)}" data-click-id="${escHtml(clickId)}" data-idx="${basePosition}">${phoneIcon} Soita ${escHtml(cfg.phone)}</a>`;
       }
       if (cfg.chat_url) {
-        html += `<a href="${escHtml(addUtm(cfg.chat_url, { searchLogId: currentSearchLogId }))}" target="_blank" rel="noopener" class="findai-contact-btn findai-contact-chat">${chatIcon} Lähetä WhatsApp-viesti</a>`;
+        const clickId = `findai-${SESSION_ID}-contact-chat-${Date.now()}`;
+        html += `<a href="${escHtml(addUtm(cfg.chat_url, { searchLogId: currentSearchLogId, clickId }))}" target="_blank" rel="noopener" class="findai-contact-btn findai-contact-chat" data-url="${escHtml(cfg.chat_url)}" data-click-id="${escHtml(clickId)}" data-idx="${basePosition + 1}">${chatIcon} Lähetä WhatsApp-viesti</a>`;
       }
       if (cfg.email) {
-        html += `<a href="mailto:${escHtml(cfg.email)}" class="findai-contact-btn findai-contact-email">${mailIcon} ${escHtml(cfg.email)}</a>`;
+        const clickId = `findai-${SESSION_ID}-contact-email-${Date.now()}`;
+        html += `<a href="mailto:${escHtml(cfg.email)}" class="findai-contact-btn findai-contact-email" data-url="${escHtml(`mailto:${cfg.email}`)}" data-click-id="${escHtml(clickId)}" data-idx="${basePosition + 2}">${mailIcon} ${escHtml(cfg.email)}</a>`;
       }
       html += "</div>";
       return html;
@@ -1680,7 +1684,7 @@
       dropdown.innerHTML = html;
       showDropdown();
 
-      dropdown.querySelectorAll(".findai-result, .findai-ai-summary, .findai-intervention-action").forEach(el => {
+      dropdown.querySelectorAll(".findai-result, .findai-ai-summary, .findai-intervention-action, .findai-contact-btn").forEach(el => {
         el.addEventListener("click", (e) => {
           const href = el.getAttribute("href");
           if (href) {
