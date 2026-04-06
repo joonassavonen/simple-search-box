@@ -415,9 +415,13 @@
     .findai-result:hover .findai-result-title { color: hsl(var(--green-dark)); }
     .findai-result-price {
       font-size: 13px; font-weight: 700;
-      color: hsl(145, 60%, 35%); margin-top: 2px;
+      color: hsl(145, 60%, 35%);
     }
-    .findai-result-rating { margin-top: 2px; font-size: 11px; letter-spacing: -1px; }
+    .findai-result-rating { font-size: 11px; letter-spacing: -1px; }
+    .findai-result-product-meta {
+      margin-top: 2px;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
     .findai-result-badge {
       display: inline-block; margin-top: 4px;
       font-size: 10px; font-weight: 500;
@@ -1064,12 +1068,15 @@
       html += '<div class="findai-result-body">';
       html += `<div class="findai-result-title">${escHtml(title)}</div>`;
 
-      if (isProduct && s.price) {
-        html += `<div class="findai-result-price">${formatPrice(s.price, s.currency)}</div>`;
-      }
-
-      if (isProduct && s.rating) {
-        html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
+      if (isProduct && (s.price || s.rating)) {
+        html += '<div class="findai-result-product-meta">';
+        if (s.price) {
+          html += `<div class="findai-result-price">${formatPrice(s.price, s.currency)}</div>`;
+        }
+        if (s.rating) {
+          html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
+        }
+        html += '</div>';
       }
 
       if (snippet) {
