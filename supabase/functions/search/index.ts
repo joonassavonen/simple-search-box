@@ -416,13 +416,19 @@ Palauta VAIN validi JSON.`
     const maxScore = finalResults.reduce((max, s) => Math.max(max, s.score), 1);
     const results = finalResults
       .slice(0, 5)
-      .map((r) => ({
-        url: r.url,
-        title: r.title,
-        score: Math.round(Math.min(r.score / maxScore, 1) * 100) / 100,
-        snippet: r.snippet,
-        reasoning: (r as any).aiReasoning || `Matched: ${r.matchedWords.join(", ")}`,
-        schema_data: (r as any).schema_data || null,
+      .map((r) => {
+        const sd = (r as any).schema_data;
+        const isProduct = sd?.type === "Product";
+        return {
+          url: r.url,
+          title: r.title,
+          score: Math.round(Math.min(r.score / maxScore, 1) * 100) / 100,
+          snippet: r.snippet,
+          reasoning: (r as any).aiReasoning || `Matched: ${r.matchedWords.join(", ")}`,
+          schema_data: sd || null,
+          ...(isProduct && sd?.price ? { price: sd.price, currency: sd.currency || "EUR" } : {}),
+        };
+      });
       }));
 
     const responseMs = Date.now() - startTime;
