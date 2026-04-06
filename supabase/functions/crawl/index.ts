@@ -369,6 +369,7 @@ Deno.serve(async (req) => {
     const action = payload?.action;
     const siteId = typeof payload?.site_id === "string" ? payload.site_id : null;
     const jobId = typeof payload?.job_id === "string" ? payload.job_id : null;
+    const resumeFromJob = typeof payload?.resume_from_job === "string" ? payload.resume_from_job : undefined;
 
     // Allow triggering AI context generation independently
     if (action === "generate_context" && siteId) {
@@ -388,7 +389,7 @@ Deno.serve(async (req) => {
     }
 
     // @ts-ignore: EdgeRuntime is available in Supabase Edge Functions
-    EdgeRuntime.waitUntil(doCrawl(jobId, siteId));
+    EdgeRuntime.waitUntil(doCrawl(jobId, siteId, resumeFromJob));
 
     return new Response(JSON.stringify({ status: "started", job_id: jobId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
