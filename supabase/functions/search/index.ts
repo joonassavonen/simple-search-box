@@ -67,8 +67,7 @@ Deno.serve(async (req) => {
       .single();
 
     // Detect language
-    const finnishChars = /[äöåÄÖÅ]/;
-    const language = finnishChars.test(query) ? "fi" : "en";
+    const language = detectLanguage(query);
 
     const words = query.trim().toLowerCase().split(/\s+/).filter((w: string) => w.length >= 2);
 
@@ -823,6 +822,27 @@ function detectQueryIntent(queryLower: string, triggerCategories: string[]): {
   return { type, confidence: Math.min(confidence, 0.98), matchedTerms: Array.from(matchedTerms) };
 }
 
+function detectLanguage(query: string): "fi" | "en" {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return "fi";
+
+  if (/[äöå]/i.test(normalized)) return "fi";
+
+  const finnishSignals = [
+    "yhteystiedot", "yhteystieto", "puhelin", "numero", "sähköposti", "huolto", "asennus",
+    "hinta", "tarjous", "varaus", "ajanvaraus", "vika", "korjaus", "mikä", "mitä", "missä",
+    "voiko", "onko", "etsi", "hae", "lähetä", "soita", "näytä",
+  ];
+  const englishSignals = [
+    "contact", "contacts", "phone", "email", "service", "repair", "support", "price",
+    "quote", "book", "call", "show", "find", "where", "what", "how", "can i", "urgent",
+  ];
+
+  const finnishScore = finnishSignals.reduce((sum, token) => sum + (normalized.includes(token) ? 1 : 0), 0);
+  const englishScore = englishSignals.reduce((sum, token) => sum + (normalized.includes(token) ? 1 : 0), 0);
+  return finnishScore >= englishScore ? "fi" : "en";
+}
+
 function buildInterventionCard(params: {
   query: string;
   language: "fi" | "en";
@@ -884,7 +904,7 @@ function buildInterventionCard(params: {
     type: intent.type,
     title: interventionTitle(intent.type, query, language),
     body,
-    position: 2,
+    position: intent.type === "contact" || intent.type === "urgent" ? 0 : 2,
     actions: actions.slice(0, 2),
   };
 }

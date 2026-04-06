@@ -1554,6 +1554,10 @@
 
       html += `<div class="findai-results-header">${ICON_SPARKLES} ${data.results.length} osuma${data.results.length !== 1 ? "a" : ""}</div>`;
 
+      if (data.intervention_card && (data.intervention_card.position || 0) <= 0) {
+        html += renderInterventionCard(data.intervention_card);
+      }
+
       if (data.ai_summary) {
         const firstUrl = data.results[0]?.url || "#";
         const firstClickId = `findai-${SESSION_ID}-summary-${Date.now()}`;
@@ -1572,14 +1576,14 @@
       let insertedIntervention = false;
       data.results.forEach((r, idx) => {
         html += renderResultItem(r, idx);
-        if (data.intervention_card && (data.intervention_card.position || 2) === idx + 2) {
+        if (data.intervention_card && (data.intervention_card.position || 2) > 0 && (data.intervention_card.position || 2) === idx + 2) {
           html += renderInterventionCard(data.intervention_card);
           insertedIntervention = true;
         }
       });
 
       const cfg = data.contact_config || contactConfig;
-      if (data.intervention_card && !insertedIntervention) {
+      if (data.intervention_card && !insertedIntervention && (data.intervention_card.position || 0) > 0) {
         html += renderInterventionCard(data.intervention_card);
       }
       if (!data.intervention_card && cfg && cfg.enabled) {
