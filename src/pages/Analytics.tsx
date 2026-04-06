@@ -254,8 +254,25 @@ export default function Analytics() {
     setEditingSynonym(null);
     toast({ title: "Synonyymi päivitetty" });
   };
+  const analyzeFailed = async () => {
+    if (!siteId || !stats?.failed_searches?.length) return;
+    setSuggestionsLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("suggest-pages", {
+        body: { site_id: siteId, failed_queries: stats.failed_searches },
+      });
+      if (error) throw error;
+      setPageSuggestions(data.suggestions || {});
+      const matchCount = Object.keys(data.suggestions || {}).length;
+      toast({ title: matchCount > 0 ? `${matchCount} hakuun löytyi ehdotus` : "Ehdotuksia ei löytynyt" });
+    } catch (e: any) {
+      toast({ title: "Virhe", description: e.message, variant: "destructive" });
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
 
-  if (loading) {
+
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
