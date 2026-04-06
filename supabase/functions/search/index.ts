@@ -489,7 +489,7 @@ Palauta VAIN validi JSON.`
               reranked.forEach((r: any, i: number) => {
                 if (reasons[i]) r.aiReasoning = reasons[i];
               });
-              finalResults = reranked;
+              finalResults = stabilizeRerankedResults(reranked, keywordResults, queryLower, words);
             }
           }
         } else {
@@ -954,6 +954,46 @@ function interventionPageLabel(type: "contact" | "service" | "commercial" | "urg
   if (type === "urgent") return "Open suggested page";
   if (type === "service") return "Open suggested page";
   return "View option";
+}
+
+function stabilizeRerankedResults(reranked: any[], keywordResults: any[], queryLower: string, words: string[]) {
+  const serviceQuery = /\b(asennus|asentaa|huolto|huoltaa|korjaus|repair|service|support|maintenance)\b/i.test(queryLower);
+  const explicitProductIntent = /\b(mitsubishi|toshiba|gree|daikin|haori|tuote|tuotteet|product|products|malli|mallit)\b/i.test(queryLower);
+  const locationWords = words.filter((word) =>
+    word.length >= 4 &&
+    !/\b(asennus|asentaa|huolto|huoltaa|korjaus|repair|service|support|maintenance|ilmalämpöpumppu|ilmalämpöpumput|lämpöpumppu|lämpöpumput)\b/i.test(word),
+  );
+
+  if (!serviceQuery || explicitProductIntent) {
+    return reranked;
+  }
+
+  const aiOrder = new Map(reranked.map((item, idx) => [item.url, idx]));
+  const keywordOrder = new Map(keywordResults.map((item, idx) => [item.url, idx]));
+
+  const scoreResult = (result: any) => {
+    const haystack = `${result.title || ""} ${(result.snippet || "")} ${(result.content || "").slice(0, 250)} ${result.url || ""}`.toLowerCase();
+    const schema = result.schema_data;
+    const isProduct = schema?.type === "Product" || /\/products?\//i.test(String(result.url || ""));
+    const locationMatches = locationWords.filter((word) => haystack.includes(word)).length;
+    const serviceMatches = /\b(asennus|asentaa|huolto|huoltaa|korjaus|repair|service|support|maintenance)\b/i.test(haystack) ? 1 : 0;
+
+    let guardScore = 0;
+    if (!isProduct) guardScore += 3;
+    if (locationMatches > 0) guardScore += locationMatches * 4;
+    if (serviceMatches) guardScore += 2;
+    if (isProduct) guardScore -= 4;
+    guardScore += Math.min(Number(result.score) || 0, 100) / 100;
+
+    return guardScore;
+  };
+
+  return [...reranked].sort((a, b) => {
+    const diff = scoreResult(b) - scoreResult(a);
+    if (Math.abs(diff) > 0.75) return diff;
+    return (aiOrder.get(a.url) ?? 999) - (aiOrder.get(b.url) ?? 999)
+      || (keywordOrder.get(a.url) ?? 999) - (keywordOrder.get(b.url) ?? 999);
+  });
 }
 
 function extractSnippet(content: string, words: string[], maxLen = 200): string {
