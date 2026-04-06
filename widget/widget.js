@@ -147,6 +147,18 @@
       .trim();
   }
 
+  function splitSummary(summary) {
+    const text = decodeHtmlEntities(summary || "").replace(/\s+/g, " ").trim();
+    if (!text) return { title: "", body: "" };
+
+    const match = text.match(/^(.+?[.!?])(\s+|$)(.*)$/);
+    if (!match) return { title: text, body: "" };
+
+    const title = match[1].trim();
+    const body = (match[3] || "").trim();
+    return { title, body };
+  }
+
   function formatPrice(price, currency) {
     const num = typeof price === "string" ? parseFloat(price) : price;
     if (isNaN(num)) return String(price);
@@ -1464,6 +1476,7 @@
 
       currentSearchLogId = data.search_log_id;
       let html = "";
+      const summaryParts = splitSummary(data.ai_summary);
 
       html += `<div class="findai-results-header">${ICON_SPARKLES} ${data.results.length} osuma${data.results.length !== 1 ? "a" : ""}</div>`;
 
@@ -1473,8 +1486,8 @@
         html += `
           <a href="${escHtml(firstUrlUtm)}" target="_self" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
             <div class="findai-ai-summary-text">
-              <h3>${escHtml(data.ai_summary.split(".")[0])}</h3>
-              <p>${escHtml(data.ai_summary)}</p>
+              <h3>${escHtml(summaryParts.title || data.ai_summary)}</h3>
+              ${summaryParts.body ? `<p>${escHtml(summaryParts.body)}</p>` : ""}
             </div>
             ${ICON_EXTERNAL}
           </a>
