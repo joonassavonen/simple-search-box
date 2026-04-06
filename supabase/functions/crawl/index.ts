@@ -162,7 +162,33 @@ async function doCrawl(jobId: string, siteId: string) {
         const html = await pageRes.text();
         const title = extractTitle(html) || titleFromUrl(url);
         const metaDesc = extractMetaDescription(html);
-        const schemaData = extractJsonLd(html);
+        let schemaData = extractJsonLd(html);
+        
+        // If no schema or no price, try Shopify JSON endpoint for product pages
+        if ((!schemaData || (schemaData?.type === "Product" && !schemaData?.price)) && url.includes("/products/")) {
+          try {
+            const jsonUrl = url.replace(/\?.*$/, "") + ".json";
+            const jsonRes = await fetch(jsonUrl, { headers: { "User-Agent": "FindAI-Crawler/1.0" } });
+            if (jsonRes.ok) {
+              const jsonData = await jsonRes.json();
+              const prod = jsonData.product;
+              if (prod) {
+                const variant = prod.variants?.[0];
+                schemaData = {
+                  type: "Product",
+                  name: prod.title,
+                  description: (prod.body_html || "").replace(/<[^>]*>/g, "").slice(0, 300),
+                  price: variant?.price || null,
+                  currency: "EUR",
+                  image: prod.image?.src || prod.images?.[0]?.src || null,
+                };
+              }
+            } else {
+              await jsonRes.text(); // consume body
+            }
+          } catch { /* non-fatal */ }
+        }
+        
         const content = extractTextContent(html);
 
         if (!content || content.length < 10) {
@@ -288,7 +314,8 @@ function extractJsonLd(html: string): Record<string, any> | null {
         if (!type) continue;
 
         if (type === "Product" || (Array.isArray(type) && type.includes("Product"))) {
-          const offer = item.offers || (item.offers?.[0]);
+          const offers = item.offers;
+          const offer = Array.isArray(offers) ? offers[0] : offers?.["@type"] === "AggregateOffer" ? offers : offers;
           return {
             type: "Product",
             name: item.name,
