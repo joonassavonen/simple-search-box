@@ -714,15 +714,7 @@ async function handleClick(body: any) {
       .insert({ site_id, query: normalizedQuery, page_url: url, click_count: 1 });
   }
 
-  await supabase.from("search_click_events").insert({
-    site_id,
-    search_log_id: search_log_id || null,
-    query: normalizedQuery,
-    page_url: url,
-    click_id: click_id || null,
-    session_id: session_id || null,
-    click_position: Number.isFinite(click_position) ? click_position : 0,
-  });
+  // search_click_events table removed – skip insert
 
   if (search_log_id) {
     await supabase
