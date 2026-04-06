@@ -129,6 +129,7 @@ Deno.serve(async (req) => {
       const maxPV = Math.max(...gaData.map(g => g.pageviews), 1);
       const totalPV = gaData.reduce((s, g) => s + g.pageviews, 0) || 1;
       for (const g of gaData) {
+        if (g.page_path === "/") continue; // Skip homepage
         const keyEventRate = g.pageviews > 0 ? g.conversions / g.pageviews : 0;
         // Weighted rate = key_event_rate * (pageviews / total_pageviews)
         // This penalizes pages with few visits even if their rate is high
@@ -152,7 +153,9 @@ Deno.serve(async (req) => {
     if (pagesErr) throw new Error(pagesErr.message);
 
     // Score each page based on word matches (keyword phase)
-    const scored = (pages || []).map((page) => {
+    const scored = (pages || []).filter((page) => {
+      try { return new URL(page.url).pathname !== "/"; } catch { return true; }
+    }).map((page) => {
       const titleLower = (page.title || "").toLowerCase();
       const contentLower = (page.content || "").toLowerCase();
       const metaLower = (page.meta_description || "").toLowerCase();
