@@ -653,17 +653,9 @@ export const api = {
   // --- Learning Stats (Supabase direct) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    const { data: affinities } = await supabase
-      .from("query_page_affinities" as any)
-      .select("query, page_url, click_count, confidence")
-      .eq("site_id", siteId)
-      .order("confidence", { ascending: false })
-      .order("click_count", { ascending: false })
-      .limit(20);
-
     const { data: synonyms } = await supabase
       .from("search_synonyms")
-      .select("query_from, query_to, confidence, status")
+      .select("query_from, query_to, confidence")
       .eq("site_id", siteId);
 
     const { data: strategy } = await (supabase as any)

@@ -184,16 +184,15 @@ Respond using the suggest_pages tool.`,
         .maybeSingle();
 
       if (existing) {
+        const ex = existing as any;
         await supabase
           .from("search_synonyms")
           .update({
-            confidence: Math.min(existing.confidence * 0.7 + 0.6 * 0.3, 1.0),
-            times_used: existing.times_used + 1,
-            source: "suggest-pages",
-            status: "approved",
+            confidence: Math.min(ex.confidence * 0.7 + 0.6 * 0.3, 1.0),
+            times_used: ex.times_used + 1,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existing.id);
+          .eq("id", ex.id);
       } else {
         await supabase
           .from("search_synonyms")
