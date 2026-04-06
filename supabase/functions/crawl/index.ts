@@ -288,7 +288,8 @@ function extractJsonLd(html: string): Record<string, any> | null {
         if (!type) continue;
 
         if (type === "Product" || (Array.isArray(type) && type.includes("Product"))) {
-          const offer = item.offers || (item.offers?.[0]);
+          const offers = item.offers;
+          const offer = Array.isArray(offers) ? offers[0] : offers?.["@type"] === "AggregateOffer" ? offers : offers;
           return {
             type: "Product",
             name: item.name,
