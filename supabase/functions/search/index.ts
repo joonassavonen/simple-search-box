@@ -335,7 +335,7 @@ Palauta VAIN validi JSON.`
           const jsonMatch = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
           const parsed = JSON.parse(jsonMatch);
 
-          if (parsed.summary) {
+          if (parsed.summary && useAiFallback) {
             aiSummary = parsed.summary;
           }
 
