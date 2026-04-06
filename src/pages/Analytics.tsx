@@ -269,7 +269,20 @@ export default function Analytics() {
       if (error) throw error;
       setPageSuggestions(data.suggestions || {});
       const matchCount = Object.keys(data.suggestions || {}).length;
-      toast({ title: matchCount > 0 ? `${matchCount} hakuun löytyi ehdotus` : "Ehdotuksia ei löytynyt" });
+      const synCount = data.synonyms_created || 0;
+      if (matchCount > 0) {
+        toast({ title: `${matchCount} hakuun löytyi ehdotus`, description: synCount > 0 ? `${synCount} uutta synonyymia tallennettu oppimiseen` : "Synonyymit olivat jo tallessa" });
+        // Refresh synonyms list
+        const { data: syns } = await supabase
+          .from("search_synonyms")
+          .select("*")
+          .eq("site_id", siteId!)
+          .order("confidence", { ascending: false })
+          .limit(50);
+        if (syns) setSynonyms(syns);
+      } else {
+        toast({ title: "Ehdotuksia ei löytynyt" });
+      }
     } catch (e: any) {
       toast({ title: "Virhe", description: e.message, variant: "destructive" });
     } finally {
