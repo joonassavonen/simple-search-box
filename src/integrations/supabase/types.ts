@@ -272,6 +272,8 @@ export type Database = {
         Row: {
           chat_url: string | null
           created_at: string
+          cta_text_en: string
+          cta_text_fi: string
           email: string | null
           enabled: boolean
           id: string
@@ -282,6 +284,8 @@ export type Database = {
         Insert: {
           chat_url?: string | null
           created_at?: string
+          cta_text_en?: string
+          cta_text_fi?: string
           email?: string | null
           enabled?: boolean
           id?: string
@@ -292,6 +296,8 @@ export type Database = {
         Update: {
           chat_url?: string | null
           created_at?: string
+          cta_text_en?: string
+          cta_text_fi?: string
           email?: string | null
           enabled?: boolean
           id?: string
