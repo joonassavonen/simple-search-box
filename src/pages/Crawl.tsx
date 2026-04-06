@@ -250,6 +250,8 @@ export default function Crawl() {
                       <CheckCircle className="h-4 w-4 text-primary" />
                     ) : h.status === "error" ? (
                       <XCircle className="h-4 w-4 text-destructive" />
+                    ) : h.status === "partial" ? (
+                      <PlayCircle className="h-4 w-4 text-orange-500" />
                     ) : (
                       <Clock className="h-4 w-4 text-muted-foreground" />
                     )}
@@ -262,9 +264,16 @@ export default function Crawl() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : "secondary"}>
-                    {h.status}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {h.status === "partial" && !crawling && (
+                      <Button variant="outline" size="sm" onClick={() => resumeCrawl(h.id)}>
+                        Jatka
+                      </Button>
+                    )}
+                    <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : h.status === "partial" ? "outline" : "secondary"}>
+                      {h.status === "partial" ? "keskeytynyt" : h.status}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </div>
