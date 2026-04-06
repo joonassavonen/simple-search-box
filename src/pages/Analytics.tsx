@@ -401,6 +401,7 @@ export default function Analytics() {
   if (!stats || !site) return null;
 
   const ctrPct = (stats.click_through_rate * 100).toFixed(1);
+  const now = new Date();
   const daysNum = Number(dateRange);
   const periodStart = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
   const periodLabel = `${periodStart.toLocaleDateString("fi-FI", { day: "numeric", month: "short" })} – ${now.toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric" })}`;
@@ -414,22 +415,6 @@ export default function Analytics() {
     ? new Date(strategy.last_optimized_at).toLocaleString("fi-FI")
     : null;
   const triggerCategories = strategy?.contact_trigger_rules?.trigger_categories ?? [];
-  const nextStep = !strategy
-    ? {
-        title: "Käynnistä automaattinen optimointi",
-        body: "Oppiminen on kerännyt perussignaalit, mutta hakua ei vielä ohjata aktiivisella strategialla. Päivitä strategia, kun haluat että järjestelmä alkaa hyödyntää dataa autonomisesti.",
-      }
-    : (learningStats?.affinity_count ?? 0) === 0
-      ? {
-          title: "Anna käyttäjädatan ensin kertyä",
-          body: "Kun hakuja ja klikkejä kertyy enemmän, järjestelmä pystyy oppimaan query → sivu -yhteyksiä ja optimoimaan tuloksia varmemmin ilman käsityötä.",
-        }
-      : {
-          title: "Automaattinen optimointi on aktiivinen",
-          body: proposedSynonyms.length > 0
-            ? `Järjestelmä hyödyntää jo käyttäjäsignaaleja autonomisesti. ${proposedSynonyms.length} synonyymiehdotusta odottaa valinnaista manuaalista tarkistusta lisätiedoissa.`
-            : "Järjestelmä hyödyntää jo käyttäjäsignaaleja autonomisesti. Manuaalista tarkistusta tarvitaan vain poikkeustapauksissa.",
-        };
 
   return (
     <div className="space-y-6">
