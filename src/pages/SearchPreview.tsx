@@ -18,7 +18,7 @@ const WIDGET_URL = "https://findaisearch.lovable.app/widget.js";
 const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-function getSnippet(mode: EmbedMode, siteId: string) {
+function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right") {
   const supabaseAttrs = `\n  data-supabase-url="${SUPABASE_URL_VALUE}"\n  data-supabase-key="${SUPABASE_KEY_VALUE}"`;
   if (mode === "inline") {
     return `<div id="findai-search"></div>
@@ -33,7 +33,7 @@ function getSnippet(mode: EmbedMode, siteId: string) {
     return `<script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
-  data-position="bottom-right"${supabaseAttrs}>
+  data-position="${floatPosition}"${supabaseAttrs}>
 </script>`;
   }
   return `<div id="findai-search"></div>
@@ -50,6 +50,7 @@ export default function SearchPreview() {
   const [site, setSite] = useState<Site | null>(null);
   const [copied, setCopied] = useState(false);
   const [activeMode, setActiveMode] = useState<EmbedMode>("inline");
+  const [floatSide, setFloatSide] = useState<"bottom-right" | "bottom-left">("bottom-right");
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetScriptRef = useRef<HTMLScriptElement | null>(null);
 
@@ -82,12 +83,12 @@ export default function SearchPreview() {
       script.setAttribute("data-position", "header-icon");
       script.setAttribute("data-inline-target", "#findai-preview-container");
     } else {
-      script.setAttribute("data-position", "bottom-right");
+      script.setAttribute("data-position", floatSide);
     }
 
     document.body.appendChild(script);
     widgetScriptRef.current = script;
-  }, [siteId]);
+  }, [siteId, floatSide]);
 
   // Load widget on mount and mode change
   useEffect(() => {
@@ -103,7 +104,7 @@ export default function SearchPreview() {
   }, [activeMode, loadWidget]);
 
   function copySnippet() {
-    const snippet = getSnippet(activeMode, siteId || "");
+    const snippet = getSnippet(activeMode, siteId || "", floatSide);
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -155,18 +156,39 @@ export default function SearchPreview() {
               <div id="findai-preview-container" ref={containerRef} className="min-h-[60px]" />
             )}
 
-            {/* Floating hint */}
+            {/* Floating hint + side toggle */}
             {mode.value === "floating" && (
-              <Card className="border-dashed border-border/50">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Kelluva "Hae"-nappi näkyy oikeassa alakulmassa →
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-1">
-                    Klikkaa nappia testataksesi
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xs text-muted-foreground">Sijainti:</span>
+                  <Button
+                    variant={floatSide === "bottom-left" ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-7 cursor-pointer"
+                    onClick={() => setFloatSide("bottom-left")}
+                  >
+                    ← Vasen
+                  </Button>
+                  <Button
+                    variant={floatSide === "bottom-right" ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-7 cursor-pointer"
+                    onClick={() => setFloatSide("bottom-right")}
+                  >
+                    Oikea →
+                  </Button>
+                </div>
+                <Card className="border-dashed border-border/50">
+                  <CardContent className="py-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Kelluva "Hae"-nappi näkyy {floatSide === "bottom-right" ? "oikeassa" : "vasemmassa"} alakulmassa {floatSide === "bottom-right" ? "→" : "←"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60 mt-1">
+                      Klikkaa nappia testataksesi
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {/* Embed snippet */}
