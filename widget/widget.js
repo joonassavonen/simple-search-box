@@ -1074,8 +1074,9 @@
 
       if (data.ai_summary) {
         const firstUrl = data.results[0]?.url || "#";
+        const firstUrlUtm = addUtm(firstUrl);
         html += `
-          <a href="${escHtml(firstUrl)}" target="_blank" rel="noopener" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
+          <a href="${escHtml(firstUrlUtm)}" target="_blank" rel="noopener" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
             <div class="findai-ai-summary-text">
               <h3>${escHtml(data.ai_summary.split(".")[0])}</h3>
               <p>${escHtml(data.ai_summary)}</p>
