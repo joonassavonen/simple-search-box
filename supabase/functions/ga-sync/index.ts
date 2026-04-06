@@ -128,19 +128,47 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body = await req.json();
-    const { site_id } = body;
-
-    if (!site_id) {
-      return new Response(
-        JSON.stringify({ error: "site_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    let bodyJson: any = {};
+    try { bodyJson = await req.json(); } catch { /* empty body from cron is ok */ }
+    const { site_id, sync_all } = bodyJson;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Get the site's GA property ID
+    // If sync_all or no site_id, sync all sites with GA property IDs
+    if (sync_all || !site_id) {
+      const { data: sites } = await supabase
+        .from("sites")
+        .select("id, ga_property_id, domain")
+        .not("ga_property_id", "is", null);
+
+      if (!sites || sites.length === 0) {
+        return new Response(
+          JSON.stringify({ message: "No sites with GA Property ID configured", synced: 0 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const serviceAccount = JSON.parse(GA_SERVICE_ACCOUNT_JSON);
+      const accessToken = await getAccessToken(serviceAccount);
+      const results: any[] = [];
+
+      for (const s of sites) {
+        try {
+          const r = await syncSiteGA(supabase, accessToken, s.id, s.ga_property_id!);
+          results.push({ site_id: s.id, domain: s.domain, ...r });
+        } catch (e) {
+          results.push({ site_id: s.id, domain: s.domain, error: (e as Error).message });
+        }
+      }
+
+      console.log(`Cron GA sync: ${results.length} sites processed`);
+      return new Response(
+        JSON.stringify({ success: true, results }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Single site sync
     const { data: site, error: siteErr } = await supabase
       .from("sites")
       .select("ga_property_id, domain")
