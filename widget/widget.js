@@ -83,6 +83,26 @@
     return textarea.value;
   }
 
+  function getBrandFromUrl(url) {
+    try {
+      const hostname = new URL(url).hostname.replace(/^www\./i, "");
+      const brand = hostname.split(".")[0] || hostname;
+      return decodeHtmlEntities(brand).replace(/[-_]+/g, " ").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function normalizeTitleToken(text) {
+    return (text || "")
+      .toLowerCase()
+      .replace(/^www\./, "")
+      .replace(/\.(fi|com|net|org|io|co|eu)$/i, "")
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function cleanTitle(title, url) {
     if (!title || title.startsWith("http") || title.includes("://")) {
       try {
@@ -92,7 +112,21 @@
         return cleaned || new URL(url).hostname;
       } catch { return url; }
     }
-    return decodeHtmlEntities(title);
+    const decoded = decodeHtmlEntities(title).replace(/\s+/g, " ").trim();
+    const brand = getBrandFromUrl(url);
+    if (!brand) return decoded;
+
+    const parts = decoded.split(/\s*[|–—]\s*/).map(part => part.trim()).filter(Boolean);
+    if (parts.length <= 1) return decoded;
+
+    const normalizedBrand = normalizeTitleToken(brand);
+    const filtered = parts.filter((part, index) => {
+      const normalizedPart = normalizeTitleToken(part);
+      if (normalizedPart !== normalizedBrand) return true;
+      return index !== 0 && index !== parts.length - 1;
+    });
+
+    return filtered.length ? filtered.join(" – ") : decoded;
   }
 
   function cleanSnippet(snippet) {
