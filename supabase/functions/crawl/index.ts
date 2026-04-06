@@ -344,8 +344,19 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    const jobId = typeof payload?.job_id === "string" ? payload.job_id : null;
+    const action = payload?.action;
     const siteId = typeof payload?.site_id === "string" ? payload.site_id : null;
+    const jobId = typeof payload?.job_id === "string" ? payload.job_id : null;
+
+    // Allow triggering AI context generation independently
+    if (action === "generate_context" && siteId) {
+      const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      await generateAiContext(supabase, siteId);
+      const { data: updated } = await supabase.from("sites").select("ai_context").eq("id", siteId).single();
+      return new Response(JSON.stringify({ status: "ok", context_length: updated?.ai_context?.length || 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!jobId || !siteId) {
       return new Response(JSON.stringify({ error: "job_id and site_id required" }), {
