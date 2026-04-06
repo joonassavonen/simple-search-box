@@ -70,6 +70,22 @@ interface Synonym {
   times_used: number;
 }
 
+interface HighCtrPattern {
+  pattern: string;
+  top_url: string;
+  ctr: number;
+  clicks: number;
+}
+
+interface PageBoost {
+  page_path: string;
+  ga_boost: number;
+  ctr_boost: number;
+  popularity_boost: number;
+  total_boost: number;
+  reasons: string[];
+}
+
 interface GAPageData {
   page_path: string;
   pageviews: number;
