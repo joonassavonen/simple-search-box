@@ -151,6 +151,8 @@ export default function Analytics() {
   const [gaPages, setGaPages] = useState<GAPageData[]>([]);
   const [gaLoading, setGaLoading] = useState(false);
   const [synonymPage, setSynonymPage] = useState(0);
+  const [pageSuggestions, setPageSuggestions] = useState<Record<string, { url: string; title: string; reason: string }[]>>({});
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
   useEffect(() => {
     if (!siteId) {
