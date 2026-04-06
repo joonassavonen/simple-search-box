@@ -408,7 +408,7 @@ Palauta VAIN validi JSON.`
     // Format final results
     const maxScore = finalResults.reduce((max, s) => Math.max(max, s.score), 1);
     const results = finalResults
-      .slice(0, 8)
+      .slice(0, 5)
       .map((r) => ({
         url: r.url,
         title: r.title,
