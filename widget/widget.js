@@ -809,11 +809,16 @@
         popularProducts = products.slice(0, 5);
       }).catch(() => {});
 
-      // Contact config from localStorage (same as preview)
-      try {
-        const stored = localStorage.getItem(`findai-contact-${SITE_ID}`);
-        if (stored) contactConfig = JSON.parse(stored);
-      } catch {}
+      // Contact config from DB via Supabase REST
+      supabaseRest("site_contact_configs", {
+        "select": "enabled,email,phone,chat_url,cta_text_fi,cta_text_en",
+        "site_id": `eq.${SITE_ID}`,
+        "limit": "1",
+      }).then(data => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          contactConfig = data[0];
+        }
+      }).catch(() => {});
 
       // Fetch brand styles and apply to widget
       supabaseRest("sites", {

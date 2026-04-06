@@ -390,28 +390,77 @@ export const api = {
     return { suggestions };
   },
 
-  // --- Contact Config (localStorage until DB table is created) ---
+  // --- Contact Config (Supabase DB) ---
 
   async getContactConfig(siteId: string): Promise<ContactConfig> {
-    try {
-      const stored = localStorage.getItem(`findai-contact-${siteId}`);
-      if (stored) return JSON.parse(stored);
-    } catch { /* ignore */ }
+    const { data, error } = await supabase
+      .from("site_contact_configs")
+      .select("*")
+      .eq("site_id", siteId)
+      .single();
+
+    if (error || !data) {
+      return {
+        site_id: siteId,
+        enabled: false,
+        email: null,
+        phone: null,
+        chat_url: null,
+        cta_text_fi: "Etkö löytänyt etsimääsi? Ota yhteyttä!",
+        cta_text_en: "Didn't find what you need? Contact us!",
+      };
+    }
+
     return {
-      site_id: siteId,
-      enabled: false,
-      email: null,
-      phone: null,
-      chat_url: null,
-      cta_text_fi: "Etkö löytänyt etsimääsi? Ota yhteyttä!",
-      cta_text_en: "Didn't find what you need? Contact us!",
+      site_id: data.site_id,
+      enabled: data.enabled,
+      email: data.email,
+      phone: data.phone,
+      chat_url: data.chat_url,
+      cta_text_fi: data.cta_text_fi,
+      cta_text_en: data.cta_text_en,
     };
   },
 
   async updateContactConfig(siteId: string, config: Partial<ContactConfig>): Promise<ContactConfig> {
     const current = await api.getContactConfig(siteId);
     const updated = { ...current, ...config, site_id: siteId };
-    localStorage.setItem(`findai-contact-${siteId}`, JSON.stringify(updated));
+
+    // Upsert: try update first, then insert
+    const { data: existing } = await supabase
+      .from("site_contact_configs")
+      .select("id")
+      .eq("site_id", siteId)
+      .single();
+
+    if (existing) {
+      const { error } = await supabase
+        .from("site_contact_configs")
+        .update({
+          enabled: updated.enabled,
+          email: updated.email,
+          phone: updated.phone,
+          chat_url: updated.chat_url,
+          cta_text_fi: updated.cta_text_fi,
+          cta_text_en: updated.cta_text_en,
+        })
+        .eq("site_id", siteId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase
+        .from("site_contact_configs")
+        .insert({
+          site_id: siteId,
+          enabled: updated.enabled,
+          email: updated.email,
+          phone: updated.phone,
+          chat_url: updated.chat_url,
+          cta_text_fi: updated.cta_text_fi,
+          cta_text_en: updated.cta_text_en,
+        });
+      if (error) throw new Error(error.message);
+    }
+
     return updated;
   },
 
@@ -454,6 +503,16 @@ export const api = {
     });
     if (error) throw new Error(error.message || "Learning failed");
     return { discovered: data?.synonyms_created || 0 };
+  },
+
+  // --- Optimization (Background AI Agent) ---
+
+  async runOptimization(siteId: string): Promise<{ message: string; [key: string]: any }> {
+    const { data, error } = await supabase.functions.invoke("optimize", {
+      body: { site_id: siteId },
+    });
+    if (error) throw new Error(error.message || "Optimization failed");
+    return data;
   },
 
   // --- Click tracking ---

@@ -24,10 +24,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   Search,
+  Lightbulb,
   Loader2,
   AlertCircle,
   Brain,
   RefreshCw,
+  Sparkles,
   FileSearch,
   SearchX,
   Ban,
@@ -158,6 +160,7 @@ export default function Analytics() {
   const [synonymPage, setSynonymPage] = useState(0);
   const [pageSuggestions, setPageSuggestions] = useState<Record<string, { url: string; title: string; reason: string }[]>>({});
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
 
   useEffect(() => {
     if (!siteId) {
@@ -200,6 +203,22 @@ export default function Analytics() {
     }
     load();
   }, [siteId, dateRange]);
+
+  const runOptimization = async () => {
+    if (!siteId) return;
+    setOptimizing(true);
+    try {
+      const result = await api.runOptimization(siteId);
+      toast({
+        title: "Optimointi valmis",
+        description: `${result.high_ctr_patterns || 0} korkean CTR:n mallia, ${result.zero_result_queries || 0} nollatuloshakua analysoitu`,
+      });
+    } catch (e: any) {
+      toast({ title: "Virhe", description: e.message, variant: "destructive" });
+    } finally {
+      setOptimizing(false);
+    }
+  };
 
   const runLearning = async () => {
     if (!siteId) return;
@@ -698,6 +717,33 @@ export default function Analytics() {
 
         {/* ─── Learning Tab ─── */}
         <TabsContent value="learning" className="space-y-4">
+          {/* AI Optimization Agent */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                AI-optimointiagentti
+              </CardTitle>
+              <Button
+                size="sm"
+                onClick={runOptimization}
+                disabled={optimizing}
+              >
+                {optimizing ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-1 h-4 w-4" />
+                )}
+                {optimizing ? "Optimoi..." : "Käynnistä optimointi"}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Optimointiagentti analysoi hakuhistorian, CTR-datan ja konversiot, ja kirjoittaa strategian joka ohjaa hakutekoälyä ja yhteydenotto-CTA:iden näyttämistä dynaamisesti.
+              </p>
+            </CardContent>
+          </Card>
+
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Oppiva haku</h2>
