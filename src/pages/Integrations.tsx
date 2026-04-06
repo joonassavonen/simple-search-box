@@ -204,13 +204,42 @@ export default function Integrations() {
             </div>
           )}
 
-          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-            <div className="text-xs text-amber-800 dark:text-amber-200">
-              <strong>Vaihe 1:</strong> Syötä GA Property ID. <strong>Vaihe 2:</strong> Lataa analytiikkadata CSV-tiedostona (tulossa). 
-              Tällä hetkellä voit lisätä datan manuaalisesti tietokantaan.
+          {gaPropertyId && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs cursor-pointer"
+                  onClick={syncGA}
+                  disabled={syncing}
+                >
+                  {syncing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {syncing ? "Synkronoidaan..." : "Synkronoi GA-data"}
+                </Button>
+                {lastSyncResult && (
+                  <span className={`text-xs ${lastSyncResult.startsWith("Virhe") ? "text-destructive" : "text-muted-foreground"}`}>
+                    {lastSyncResult}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Hakee viimeisen 30 päivän sivukohtaisen analytiikkadatan GA4:stä ja buustaa hakutuloksia sen perusteella.
+              </p>
             </div>
-          </div>
+          )}
+
+          {!gaPropertyId && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <div className="text-xs text-amber-800 dark:text-amber-200">
+                Syötä GA4 Property ID aloittaaksesi analytiikkadatan synkronoinnin.
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
