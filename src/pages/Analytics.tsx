@@ -41,6 +41,10 @@ import {
   Trash2,
   Check,
   X,
+  BarChart3,
+  TrendingUp,
+  Eye,
+  Target,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -61,6 +65,18 @@ interface Synonym {
   query_to: string;
   confidence: number;
   times_used: number;
+}
+
+interface GAPageData {
+  page_path: string;
+  pageviews: number;
+  sessions: number;
+  conversions: number;
+  bounce_rate: number;
+  avg_time_on_page: number;
+  period_start: string;
+  period_end: string;
+  fetched_at: string;
 }
 
 type DateRange = "7" | "30" | "90";
@@ -132,6 +148,8 @@ export default function Analytics() {
   const [editingSynonym, setEditingSynonym] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ query_from: "", query_to: "" });
   const [learningRunning, setLearningRunning] = useState(false);
+  const [gaPages, setGaPages] = useState<GAPageData[]>([]);
+  const [gaLoading, setGaLoading] = useState(false);
 
   useEffect(() => {
     if (!siteId) {
@@ -150,13 +168,22 @@ export default function Analytics() {
         setSite(s);
         setStats(st);
         setLearningStats(ls);
-        const { data: syns } = await supabase
-          .from("search_synonyms")
-          .select("*")
-          .eq("site_id", siteId!)
-          .order("confidence", { ascending: false })
-          .limit(50);
+        const [{ data: syns }, { data: gaData }] = await Promise.all([
+          supabase
+            .from("search_synonyms")
+            .select("*")
+            .eq("site_id", siteId!)
+            .order("confidence", { ascending: false })
+            .limit(50),
+          supabase
+            .from("page_analytics")
+            .select("*")
+            .eq("site_id", siteId!)
+            .order("pageviews", { ascending: false })
+            .limit(200),
+        ]);
         setSynonyms((syns as any[]) || []);
+        setGaPages((gaData as GAPageData[]) || []);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -283,6 +310,10 @@ export default function Analytics() {
           <TabsTrigger value="performance" className="gap-1.5">
             <FileSearch className="h-4 w-4" />
             Hakuanalyysi
+          </TabsTrigger>
+          <TabsTrigger value="ga" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            Google Analytics
           </TabsTrigger>
           <TabsTrigger value="learning" className="gap-1.5">
             <Brain className="h-4 w-4" />
@@ -433,6 +464,190 @@ export default function Analytics() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ─── GA Tab ─── */}
+        <TabsContent value="ga" className="space-y-4">
+          {gaPages.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <BarChart3 className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <h3 className="font-semibold mb-1">Ei GA-dataa</h3>
+                <p className="text-sm text-muted-foreground">
+                  Synkronoi Google Analytics -data Integraatiot-sivulla ensin.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* GA KPI Cards */}
+              {(() => {
+                const totalPV = gaPages.reduce((s, p) => s + p.pageviews, 0);
+                const totalKE = gaPages.reduce((s, p) => s + p.conversions, 0);
+                const totalSessions = gaPages.reduce((s, p) => s + p.sessions, 0);
+                const overallRate = totalPV > 0 ? (totalKE / totalPV * 100) : 0;
+                const fetched = gaPages[0]?.fetched_at;
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-semibold">Google Analytics — Key Events</h2>
+                      {fetched && (
+                        <span className="text-xs text-muted-foreground">
+                          Synkronoitu: {new Date(fetched).toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <Card>
+                        <CardContent className="p-5 flex items-center gap-4">
+                          <div className="rounded-lg bg-primary/10 p-2.5">
+                            <Eye className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Katselut</p>
+                            <span className="text-2xl font-bold">{totalPV.toLocaleString("fi-FI")}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-5 flex items-center gap-4">
+                          <div className="rounded-lg bg-primary/10 p-2.5">
+                            <Target className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Key Events</p>
+                            <span className="text-2xl font-bold">{totalKE.toLocaleString("fi-FI")}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-5 flex items-center gap-4">
+                          <div className="rounded-lg bg-primary/10 p-2.5">
+                            <TrendingUp className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Key Event Rate</p>
+                            <span className="text-2xl font-bold">{overallRate.toFixed(2)} %</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="p-5 flex items-center gap-4">
+                          <div className="rounded-lg bg-primary/10 p-2.5">
+                            <BarChart3 className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Sessiot</p>
+                            <span className="text-2xl font-bold">{totalSessions.toLocaleString("fi-FI")}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* Top Pages with Boost Effect */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    Top-sivut ja hakuboostaus (kävijämäärällä painotettu Key Event Rate)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {(() => {
+                    const totalPV = gaPages.reduce((s, p) => s + p.pageviews, 0) || 1;
+                    const maxPV = Math.max(...gaPages.map(p => p.pageviews), 1);
+                    const pagesWithBoost = gaPages
+                      .filter(p => p.pageviews > 0)
+                      .map(p => {
+                        const keyEventRate = p.conversions / p.pageviews;
+                        const pvWeight = p.pageviews / totalPV;
+                        const weightedRate = keyEventRate * pvWeight;
+                        return { ...p, keyEventRate, weightedRate };
+                      })
+                      .sort((a, b) => b.weightedRate - a.weightedRate);
+
+                    const maxWR = pagesWithBoost[0]?.weightedRate || 0.0001;
+
+                    return (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Sivu</TableHead>
+                            <TableHead className="w-24 text-right">Katselut</TableHead>
+                            <TableHead className="w-24 text-right">Key Events</TableHead>
+                            <TableHead className="w-28 text-right">KE Rate</TableHead>
+                            <TableHead className="w-28 text-right">Painotettu</TableHead>
+                            <TableHead className="w-24 text-right">Boost</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {pagesWithBoost.slice(0, 20).map((p, i) => {
+                            const normalizedWR = p.weightedRate / maxWR;
+                            const boostPoints = Math.round(normalizedWR * 25 + (p.pageviews / maxPV) * 8);
+                            return (
+                              <TableRow key={i}>
+                                <TableCell className="max-w-[300px] truncate font-medium">
+                                  {p.page_path}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {p.pageviews.toLocaleString("fi-FI")}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {p.conversions}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {(p.keyEventRate * 100).toFixed(2)} %
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                  {(p.weightedRate * 10000).toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={boostPoints >= 10 ? "default" : "secondary"}>
+                                    +{boostPoints}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* Key Events Bar Chart */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Top 10 — Key Events per sivu</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={gaPages.filter(p => p.conversions > 0).sort((a, b) => b.conversions - a.conversions).slice(0, 10).map(p => ({ path: p.page_path.length > 30 ? "..." + p.page_path.slice(-27) : p.page_path, keyEvents: p.conversions, pageviews: p.pageviews }))}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
+                        <XAxis dataKey="path" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={70} />
+                        <YAxis tick={{ fontSize: 11 }} width={40} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "hsl(var(--card))",
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "8px",
+                            fontSize: "12px",
+                          }}
+                          formatter={(value: number, name: string) => [value, name === "keyEvents" ? "Key Events" : "Katselut"]}
+                        />
+                        <Bar dataKey="keyEvents" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
 
         {/* ─── Learning Tab ─── */}
