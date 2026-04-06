@@ -37,6 +37,11 @@ interface ContactTriggerRules {
   trigger_categories: string[];
 }
 
+function truncateText(value: string | null | undefined, maxLength: number): string {
+  if (!value) return "";
+  return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -63,6 +68,22 @@ Deno.serve(async (req) => {
 
     // Search logs (last 30 days)
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: site } = await supabase
+      .from("sites")
+      .select("name, domain, ai_context")
+      .eq("id", site_id)
+      .single();
+
+    log.push(`Site loaded: ${site?.domain || "unknown"}`);
+
+    const { data: existingStrategy } = await supabase
+      .from("site_search_strategy")
+      .select("prompt_additions, conversion_insights, contact_trigger_rules, high_ctr_patterns, optimization_log, last_optimized_at")
+      .eq("site_id", site_id)
+      .maybeSingle();
+
+    log.push(`Existing strategy: ${existingStrategy ? "found" : "none"}`);
+
     const { data: searchLogs } = await supabase
       .from("search_logs")
       .select("query, results_count, clicked, created_at")
@@ -82,6 +103,36 @@ Deno.serve(async (req) => {
       .limit(500);
 
     log.push(`Click records: ${clickData?.length || 0}`);
+
+    const { data: clickEvents } = await supabase
+      .from("search_click_events" as any)
+      .select("query, page_url, click_position, session_id, created_at")
+      .eq("site_id", site_id)
+      .gte("created_at", thirtyDaysAgo)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+
+    log.push(`Click events (30d): ${clickEvents?.length || 0}`);
+
+    const { data: approvedSynonyms } = await supabase
+      .from("search_synonyms")
+      .select("query_from, query_to, confidence, source")
+      .eq("site_id", site_id)
+      .eq("status", "approved")
+      .order("confidence", { ascending: false })
+      .limit(100);
+
+    log.push(`Approved synonyms: ${approvedSynonyms?.length || 0}`);
+
+    const { data: affinityData } = await supabase
+      .from("query_page_affinities" as any)
+      .select("query, page_url, click_count, confidence, source, last_observed_at")
+      .eq("site_id", site_id)
+      .order("confidence", { ascending: false })
+      .order("click_count", { ascending: false })
+      .limit(100);
+
+    log.push(`Query affinities: ${affinityData?.length || 0}`);
 
     // GA analytics
     const { data: gaData } = await supabase
@@ -140,10 +191,11 @@ Deno.serve(async (req) => {
 
     // High-CTR patterns (query → URL pairs that convert well)
     const highCtrPatterns: HighCtrPattern[] = [];
-    if (clickData) {
+    const patternSource = affinityData?.length ? affinityData : clickData;
+    if (patternSource) {
       // Group by query, find best URL
       const queryClicks: Record<string, { url: string; clicks: number }[]> = {};
-      for (const c of clickData) {
+      for (const c of patternSource) {
         if (!queryClicks[c.query]) queryClicks[c.query] = [];
         queryClicks[c.query].push({ url: c.page_url, clicks: c.click_count });
       }
@@ -168,6 +220,20 @@ Deno.serve(async (req) => {
 
     log.push(`High-CTR patterns: ${highCtrPatterns.length}`);
 
+    const clickPositionBreakdown = Object.entries(
+      (clickEvents || []).reduce((acc: Record<number, number>, event: any) => {
+        const position = Number(event.click_position);
+        if (!Number.isFinite(position)) return acc;
+        acc[position] = (acc[position] || 0) + 1;
+        return acc;
+      }, {}),
+    )
+      .map(([position, clicks]) => ({ position: Number(position), clicks }))
+      .sort((a, b) => a.position - b.position)
+      .slice(0, 10);
+
+    log.push(`Click position buckets: ${clickPositionBreakdown.length}`);
+
     // Top converting pages from GA
     const topConverters = (gaData || [])
       .filter(g => g.conversions > 0)
@@ -185,18 +251,31 @@ Deno.serve(async (req) => {
     // 3. AI agent: generate strategy based on data
     // -----------------------------------------------------------------------
 
-    let promptAdditions = "";
-    let conversionInsights = "";
+    let promptAdditions = existingStrategy?.prompt_additions || "";
+    let conversionInsights = existingStrategy?.conversion_insights || "";
     let contactTriggerRules: ContactTriggerRules = {
-      show_on_zero_results: true,
-      show_on_low_ctr_queries: !!hasContactMethods,
-      low_ctr_threshold: 0.1,
-      trigger_categories: [],
+      show_on_zero_results: existingStrategy?.contact_trigger_rules?.show_on_zero_results ?? true,
+      show_on_low_ctr_queries: existingStrategy?.contact_trigger_rules?.show_on_low_ctr_queries ?? !!hasContactMethods,
+      low_ctr_threshold: existingStrategy?.contact_trigger_rules?.low_ctr_threshold ?? 0.1,
+      trigger_categories: existingStrategy?.contact_trigger_rules?.trigger_categories || [],
     };
 
     if (LOVABLE_API_KEY && (searchLogs?.length || 0) >= 10) {
       try {
         const dataContext = JSON.stringify({
+          site: {
+            name: site?.name || null,
+            domain: site?.domain || null,
+            ai_context: truncateText(site?.ai_context, 4000) || null,
+          },
+          current_strategy: existingStrategy ? {
+            last_optimized_at: existingStrategy.last_optimized_at || null,
+            prompt_additions: existingStrategy.prompt_additions || "",
+            conversion_insights: existingStrategy.conversion_insights || "",
+            contact_trigger_rules: existingStrategy.contact_trigger_rules || null,
+            previous_high_ctr_patterns: existingStrategy.high_ctr_patterns || [],
+            optimization_log_excerpt: truncateText(existingStrategy.optimization_log, 2000),
+          } : null,
           total_searches_30d: searchLogs?.length || 0,
           unique_queries: Object.keys(queryStats).length,
           avg_ctr: searchLogs?.length
@@ -206,6 +285,9 @@ Deno.serve(async (req) => {
           zero_result_queries: zeroResultQueries.slice(0, 10),
           high_ctr_patterns: highCtrPatterns.slice(0, 10),
           top_converting_pages: topConverters,
+          approved_synonyms: (approvedSynonyms || []).slice(0, 25),
+          top_query_affinities: (affinityData || []).slice(0, 25),
+          click_positions: clickPositionBreakdown,
           has_contact_methods: !!hasContactMethods,
         }, null, 2);
 
@@ -222,6 +304,8 @@ Deno.serve(async (req) => {
                 role: "system",
                 content: `You are a search optimization agent for a website's internal search engine.
 Analyze the search data and produce an optimization strategy as JSON.
+You are improving an existing strategy, not starting from scratch, unless the data strongly indicates the previous strategy is wrong.
+Respect the site's AI context and vocabulary when refining the strategy.
 
 Your output MUST be valid JSON with these fields:
 {
@@ -236,12 +320,15 @@ Your output MUST be valid JSON with these fields:
 }
 
 Guidelines:
+- Treat current_strategy as the baseline. Refine it incrementally when possible.
+- Use site.ai_context, approved synonyms, and top_query_affinities to stay aligned with the site's real offerings and terminology.
 - If low-CTR queries suggest users can't find what they need → recommend showing contact buttons
 - If zero-result queries cluster around topics → add prompt instructions to handle those topics
 - If high-CTR patterns exist → add prompt instructions to prioritize those URL patterns
 - If top converting pages exist → add prompt instructions to favor those pages for relevant queries
 - contact_trigger_rules.trigger_categories should contain query keywords/topics where showing contact buttons would help conversion (e.g. pricing, quotes, installation, support)
 - Be conservative: only trigger contact CTAs when genuinely helpful, not on every search
+- Do not invent offerings or jargon that do not appear in site context, approved synonyms, affinities, or analytics.
 
 Return ONLY valid JSON, no markdown.`
               },
