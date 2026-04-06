@@ -1034,8 +1034,8 @@
     // Trending
     // -----------------------------------------------------------------------
     function renderTrending() {
-      const hasProducts = popularProducts && popularProducts.length > 0;
       const hasTrending = trendingData && trendingData.length > 0;
+      const hasProducts = popularProducts && popularProducts.length > 0;
       const isGaTrending = hasTrending && trendingData[0]?.source === "ga";
 
       if (!hasProducts && !hasTrending) {
@@ -1045,23 +1045,26 @@
 
       let html = '<div class="findai-trending"><div class="findai-trending-title">Suosittua juuri nyt</div>';
 
+      if (hasTrending) {
+        html += '<div class="findai-trending-list">';
+        trendingData.forEach(t => {
+          const growthBadge = (isGaTrending && t.growth && t.growth > 0)
+            ? `<span class="findai-trending-growth">↑${t.growth}%</span>`
+            : "";
+          const label = escHtml(t.query.length > 40 ? t.query.slice(0, 38) + "…" : t.query);
+          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${label}${growthBadge}</button>`;
+        });
+        html += '</div>';
+      }
+
       if (hasProducts) {
+        html += `<div class="findai-suggestions-label" style="margin-top:${hasTrending ? "12px" : "0"}">Suosittuja tuotteita</div>`;
         html += '<div style="display:flex;flex-direction:column;gap:2px">';
         popularProducts.forEach(p => {
           const imgHtml = p.image
             ? `<img src="${escHtml(p.image)}" alt="" onerror="this.style.display='none'">`
             : `<div class="findai-trending-product-placeholder"></div>`;
           html += `<button class="findai-trending-product" data-query="${escHtml(p.title)}">${imgHtml}<span>${escHtml(p.title)}</span></button>`;
-        });
-        html += '</div>';
-      } else if (hasTrending) {
-        html += '<div class="findai-trending-list">';
-        trendingData.forEach(t => {
-          const growthBadge = (t.growth && t.growth > 0)
-            ? `<span class="findai-trending-growth">↑${t.growth}%</span>`
-            : "";
-          const label = escHtml(t.query.length > 40 ? t.query.slice(0, 38) + "…" : t.query);
-          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${label}${growthBadge}</button>`;
         });
         html += '</div>';
       }
