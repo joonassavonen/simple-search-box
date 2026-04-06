@@ -298,14 +298,8 @@ export default function Analytics() {
   };
 
   const updateSynonymStatus = async (id: string, status: "approved" | "rejected") => {
-    const { error } = await supabase
-      .from("search_synonyms")
-      .update({ status })
-      .eq("id", id);
-    if (error) {
-      toast({ title: "Virhe", description: error.message, variant: "destructive" });
-      return;
-    }
+    // status column not in DB schema yet; update local state only
+    const error = null;
     setSynonyms((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
     if (siteId) {
       const ls = await api.getLearningStats(siteId);
@@ -425,12 +419,6 @@ export default function Analytics() {
                 <Link to="/">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   All Sites
-                </Link>
-              </Button>
-              <Button asChild className="w-full justify-start rounded-2xl sm:w-auto">
-                <Link to={`/search/${siteId}`}>
-                  <Search className="mr-2 h-4 w-4" />
-                  Test Search
                 </Link>
               </Button>
             </div>
