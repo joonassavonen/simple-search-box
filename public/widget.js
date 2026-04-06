@@ -120,6 +120,22 @@
     return currency === "EUR" || !currency ? `alk. ${formatted} €` : `alk. ${formatted} ${currency}`;
   }
 
+  function formatAvailability(availability) {
+    if (!availability) return null;
+    const value = String(availability).split("/").pop() || String(availability);
+    const key = value.toLowerCase();
+    if (key === "instock" || key === "limitedavailability" || key === "onlineonly") {
+      return { label: "Varastossa", className: "findai-badge-instock" };
+    }
+    if (key === "outofstock" || key === "soldout" || key === "discontinued") {
+      return { label: "Loppu", className: "findai-badge-outofstock" };
+    }
+    if (key === "preorder" || key === "presale") {
+      return { label: "Ennakkotilaus", className: "findai-badge-instock" };
+    }
+    return null;
+  }
+
   function escHtml(str) {
     if (!str) return "";
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
@@ -1076,6 +1092,13 @@
 
       if (snippet) {
         html += `<div class="findai-result-snippet">${escHtml(snippet)}</div>`;
+      }
+
+      if (isProduct) {
+        const availability = formatAvailability(s.availability);
+        if (availability) {
+          html += `<div class="findai-result-badge ${availability.className}">${escHtml(availability.label)}</div>`;
+        }
       }
 
       if (s && s.type === "Article" && s.datePublished) {
