@@ -1094,6 +1094,17 @@
           <div class="findai-no-results-hint">Kokeile eri hakusanoja</div>
       `;
 
+      if (data.ai_summary) {
+        html += `
+          <div class="findai-ai-summary" data-url="#" data-idx="0">
+            <div class="findai-ai-summary-text">
+              <h3>${escHtml(lang === "fi" ? "Vastaus" : "Answer")}</h3>
+              <p>${escHtml(data.ai_summary)}</p>
+            </div>
+          </div>
+        `;
+      }
+
       if (data.suggestions && data.suggestions.length > 0) {
         html += '<div class="findai-suggestions-wrap"><div class="findai-suggestions-label">Tarkoititko:</div>';
         data.suggestions.forEach(s => {
