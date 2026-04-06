@@ -331,9 +331,9 @@ export const api = {
 
     const { data: clickEvents } = await supabase
       .from("search_clicks")
-      .select("query, page_url, created_at")
+      .select("query, page_url, click_count, last_clicked_at")
       .eq("site_id", siteId)
-      .gte("created_at", periodAgo.toISOString());
+      .gte("last_clicked_at", periodAgo.toISOString());
 
     const logs = allLogs || [];
     const events = clickEvents || [];
