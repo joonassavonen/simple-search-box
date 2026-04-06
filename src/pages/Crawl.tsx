@@ -175,6 +175,7 @@ export default function Crawl() {
             </div>
           </div>
 
+          {crawling && job && (
             <div className="space-y-2">
               <Progress value={crawlProgress || 5} className="h-2" />
               <p className="text-xs text-muted-foreground">
