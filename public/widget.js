@@ -705,26 +705,89 @@
     // Prefetch trending, popular products & contact config
     // -----------------------------------------------------------------------
     if (USE_SUPABASE) {
-      // Trending via PostgREST
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      supabaseRest("search_logs", {
-        "select": "query",
-        "site_id": `eq.${SITE_ID}`,
-        "created_at": `gte.${sevenDaysAgo}`,
-        "results_count": "gt.0",
-      }).then(data => {
-        if (!data || !Array.isArray(data)) return;
-        const counts = {};
-        for (const row of data) {
-          const q = (row.query || "").trim().toLowerCase();
-          if (q.length >= 2) counts[q] = (counts[q] || 0) + 1;
+      // Trending via GA4 growth data: compare current vs previous 30-day period
+      (async () => {
+        try {
+          const allAnalytics = await supabaseRest("page_analytics", {
+            "select": "page_path,pageviews,period_start,period_end",
+            "site_id": `eq.${SITE_ID}`,
+            "limit": "2000",
+          });
+          if (!allAnalytics || !Array.isArray(allAnalytics) || allAnalytics.length === 0) throw "no data";
+
+          // Split into current and previous period by period_start
+          const periods = [...new Set(allAnalytics.map(r => r.period_start))].sort();
+          if (periods.length < 2) throw "need two periods";
+
+          const prevPeriod = periods[0];
+          const currPeriod = periods[periods.length - 1];
+
+          const prevMap = {};
+          const currMap = {};
+          for (const r of allAnalytics) {
+            if (r.page_path === "/" || r.page_path === "") continue;
+            if (r.period_start === prevPeriod) prevMap[r.page_path] = (prevMap[r.page_path] || 0) + r.pageviews;
+            else if (r.period_start === currPeriod) currMap[r.page_path] = (currMap[r.page_path] || 0) + r.pageviews;
+          }
+
+          // Calculate growth score: growth_pct * log(current_views + 1) for volume weighting
+          const growth = [];
+          for (const [path, curr] of Object.entries(currMap)) {
+            const prev = prevMap[path] || 0;
+            if (curr < 3) continue; // minimum traffic threshold
+            const growthPct = prev > 0 ? (curr - prev) / prev : (curr > 5 ? 1 : 0);
+            if (growthPct <= 0) continue;
+            const score = growthPct * Math.log(curr + 1);
+            growth.push({ page_path: path, score, curr, growthPct });
+          }
+
+          growth.sort((a, b) => b.score - a.score);
+          const topPaths = growth.slice(0, 6).map(g => g.page_path);
+
+          if (topPaths.length === 0) throw "no growth pages";
+
+          // Fetch page titles for the trending paths
+          const pages = await supabaseRest("pages", {
+            "select": "title,url",
+            "site_id": `eq.${SITE_ID}`,
+            "limit": "1000",
+          });
+          const pathToPage = {};
+          if (pages && Array.isArray(pages)) {
+            for (const p of pages) {
+              try { const u = new URL(p.url); pathToPage[u.pathname] = p; } catch {}
+            }
+          }
+
+          trendingData = topPaths
+            .map(path => {
+              const page = pathToPage[path] || pathToPage[path.replace(/\/$/, "")] || pathToPage[path + "/"];
+              return page ? { query: page.title, url: page.url } : null;
+            })
+            .filter(Boolean);
+        } catch {
+          // Fallback to search-log based trending
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          supabaseRest("search_logs", {
+            "select": "query",
+            "site_id": `eq.${SITE_ID}`,
+            "created_at": `gte.${sevenDaysAgo}`,
+            "results_count": "gt.0",
+          }).then(data => {
+            if (!data || !Array.isArray(data)) return;
+            const counts = {};
+            for (const row of data) {
+              const q = (row.query || "").trim().toLowerCase();
+              if (q.length >= 2) counts[q] = (counts[q] || 0) + 1;
+            }
+            trendingData = Object.entries(counts)
+              .filter(([, c]) => c >= 2)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 6)
+              .map(([query, count]) => ({ query, count }));
+          }).catch(() => {});
         }
-        trendingData = Object.entries(counts)
-          .filter(([, c]) => c >= 2)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 6)
-          .map(([query, count]) => ({ query, count }));
-      }).catch(() => {});
+      })();
 
       // Popular products via PostgREST
       supabaseRest("pages", {
