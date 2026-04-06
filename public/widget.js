@@ -1086,7 +1086,7 @@
         const firstUrl = data.results[0]?.url || "#";
         const firstUrlUtm = addUtm(firstUrl);
         html += `
-          <a href="${escHtml(firstUrlUtm)}" target="_blank" rel="noopener" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
+          <a href="${escHtml(firstUrlUtm)}" target="_self" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
             <div class="findai-ai-summary-text">
               <h3>${escHtml(data.ai_summary.split(".")[0])}</h3>
               <p>${escHtml(data.ai_summary)}</p>
@@ -1103,7 +1103,7 @@
         const isProduct = s && s.type === "Product";
         const urlUtm = addUtm(r.url);
 
-        html += `<a href="${escHtml(urlUtm)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
+        html += `<a href="${escHtml(urlUtm)}" target="_self" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
 
         if (isProduct && s.image) {
           html += `<img class="findai-result-img" src="${escHtml(s.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
