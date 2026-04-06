@@ -819,7 +819,7 @@ export default function Analytics() {
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
+              <div className="mt-6 space-y-4">
                 <div className="self-start rounded-[22px] border border-border bg-muted/35 p-4 sm:p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Seuraava suositus</p>
                   <h3 className="mt-2 text-lg font-semibold tracking-tight text-foreground">{nextStep.title}</h3>
