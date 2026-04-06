@@ -807,13 +807,13 @@ export default function Analytics() {
             </Button>
           </div>
 
-          {/* Failed searches + AI analysis */}
+          {/* AI analysis of failed searches */}
           <Card className={panelClass}>
               <CardHeader className="border-b border-border pb-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
-                    <SearchX className="h-4 w-4 text-primary" />
-                    Haut ilman tuloksia
+                    <Brain className="h-4 w-4 text-primary" />
+                    Epäonnistuneiden hakujen AI-analyysi
                   </CardTitle>
                   {stats && stats.failed_searches.length > 0 && (
                     <Button
@@ -830,29 +830,32 @@ export default function Analytics() {
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <PaginatedQueryList
-                  items={stats?.failed_searches || []}
-                  emptyMessage="Ei epäonnistuneita hakuja."
-                  renderExtra={(query) => {
-                    const matches = pageSuggestions[query];
-                    if (!matches?.length) return null;
-                    return (
-                      <div className="mt-1 ml-2 space-y-1">
-                        {matches.map((s, i) => (
-                          <div key={i} className="flex items-start gap-1.5 text-[11px]">
-                            <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                            <div>
-                              <a href={s.url} target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
-                                {s.title}
-                              </a>
-                              <span className="text-muted-foreground ml-1">— {s.reason}</span>
+                {Object.keys(pageSuggestions).length === 0 ? (
+                  <p className="text-sm italic text-muted-foreground">
+                    Klikkaa "Analysoi AI:lla" löytääksesi sivuehdotuksia epäonnistuneille hauille. AI luo samalla synonyymiehdotuksia.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(pageSuggestions).map(([query, matches]) => (
+                      <div key={query}>
+                        <p className="text-xs font-semibold text-foreground">{query}</p>
+                        <div className="mt-1 ml-2 space-y-1">
+                          {matches.map((s, i) => (
+                            <div key={i} className="flex items-start gap-1.5 text-[11px]">
+                              <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                              <div>
+                                <a href={s.url} target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
+                                  {s.title}
+                                </a>
+                                <span className="text-muted-foreground ml-1">— {s.reason}</span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    );
-                  }}
-                />
+                    ))}
+                  </div>
+                )}
               </CardContent>
           </Card>
 
