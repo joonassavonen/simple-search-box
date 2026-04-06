@@ -136,17 +136,64 @@ Respond using the suggest_pages tool.`,
     const aiData = await aiRes.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     let suggestions: Record<string, any[]> = {};
+    let synonymsCreated = 0;
 
     if (toolCall?.function?.arguments) {
       const parsed = JSON.parse(toolCall.function.arguments);
       for (const m of parsed.matches || []) {
         if (m.suggestions?.length) {
           suggestions[m.query] = m.suggestions;
+
+          // Save each suggestion as a synonym: query → page title (for search expansion)
+          for (const s of m.suggestions) {
+            // Extract key words from page title for synonym mapping
+            const titleWords = (s.title || "")
+              .toLowerCase()
+              .replace(/[^a-zäöåü0-9\s-]/g, "")
+              .split(/\s+/)
+              .filter((w: string) => w.length >= 3)
+              .slice(0, 5)
+              .join(" ");
+
+            if (!titleWords) continue;
+
+            const queryNorm = m.query.trim().toLowerCase();
+
+            // Check if synonym already exists
+            const { data: existing } = await sb
+              .from("search_synonyms")
+              .select("id, confidence, times_used")
+              .eq("site_id", site_id)
+              .eq("query_from", queryNorm)
+              .eq("query_to", titleWords)
+              .single();
+
+            if (existing) {
+              await sb
+                .from("search_synonyms")
+                .update({
+                  confidence: Math.min(existing.confidence * 0.7 + 0.6 * 0.3, 1.0),
+                  times_used: existing.times_used + 1,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", existing.id);
+            } else {
+              await sb
+                .from("search_synonyms")
+                .insert({
+                  site_id,
+                  query_from: queryNorm,
+                  query_to: titleWords,
+                  confidence: 0.6,
+                });
+              synonymsCreated++;
+            }
+          }
         }
       }
     }
 
-    return new Response(JSON.stringify({ suggestions }), {
+    return new Response(JSON.stringify({ suggestions, synonyms_created: synonymsCreated }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
