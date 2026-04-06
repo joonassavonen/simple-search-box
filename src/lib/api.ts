@@ -476,7 +476,7 @@ export const api = {
   // --- Contact Config (Supabase DB) ---
 
   async getContactConfig(siteId: string): Promise<ContactConfig> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("site_contact_configs")
       .select("*")
       .eq("site_id", siteId)
