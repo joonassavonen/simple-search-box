@@ -819,13 +819,13 @@ export default function Analytics() {
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-                <div className="rounded-[22px] border border-border bg-muted/35 p-4 sm:p-5">
+              <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
+                <div className="self-start rounded-[22px] border border-border bg-muted/35 p-4 sm:p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Seuraava suositus</p>
                   <h3 className="mt-2 text-lg font-semibold tracking-tight text-foreground">{nextStep.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{nextStep.body}</p>
                 </div>
-                <div className="rounded-[22px] border border-border bg-background p-4 sm:p-5">
+                <div className="self-start rounded-[22px] border border-border bg-background p-4 sm:p-5">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Aktiivinen strategia</p>
                   {!strategy ? (
                     <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -872,8 +872,8 @@ export default function Analytics() {
             />
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-            <Card className={panelClass}>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] xl:items-start">
+            <Card className={`${panelClass} self-start`}>
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <Brain className="h-4 w-4 text-primary" />
@@ -907,7 +907,7 @@ export default function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className={panelClass}>
+            <Card className={`${panelClass} self-start`}>
               <CardHeader className="border-b border-border pb-4">
                 <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
                   <Zap className="h-4 w-4 text-primary" />
