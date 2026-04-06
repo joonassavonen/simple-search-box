@@ -234,11 +234,23 @@ Deno.serve(async (req) => {
     });
 
     // Get top candidates from keyword search — require minimum score
-    const minScore = words.length > 1 ? 8 : 5;
+    // Higher thresholds reduce noise: title match = 10pts, meta = 5pts, content = 1pt each
+    const minScore = words.length > 1 ? 12 : 8;
     const keywordResults = scored
       .filter((r) => r.score >= minScore)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 15);
+      .slice(0, 10);
+
+    // Further filtering: if top result is much stronger, drop weak tail
+    if (keywordResults.length > 1) {
+      const topScore = keywordResults[0].score;
+      const threshold = topScore * 0.15; // results must be at least 15% of top score
+      const filtered = keywordResults.filter(r => r.score >= threshold);
+      if (filtered.length > 0) {
+        keywordResults.length = 0;
+        keywordResults.push(...filtered);
+      }
+    }
 
     // --- AI Re-ranking & Summary ---
     let aiSummary: string | undefined;
@@ -295,7 +307,8 @@ Säännöt:
 - Jos sivuilta ei löydy oikeaa vastausta → summary: null
 
 Palauta JSON:
-{"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5], "reasoning": ["perustelu per sivu"]}
+{"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5, VAIN relevantit], "reasoning": ["perustelu per sivu"]}
+Jos sivu ei selkeästi liity hakuun → ÄLÄ sisällytä ranking-listaan. Mieluummin 1-2 hyvää tulosta kuin 5 heikkoa.
 Palauta VAIN validi JSON.`
               },
               {
@@ -395,7 +408,7 @@ Palauta VAIN validi JSON.`
     // Format final results
     const maxScore = finalResults.reduce((max, s) => Math.max(max, s.score), 1);
     const results = finalResults
-      .slice(0, 8)
+      .slice(0, 5)
       .map((r) => ({
         url: r.url,
         title: r.title,
