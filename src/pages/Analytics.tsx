@@ -148,6 +148,8 @@ export default function Analytics() {
   const [editingSynonym, setEditingSynonym] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ query_from: "", query_to: "" });
   const [learningRunning, setLearningRunning] = useState(false);
+  const [gaPages, setGaPages] = useState<GAPageData[]>([]);
+  const [gaLoading, setGaLoading] = useState(false);
 
   useEffect(() => {
     if (!siteId) {
@@ -166,13 +168,22 @@ export default function Analytics() {
         setSite(s);
         setStats(st);
         setLearningStats(ls);
-        const { data: syns } = await supabase
-          .from("search_synonyms")
-          .select("*")
-          .eq("site_id", siteId!)
-          .order("confidence", { ascending: false })
-          .limit(50);
+        const [{ data: syns }, { data: gaData }] = await Promise.all([
+          supabase
+            .from("search_synonyms")
+            .select("*")
+            .eq("site_id", siteId!)
+            .order("confidence", { ascending: false })
+            .limit(50),
+          supabase
+            .from("page_analytics")
+            .select("*")
+            .eq("site_id", siteId!)
+            .order("pageviews", { ascending: false })
+            .limit(200),
+        ]);
         setSynonyms((syns as any[]) || []);
+        setGaPages((gaData as GAPageData[]) || []);
       } catch (e: any) {
         setError(e.message);
       } finally {
