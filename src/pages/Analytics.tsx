@@ -150,6 +150,7 @@ export default function Analytics() {
   const [learningRunning, setLearningRunning] = useState(false);
   const [gaPages, setGaPages] = useState<GAPageData[]>([]);
   const [gaLoading, setGaLoading] = useState(false);
+  const [synonymPage, setSynonymPage] = useState(0);
 
   useEffect(() => {
     if (!siteId) {
@@ -772,6 +773,7 @@ export default function Analytics() {
                   Ei opittuja synonyymejä vielä. Käynnistä oppiminen kun hakudataa on kertynyt.
                 </p>
               ) : (
+                <>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -783,7 +785,7 @@ export default function Analytics() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {synonyms.map((s) => (
+                    {synonyms.slice(synonymPage * QUERIES_PER_PAGE, (synonymPage + 1) * QUERIES_PER_PAGE).map((s) => (
                       <TableRow key={s.id}>
                         {editingSynonym === s.id ? (
                           <>
@@ -844,6 +846,25 @@ export default function Analytics() {
                     ))}
                   </TableBody>
                 </Table>
+                {(() => {
+                  const totalSynPages = Math.ceil(synonyms.length / QUERIES_PER_PAGE);
+                  return totalSynPages > 1 ? (
+                    <div className="flex items-center justify-between pt-3">
+                      <span className="text-xs text-muted-foreground">
+                        {synonymPage * QUERIES_PER_PAGE + 1}–{Math.min((synonymPage + 1) * QUERIES_PER_PAGE, synonyms.length)} / {synonyms.length}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={synonymPage === 0} onClick={() => setSynonymPage(synonymPage - 1)}>
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" disabled={synonymPage >= totalSynPages - 1} onClick={() => setSynonymPage(synonymPage + 1)}>
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+                </>
               )}
             </CardContent>
           </Card>
