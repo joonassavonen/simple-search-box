@@ -260,8 +260,10 @@ Deno.serve(async (req) => {
     }
 
     // --- AI Re-ranking & Summary ---
+    // AI summary only as fallback when results are weak (0-2 results or low scores)
     let aiSummary: string | undefined;
     let finalResults = keywordResults;
+    const useAiFallback = keywordResults.length <= 2 || (keywordResults.length > 0 && keywordResults[0].score < 20);
 
     if (LOVABLE_API_KEY && keywordResults.length > 0) {
       try {
