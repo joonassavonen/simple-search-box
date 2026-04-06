@@ -1595,6 +1595,12 @@
 
       dropdown.querySelectorAll(".findai-result, .findai-ai-summary, .findai-intervention-action").forEach(el => {
         el.addEventListener("click", (e) => {
+          const href = el.getAttribute("href");
+          if (href) {
+            e.preventDefault();
+            trackClick(el.dataset.url, parseInt(el.dataset.idx || "0", 10), el.dataset.clickId || "", href);
+            return;
+          }
           trackClick(el.dataset.url, parseInt(el.dataset.idx || "0", 10), el.dataset.clickId || "");
         });
       });
@@ -1627,12 +1633,27 @@
         .catch(() => renderError());
     }
 
-    function trackClick(url, position, clickId) {
-      if (!currentSearchLogId) return;
+    function trackClick(url, position, clickId, navigateHref) {
+      const finishNavigation = () => {
+        if (navigateHref) window.location.href = navigateHref;
+      };
+
+      if (!currentSearchLogId) {
+        finishNavigation();
+        return;
+      }
+
+      let completed = false;
+      const settle = () => {
+        if (completed) return;
+        completed = true;
+        finishNavigation();
+      };
 
       if (USE_SUPABASE) {
         fetch(`${SUPABASE_URL}/functions/v1/search`, {
           method: "POST",
+          keepalive: true,
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${SUPABASE_KEY}`,
@@ -1648,10 +1669,11 @@
             session_id: SESSION_ID,
             click_position: position || 0,
           }),
-        }).catch(() => {});
+        }).then(settle).catch(settle);
       } else {
         fetch(`${API_URL}/api/search/click`, {
           method: "POST",
+          keepalive: true,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             search_log_id: currentSearchLogId,
@@ -1659,7 +1681,11 @@
             click_position: position || 0,
             session_id: SESSION_ID,
           }),
-        }).catch(() => {});
+        }).then(settle).catch(settle);
+      }
+
+      if (navigateHref) {
+        setTimeout(settle, 160);
       }
     }
 

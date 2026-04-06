@@ -328,9 +328,17 @@ export const api = {
       .eq("site_id", siteId)
       .gte("created_at", periodAgo.toISOString());
 
+    const { data: clickEvents } = await supabase
+      .from("search_click_events")
+      .select("search_log_id, query, created_at")
+      .eq("site_id", siteId)
+      .gte("created_at", periodAgo.toISOString());
+
     const logs = allLogs || [];
+    const events = clickEvents || [];
     const recentLogs = logs.filter((l) => new Date(l.created_at) >= sevenDaysAgo);
-    const clickedCount = logs.filter((l) => l.clicked).length;
+    const clickedLogIds = new Set(events.map((e) => e.search_log_id).filter(Boolean));
+    const clickedCount = logs.filter((l) => l.clicked || clickedLogIds.has(l.id)).length;
 
     const queryCounts: Record<string, number> = {};
     const failedCounts: Record<string, number> = {};
@@ -345,6 +353,10 @@ export const api = {
       if (l.clicked) {
         clickedQueries.add(l.query);
       }
+    }
+
+    for (const e of events) {
+      if (e.query) clickedQueries.add(e.query);
     }
 
     for (const l of logs) {
@@ -383,7 +395,7 @@ export const api = {
       const key = l.created_at.slice(0, 10);
       if (dailyMap[key]) {
         dailyMap[key].searches++;
-        if (l.clicked) dailyMap[key].clicks++;
+        if (l.clicked || clickedLogIds.has(l.id)) dailyMap[key].clicks++;
         if (l.results_count === 0) dailyMap[key].no_results++;
       }
     }
