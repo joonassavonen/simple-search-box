@@ -164,53 +164,6 @@ export type Database = {
           },
         ]
       }
-      query_page_affinities: {
-        Row: {
-          click_count: number
-          confidence: number
-          created_at: string
-          id: string
-          last_observed_at: string
-          page_url: string
-          query: string
-          site_id: string
-          source: string
-          updated_at: string
-        }
-        Insert: {
-          click_count?: number
-          confidence?: number
-          created_at?: string
-          id?: string
-          last_observed_at?: string
-          page_url: string
-          query: string
-          site_id: string
-          source?: string
-          updated_at?: string
-        }
-        Update: {
-          click_count?: number
-          confidence?: number
-          created_at?: string
-          id?: string
-          last_observed_at?: string
-          page_url?: string
-          query?: string
-          site_id?: string
-          source?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "query_page_affinities_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       search_clicks: {
         Row: {
           click_count: number
@@ -290,8 +243,6 @@ export type Database = {
           query_from: string
           query_to: string
           site_id: string
-          source: string
-          status: string
           times_used: number
           updated_at: string
         }
@@ -302,8 +253,6 @@ export type Database = {
           query_from: string
           query_to: string
           site_id: string
-          source?: string
-          status?: string
           times_used?: number
           updated_at?: string
         }
@@ -314,8 +263,6 @@ export type Database = {
           query_from?: string
           query_to?: string
           site_id?: string
-          source?: string
-          status?: string
           times_used?: number
           updated_at?: string
         }
