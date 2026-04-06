@@ -10,37 +10,47 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function Crawl() {
+  const PAGE_SIZE = 10;
   const { siteId } = useParams();
   const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
   const [crawling, setCrawling] = useState(false);
   const [job, setJob] = useState<CrawlJob | null>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
 
   const loadData = useCallback(async () => {
     if (!siteId) return;
     try {
-      const [s, { data: jobs }] = await Promise.all([
+      const from = (historyPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const [s, { data: jobs, count }] = await Promise.all([
         api.getSite(siteId),
         supabase
           .from("crawl_jobs")
-          .select("*")
+          .select("*", { count: "exact" })
           .eq("site_id", siteId)
           .order("created_at", { ascending: false })
-          .limit(10),
+          .range(from, to),
       ]);
       setSite(s);
       setHistory(jobs || []);
+      setHistoryTotal(count || 0);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
-  }, [siteId]);
+  }, [siteId, historyPage]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [siteId]);
 
   async function triggerCrawl() {
     if (!siteId) return;
@@ -127,6 +137,7 @@ export default function Crawl() {
 
   // Find the latest partial job for resume
   const latestPartialJob = history.find((h) => h.status === "partial");
+  const totalHistoryPages = Math.max(1, Math.ceil(historyTotal / PAGE_SIZE));
 
   const getHistorySummary = (entry: { status: string; pages_indexed: number; pages_found: number }) => {
     if (entry.status === "pending") return "Queued";
@@ -290,44 +301,72 @@ export default function Crawl() {
           {history.length === 0 ? (
             <p className="text-sm text-muted-foreground">No crawls yet.</p>
           ) : (
-            <div className="space-y-3">
-              {history.map((h) => (
-                <div key={h.id} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
-                  <div className="flex items-center gap-3">
-                    {h.status === "done" ? (
-                      <CheckCircle className="h-4 w-4 text-primary" />
-                    ) : h.status === "error" ? (
-                      <XCircle className="h-4 w-4 text-destructive" />
-                    ) : h.status === "partial" ? (
-                      <PlayCircle className="h-4 w-4 text-orange-500" />
-                    ) : h.status === "paused" ? (
-                      <Pause className="h-4 w-4 text-amber-500" />
-                    ) : h.status === "cancelled" ? (
-                      <Square className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">
-                        {getHistorySummary(h)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(h.created_at).toLocaleString("fi-FI")}
-                      </p>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                {history.map((h) => (
+                  <div key={h.id} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
+                    <div className="flex items-center gap-3">
+                      {h.status === "done" ? (
+                        <CheckCircle className="h-4 w-4 text-primary" />
+                      ) : h.status === "error" ? (
+                        <XCircle className="h-4 w-4 text-destructive" />
+                      ) : h.status === "partial" ? (
+                        <PlayCircle className="h-4 w-4 text-orange-500" />
+                      ) : h.status === "paused" ? (
+                        <Pause className="h-4 w-4 text-amber-500" />
+                      ) : h.status === "cancelled" ? (
+                        <Square className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">
+                          {getHistorySummary(h)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(h.created_at).toLocaleString("fi-FI")}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {(h.status === "partial" || h.status === "paused") && !crawling && (
+                        <Button variant="outline" size="sm" onClick={() => resumeCrawl(h.id)}>
+                          Jatka
+                        </Button>
+                      )}
+                      <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : h.status === "partial" || h.status === "paused" ? "outline" : "secondary"}>
+                        {h.status === "partial" ? "keskeytynyt" : h.status === "paused" ? "paused" : h.status === "cancelled" ? "stopped" : h.status}
+                      </Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {(h.status === "partial" || h.status === "paused") && !crawling && (
-                      <Button variant="outline" size="sm" onClick={() => resumeCrawl(h.id)}>
-                        Jatka
-                      </Button>
-                    )}
-                    <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : h.status === "partial" || h.status === "paused" ? "outline" : "secondary"}>
-                      {h.status === "partial" ? "keskeytynyt" : h.status === "paused" ? "paused" : h.status === "cancelled" ? "stopped" : h.status}
-                    </Badge>
+                ))}
+              </div>
+
+              {historyTotal > PAGE_SIZE && (
+                <div className="flex items-center justify-between border-t pt-3">
+                  <p className="text-xs text-muted-foreground">
+                    Page {historyPage} / {totalHistoryPages} · {historyTotal} jobs
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={historyPage === 1}
+                      onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={historyPage >= totalHistoryPages}
+                      onClick={() => setHistoryPage((page) => Math.min(totalHistoryPages, page + 1))}
+                    >
+                      Next
+                    </Button>
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </CardContent>
