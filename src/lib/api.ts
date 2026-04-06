@@ -664,22 +664,15 @@ export const api = {
       .eq("site_id", siteId)
       .maybeSingle();
 
-    const approvedSynonyms = (synonyms || []).filter((s: any) => s.status === "approved");
-    const proposedSynonyms = (synonyms || []).filter((s: any) => s.status === "proposed");
-    const totalClicks = (affinities || []).reduce((sum: number, c: any) => sum + (c.click_count || 0), 0);
+    const allSynonyms = synonyms || [];
 
     return {
       site_id: siteId,
-      approved_synonym_count: approvedSynonyms.length,
-      proposed_synonym_count: proposedSynonyms.length,
-      affinity_count: affinities?.length || 0,
-      total_affinity_clicks: totalClicks,
-      top_affinities: (affinities || []).slice(0, 10).map((c: any) => ({
-        url: c.page_url,
-        query: c.query,
-        clicks: c.click_count,
-        confidence: c.confidence,
-      })),
+      approved_synonym_count: allSynonyms.length,
+      proposed_synonym_count: 0,
+      affinity_count: 0,
+      total_affinity_clicks: 0,
+      top_affinities: [],
       failed_query_suggestions: strategy?.failed_query_suggestions || {},
       strategy: strategy ? {
         prompt_additions: strategy.prompt_additions || "",
