@@ -427,12 +427,6 @@ export default function Analytics() {
                   All Sites
                 </Link>
               </Button>
-              <Button asChild className="justify-start rounded-2xl">
-                <Link to={`/search/${siteId}`}>
-                  <Search className="mr-2 h-4 w-4" />
-                  Test Search
-                </Link>
-              </Button>
             </div>
           </div>
           <div className="grid gap-3 border-t border-border pt-5 sm:grid-cols-3">
