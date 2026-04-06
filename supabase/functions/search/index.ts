@@ -293,6 +293,9 @@ Deno.serve(async (req) => {
     let finalResults = keywordResults;
 
     const isQuestion = /\?|mikä|mitä|miksi|miten|kumpi|vertailu|ero |eroa |paras|suosit|kannat|asennat|teette/i.test(query);
+    const isConstrainedRecommendationQuery =
+      /paras|sopi|sopii|suosit|kannat|mikä on|which|best|recommend|suitable/i.test(query) &&
+      /kerrostalo|rivitalo|parveke|taloyhtiö|viilenn|jäähdy|cool|apartment|flat|m2|neli|size|square|asuin/i.test(query);
     const hasStrongResults = keywordResults.length > 0 && keywordResults[0].score >= 15;
     const useAiGuidance = keywordResults.length === 0 || (!hasStrongResults && keywordResults.length <= 2) || isQuestion;
 
@@ -328,6 +331,7 @@ TÄRKEÄÄ:
 - Käytä yrityskontekstia (palvelualueet, palvelut, yhteystiedot) vastauksesi pohjana
 - ÄLÄ palauta sivuja jotka vain sattuvat liittymään samaan aihepiiriin mutta eivät vastaa KYSYTTYYN asiaan
 - Esim. "asennatteko hyvinkäällä" → tarkista kontekstista palvelualue, palauta VAIN sivu joka kattaa alueen
+- Jos käyttäjä kysyy RAJATUSTA suosituksesta tai yhteensopivuudesta (esim. käyttökohde, asumismuoto, lupa, viilennys vs lämmitys, koko) → älä suosittele tiettyä tuotetta tai mallia ilman eksplisiittistä näyttöä sivuista
 - Vastaa rehellisesti — älä keksi tietoa
 
 Palauta JSON:
@@ -446,6 +450,8 @@ Säännöt:
 - ÄLÄ KOSKAAN listaa hintoja tai toista tuotetietoja jotka näkyvät jo tuloksissa
 - ÄLÄ KOSKAAN kirjoita "Löytyi X tulosta", "Sivustolta löytyy", "Valikoimasta löytyy"
 - Epävarmoissa tapauksissa → summary: null (parempi olla hiljaa kuin olla tyhmä)
+- Jos käyttäjä kysyy rajatusta suosituksesta tai yhteensopivuudesta, älä nimeä tiettyä tuotetta, mallia tai brändiä ellei sivuissa sanota eksplisiittisesti että se sopii KAIKKIIN pyydettyihin rajoitteisiin
+- Jos näyttö ei riitä täydelliseen suositukseen, anna korkeintaan yleinen ohje ilman mallinimeä TAI palauta summary: null
 ${strategy?.prompt_additions ? `\nLISÄOHJEET OPTIMOINTIAGENTILTA:\n${strategy.prompt_additions}` : ""}
 Palauta JSON:
 {"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5], "reasoning": ["perustelu per sivu"]}
@@ -468,6 +474,9 @@ Palauta VAIN validi JSON.`
 
           if (parsed.summary && useAiGuidance) {
             aiSummary = parsed.summary;
+            if (isConstrainedRecommendationQuery && summaryMentionsSpecificBrandOrModel(aiSummary, keywordResults)) {
+              aiSummary = undefined;
+            }
           }
 
           if (parsed.ranking && Array.isArray(parsed.ranking) && parsed.ranking.length > 0) {
@@ -683,6 +692,43 @@ async function handleClick(body: any) {
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractBrandLikeTerms(results: any[]): string[] {
+  const stopWords = new Set([
+    "paras", "opas", "guide", "kerrostalo", "kerrostalon", "rivitalo", "viilennys",
+    "viilennykseen", "jäähdytys", "lämmitys", "cooling", "heating", "apartment",
+    "product", "products", "tuote", "tuotteet", "malli", "mallisto", "sarja",
+  ]);
+  const terms = new Set<string>();
+
+  for (const result of results || []) {
+    const title = String(result?.title || "");
+    const schema = result?.schema_data;
+    if (schema?.brand && typeof schema.brand === "string") {
+      terms.add(schema.brand.trim());
+    }
+
+    const matches = title.match(/\b[A-ZÅÄÖ][A-Za-zÅÄÖåäö0-9-]{2,}\b/g) || [];
+    for (const match of matches) {
+      const token = match.trim();
+      if (!token || stopWords.has(token.toLowerCase())) continue;
+      terms.add(token);
+    }
+  }
+
+  return Array.from(terms).sort((a, b) => b.length - a.length);
+}
+
+function summaryMentionsSpecificBrandOrModel(summary: string | undefined, results: any[]): boolean {
+  const text = String(summary || "").trim();
+  if (!text) return false;
+
+  const terms = extractBrandLikeTerms(results);
+  return terms.some((term) => {
+    const pattern = new RegExp(`\\b${escapeRegex(term)}(?:in|n|lle|lta|sta|stä)?\\b`, "i");
+    return pattern.test(text);
+  });
 }
 
 function extractSnippet(content: string, words: string[], maxLen = 200): string {
