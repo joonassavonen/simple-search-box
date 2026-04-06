@@ -1120,10 +1120,6 @@
           html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
         }
 
-        if (isProduct && s.availability) {
-          const inStock = s.availability.includes("InStock");
-          html += `<span class="findai-result-badge ${inStock ? "findai-badge-instock" : "findai-badge-outofstock"}">${inStock ? "✓ Varastossa" : "Ei varastossa"}</span>`;
-        }
 
         if (snippet) {
           html += `<div class="findai-result-snippet">${escHtml(snippet)}</div>`;
