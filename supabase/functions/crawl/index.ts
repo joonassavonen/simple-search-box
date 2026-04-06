@@ -8,7 +8,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-async function doCrawl(jobId: string, siteId: string) {
+async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   const startedAt = Date.now();
   const SOFT_TIME_LIMIT_MS = 75_000;
@@ -18,6 +18,19 @@ async function doCrawl(jobId: string, siteId: string) {
   let pagesFound = 0;
   const errors: string[] = [];
   let timedOut = false;
+
+  // If resuming, get already-indexed URLs to skip
+  let alreadyIndexedUrls = new Set<string>();
+  if (resumeFromJob) {
+    const { data: existingPages } = await supabase
+      .from("pages")
+      .select("url")
+      .eq("site_id", siteId);
+    if (existingPages) {
+      alreadyIndexedUrls = new Set(existingPages.map((p: any) => p.url));
+      console.log(`Resuming crawl: ${alreadyIndexedUrls.size} pages already indexed, skipping them`);
+    }
+  }
 
   const updateJob = async (patch: Record<string, unknown>) => {
     const { error } = await supabase.from("crawl_jobs").update(patch).eq("id", jobId);
