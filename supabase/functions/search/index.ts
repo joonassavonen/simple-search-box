@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
       .select("query_to, confidence")
       .eq("site_id", site_id)
       .eq("query_from", query.trim().toLowerCase())
+      .eq("status", "approved")
       .order("confidence", { ascending: false })
       .limit(3);
 

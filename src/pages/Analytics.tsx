@@ -67,6 +67,8 @@ interface Synonym {
   query_to: string;
   confidence: number;
   times_used: number;
+  status: "proposed" | "approved" | "rejected";
+  source: string;
 }
 
 interface GAPageData {
@@ -257,6 +259,23 @@ export default function Analytics() {
     toast({ title: "Synonyymi poistettu" });
   };
 
+  const updateSynonymStatus = async (id: string, status: "approved" | "rejected") => {
+    const { error } = await supabase
+      .from("search_synonyms")
+      .update({ status })
+      .eq("id", id);
+    if (error) {
+      toast({ title: "Virhe", description: error.message, variant: "destructive" });
+      return;
+    }
+    setSynonyms((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
+    if (siteId) {
+      const ls = await api.getLearningStats(siteId);
+      setLearningStats(ls);
+    }
+    toast({ title: status === "approved" ? "Synonyymi hyväksytty" : "Synonyymi hylätty" });
+  };
+
   const startEdit = (s: Synonym) => {
     setEditingSynonym(s.id);
     setEditForm({ query_from: s.query_from, query_to: s.query_to });
@@ -330,6 +349,8 @@ export default function Analytics() {
   if (!stats || !site) return null;
 
   const ctrPct = (stats.click_through_rate * 100).toFixed(1);
+  const approvedSynonyms = synonyms.filter((s) => s.status === "approved");
+  const proposedSynonyms = synonyms.filter((s) => s.status === "proposed");
   const now = new Date();
   const daysNum = Number(dateRange);
   const periodStart = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
@@ -748,7 +769,7 @@ export default function Analytics() {
             <div>
               <h2 className="text-lg font-semibold">Oppiva haku</h2>
               <p className="text-sm text-muted-foreground">
-                AI analysoi hakuhistorian ja oppii synonyymeja, assosiaatioita ja relevanssiboosteja klikkausten perusteella.
+                Oppiminen erottaa nyt hyväksytyt synonyymit, AI:n ehdottamat synonyymit ja käyttäjien klikkauskäyttäytymisestä opitut query → sivu -affiniteetit.
               </p>
             </div>
             <Button onClick={runLearning} disabled={learningRunning}>
@@ -762,26 +783,26 @@ export default function Analytics() {
           </div>
 
           {/* Learning KPI Cards */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <Card>
               <CardContent className="p-5 flex items-center gap-4">
                 <div className="rounded-lg bg-primary/10 p-2.5">
                   <BookOpen className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Synonyymit</p>
-                  <span className="text-2xl font-bold">{learningStats?.synonym_count ?? 0}</span>
+                  <p className="text-sm text-muted-foreground">Hyväksytyt synonyymit</p>
+                  <span className="text-2xl font-bold">{learningStats?.approved_synonym_count ?? 0}</span>
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-5 flex items-center gap-4">
-                <div className="rounded-lg bg-primary/10 p-2.5">
-                  <Zap className="h-5 w-5 text-primary" />
+                <div className="rounded-lg bg-amber-500/10 p-2.5">
+                  <Lightbulb className="h-5 w-5 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Boost-parit</p>
-                  <span className="text-2xl font-bold">{learningStats?.boost_pairs ?? 0}</span>
+                  <p className="text-sm text-muted-foreground">Ehdotetut synonyymit</p>
+                  <span className="text-2xl font-bold">{learningStats?.proposed_synonym_count ?? 0}</span>
                 </div>
               </CardContent>
             </Card>
@@ -791,25 +812,83 @@ export default function Analytics() {
                   <MousePointerClick className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Opitut klikkaukset</p>
-                  <span className="text-2xl font-bold">{learningStats?.total_learned_clicks ?? 0}</span>
+                  <p className="text-sm text-muted-foreground">Klikki-affiniteetit</p>
+                  <span className="text-2xl font-bold">{learningStats?.affinity_count ?? 0}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className="rounded-lg bg-primary/10 p-2.5">
+                  <Target className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Affiniteettiklikit</p>
+                  <span className="text-2xl font-bold">{learningStats?.total_affinity_clicks ?? 0}</span>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Boosts Table */}
+          {/* Strategy */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                Aktiivinen optimointistrategia
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-4">
+              {!learningStats?.strategy ? (
+                <p className="text-sm text-muted-foreground italic">
+                  Strategiaa ei ole vielä muodostettu. Käynnistä optimointi, kun hakudataa on kertynyt.
+                </p>
+              ) : (
+                <>
+                  {learningStats.strategy.last_optimized_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Päivitetty {new Date(learningStats.strategy.last_optimized_at).toLocaleString("fi-FI")}
+                    </p>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Prompt-lisäohjeet</p>
+                    <p className="text-sm text-foreground">{learningStats.strategy.prompt_additions || "Ei lisäohjeita."}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Konversiohavainnot</p>
+                    <p className="text-sm text-foreground">{learningStats.strategy.conversion_insights || "Ei vielä havaintoja."}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">CTA-säännöt</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={learningStats.strategy.contact_trigger_rules?.show_on_zero_results ? "default" : "secondary"}>
+                        Zero results CTA
+                      </Badge>
+                      <Badge variant={learningStats.strategy.contact_trigger_rules?.show_on_low_ctr_queries ? "default" : "secondary"}>
+                        Low CTR CTA
+                      </Badge>
+                      {learningStats.strategy.contact_trigger_rules?.trigger_categories?.map((rule) => (
+                        <Badge key={rule} variant="outline">{rule}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Affinities Table */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />
-                Relevanssiboostit — Top query → URL -parit
+                Klikki-affiniteetit — Top query → URL -parit
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {!learningStats || learningStats.top_boosted.length === 0 ? (
+              {!learningStats || learningStats.top_affinities.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
-                  Ei opittuja boosteja vielä. Klikkausdataa kertyy sitä mukaa kun käyttäjät hakevat.
+                  Ei opittuja affiniteetteja vielä. Klikkausdataa kertyy sitä mukaa kun käyttäjät hakevat.
                 </p>
               ) : (
                 <Table>
@@ -818,11 +897,11 @@ export default function Analytics() {
                       <TableHead>Haku</TableHead>
                       <TableHead>Boostattu URL</TableHead>
                       <TableHead className="w-24 text-right">Klikkaukset</TableHead>
-                      <TableHead className="w-24 text-right">Boost</TableHead>
+                      <TableHead className="w-24 text-right">Luottamus</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {learningStats.top_boosted.map((b, i) => (
+                    {learningStats.top_affinities.map((b, i) => (
                       <TableRow key={i}>
                         <TableCell className="font-medium">{b.query}</TableCell>
                         <TableCell className="max-w-[250px] truncate">
@@ -838,8 +917,8 @@ export default function Analytics() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums">{b.clicks}</TableCell>
                         <TableCell className="text-right">
-                          <Badge variant={b.boost >= 5 ? "default" : "secondary"}>
-                            +{b.boost}
+                          <Badge variant={b.confidence >= 0.7 ? "default" : "secondary"}>
+                            {(b.confidence * 100).toFixed(0)}%
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -850,18 +929,71 @@ export default function Analytics() {
             </CardContent>
           </Card>
 
-          {/* Synonyms Table */}
+          {/* Proposed Synonyms */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-amber-600" />
+                Ehdotetut synonyymit
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {proposedSynonyms.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">
+                  Ei odottavia ehdotuksia.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hakulause</TableHead>
+                      <TableHead>Ehdotus</TableHead>
+                      <TableHead className="w-24 text-right">Luottamus</TableHead>
+                      <TableHead className="w-24 text-right">Lähde</TableHead>
+                      <TableHead className="w-24 text-right">Toiminnot</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {proposedSynonyms.slice(0, 20).map((s) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">{s.query_from}</TableCell>
+                        <TableCell>{s.query_to}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>
+                            {(s.confidence * 100).toFixed(0)}%
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">{s.source}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateSynonymStatus(s.id, "approved")}>
+                              <Check className="h-3.5 w-3.5 text-green-600" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateSynonymStatus(s.id, "rejected")}>
+                              <X className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Approved Synonyms Table */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-primary" />
-                Opitut synonyymit
+                Hyväksytyt synonyymit
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {synonyms.length === 0 ? (
+              {approvedSynonyms.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
-                  Ei opittuja synonyymejä vielä. Käynnistä oppiminen kun hakudataa on kertynyt.
+                  Ei hyväksyttyjä synonyymejä vielä.
                 </p>
               ) : (
                 <>
@@ -876,7 +1008,7 @@ export default function Analytics() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {synonyms.slice(synonymPage * QUERIES_PER_PAGE, (synonymPage + 1) * QUERIES_PER_PAGE).map((s) => (
+                    {approvedSynonyms.slice(synonymPage * QUERIES_PER_PAGE, (synonymPage + 1) * QUERIES_PER_PAGE).map((s) => (
                       <TableRow key={s.id}>
                         {editingSynonym === s.id ? (
                           <>
@@ -938,11 +1070,11 @@ export default function Analytics() {
                   </TableBody>
                 </Table>
                 {(() => {
-                  const totalSynPages = Math.ceil(synonyms.length / QUERIES_PER_PAGE);
+                  const totalSynPages = Math.ceil(approvedSynonyms.length / QUERIES_PER_PAGE);
                   return totalSynPages > 1 ? (
                     <div className="flex items-center justify-between pt-3">
                       <span className="text-xs text-muted-foreground">
-                        {synonymPage * QUERIES_PER_PAGE + 1}–{Math.min((synonymPage + 1) * QUERIES_PER_PAGE, synonyms.length)} / {synonyms.length}
+                        {synonymPage * QUERIES_PER_PAGE + 1}–{Math.min((synonymPage + 1) * QUERIES_PER_PAGE, approvedSynonyms.length)} / {approvedSynonyms.length}
                       </span>
                       <div className="flex gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" disabled={synonymPage === 0} onClick={() => setSynonymPage(synonymPage - 1)}>
@@ -960,16 +1092,16 @@ export default function Analytics() {
             </CardContent>
           </Card>
 
-          {/* Click Distribution Bar Chart */}
-          {learningStats && learningStats.top_boosted.length > 0 && (
+          {/* Affinity Chart */}
+          {learningStats && learningStats.top_affinities.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Klikkausjakauma — Top boostit</CardTitle>
+                <CardTitle className="text-sm font-medium">Klikkausjakauma — Top affiniteetit</CardTitle>
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="h-[200px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={learningStats.top_boosted.slice(0, 8)}>
+                    <BarChart data={learningStats.top_affinities.slice(0, 8)}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                       <XAxis
                         dataKey="query"

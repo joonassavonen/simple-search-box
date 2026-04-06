@@ -9,6 +9,23 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
+function normalizeQuery(value: string): string {
+  return value.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function lexicalSimilarity(a: string, b: string): number {
+  const aTokens = new Set(normalizeQuery(a).split(/\s+/).filter((token) => token.length >= 2));
+  const bTokens = new Set(normalizeQuery(b).split(/\s+/).filter((token) => token.length >= 2));
+  if (aTokens.size === 0 || bTokens.size === 0) return 0;
+
+  let overlap = 0;
+  for (const token of aTokens) {
+    if (bTokens.has(token)) overlap += 1;
+  }
+
+  return overlap / Math.max(aTokens.size, bTokens.size);
+}
+
 // This function processes search logs and builds learned synonyms/associations
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -48,29 +65,44 @@ Deno.serve(async (req) => {
       .order("click_count", { ascending: false })
       .limit(500);
 
-    // 3. Build query associations from clicks on same pages
-    const pageToQueries: Record<string, { query: string; count: number }[]> = {};
+    // 3. Persist query -> page affinities based on actual clicks
+    let affinitiesUpserted = 0;
     if (clicks) {
       for (const c of clicks) {
-        if (!pageToQueries[c.page_url]) pageToQueries[c.page_url] = [];
-        pageToQueries[c.page_url].push({ query: c.query, count: c.click_count });
-      }
-    }
+        const normalizedQuery = normalizeQuery(c.query);
+        const confidence = Math.min(0.2 + c.click_count * 0.12, 1.0);
 
-    // Find query pairs that lead to same pages
-    const queryPairs: { from: string; to: string; confidence: number }[] = [];
-    for (const [, queries] of Object.entries(pageToQueries)) {
-      if (queries.length < 2) continue;
-      for (let i = 0; i < queries.length; i++) {
-        for (let j = i + 1; j < queries.length; j++) {
-          const q1 = queries[i], q2 = queries[j];
-          if (q1.query === q2.query) continue;
-          const confidence = Math.min((q1.count + q2.count) / 10, 1.0);
-          if (confidence >= 0.2) {
-            queryPairs.push({ from: q1.query, to: q2.query, confidence });
-            queryPairs.push({ from: q2.query, to: q1.query, confidence });
-          }
+        const { data: existingAffinity } = await supabase
+          .from("query_page_affinities")
+          .select("id, click_count, confidence")
+          .eq("site_id", site_id)
+          .eq("query", normalizedQuery)
+          .eq("page_url", c.page_url)
+          .maybeSingle();
+
+        if (existingAffinity) {
+          await supabase
+            .from("query_page_affinities")
+            .update({
+              click_count: c.click_count,
+              confidence: Math.max(existingAffinity.confidence, confidence),
+              last_observed_at: new Date().toISOString(),
+              source: "clicks",
+            })
+            .eq("id", existingAffinity.id);
+        } else {
+          await supabase
+            .from("query_page_affinities")
+            .insert({
+              site_id,
+              query: normalizedQuery,
+              page_url: c.page_url,
+              click_count: c.click_count,
+              confidence,
+              source: "clicks",
+            });
         }
+        affinitiesUpserted++;
       }
     }
 
@@ -131,40 +163,48 @@ Return [] if no clear synonyms found.`
       }
     }
 
-    // 5. Merge and upsert all synonyms
-    const allPairs = [...queryPairs, ...aiSynonyms];
-    let synonymsCreated = 0;
+    // 5. Store AI synonym candidates conservatively as proposals
+    let proposedCreated = 0;
+    let proposedUpdated = 0;
+    for (const pair of aiSynonyms) {
+      const from = normalizeQuery(pair.from);
+      const to = normalizeQuery(pair.to);
+      if (!from || !to || from === to) continue;
+      if (lexicalSimilarity(from, to) < 0.2 && pair.confidence < 0.85) continue;
 
-    for (const pair of allPairs) {
       const { data: existing } = await supabase
         .from("search_synonyms")
-        .select("id, confidence, times_used")
+        .select("id, confidence, times_used, status")
         .eq("site_id", site_id)
-        .eq("query_from", pair.from)
-        .eq("query_to", pair.to)
-        .single();
+        .eq("query_from", from)
+        .eq("query_to", to)
+        .maybeSingle();
 
       if (existing) {
-        // Update confidence (moving average) and increment usage
         const newConfidence = (existing.confidence * 0.7 + pair.confidence * 0.3);
         await supabase
           .from("search_synonyms")
           .update({
             confidence: Math.min(newConfidence, 1.0),
             times_used: existing.times_used + 1,
+            source: existing.status === "approved" ? "approved" : "ai",
+            status: existing.status === "approved" ? "approved" : "proposed",
             updated_at: new Date().toISOString(),
           })
           .eq("id", existing.id);
+        proposedUpdated++;
       } else {
         await supabase
           .from("search_synonyms")
           .insert({
             site_id,
-            query_from: pair.from,
-            query_to: pair.to,
+            query_from: from,
+            query_to: to,
             confidence: pair.confidence,
+            source: "ai",
+            status: "proposed",
           });
-        synonymsCreated++;
+        proposedCreated++;
       }
     }
 
@@ -172,9 +212,10 @@ Return [] if no clear synonyms found.`
       message: "Learning complete",
       logs_analyzed: logs.length,
       clicks_analyzed: clicks?.length || 0,
-      click_pairs_found: queryPairs.length,
+      affinities_upserted: affinitiesUpserted,
       ai_synonyms_found: aiSynonyms.length,
-      synonyms_created: synonymsCreated,
+      synonyms_created: proposedCreated,
+      synonyms_updated: proposedUpdated,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

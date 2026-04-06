@@ -126,10 +126,23 @@ export interface TrendingItem {
 
 export interface LearningStats {
   site_id: string;
-  boost_pairs: number;
-  synonym_count: number;
-  total_learned_clicks: number;
-  top_boosted: { url: string; query: string; clicks: number; ctr: number; boost: number }[];
+  approved_synonym_count: number;
+  proposed_synonym_count: number;
+  affinity_count: number;
+  total_affinity_clicks: number;
+  top_affinities: { url: string; query: string; clicks: number; confidence: number }[];
+  strategy: {
+    prompt_additions: string;
+    conversion_insights: string;
+    contact_trigger_rules: {
+      show_on_zero_results?: boolean;
+      show_on_low_ctr_queries?: boolean;
+      low_ctr_threshold?: number;
+      trigger_categories?: string[];
+    } | null;
+    last_optimized_at: string | null;
+    optimization_log: string;
+  } | null;
   position_clicks: { position: number; clicks: number }[];
 }
 
@@ -600,32 +613,48 @@ export const api = {
   // --- Learning Stats (Supabase direct) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    const { data: clicks } = await supabase
-      .from("search_clicks")
-      .select("query, page_url, click_count")
+    const { data: affinities } = await supabase
+      .from("query_page_affinities" as any)
+      .select("query, page_url, click_count, confidence")
       .eq("site_id", siteId)
+      .order("confidence", { ascending: false })
       .order("click_count", { ascending: false })
       .limit(20);
 
     const { data: synonyms } = await supabase
       .from("search_synonyms")
-      .select("query_from, query_to, confidence")
+      .select("query_from, query_to, confidence, status")
       .eq("site_id", siteId);
 
-    const totalClicks = (clicks || []).reduce((sum: number, c: any) => sum + (c.click_count || 0), 0);
+    const { data: strategy } = await (supabase as any)
+      .from("site_search_strategy")
+      .select("prompt_additions, conversion_insights, contact_trigger_rules, last_optimized_at, optimization_log")
+      .eq("site_id", siteId)
+      .maybeSingle();
+
+    const approvedSynonyms = (synonyms || []).filter((s: any) => s.status === "approved");
+    const proposedSynonyms = (synonyms || []).filter((s: any) => s.status === "proposed");
+    const totalClicks = (affinities || []).reduce((sum: number, c: any) => sum + (c.click_count || 0), 0);
 
     return {
       site_id: siteId,
-      boost_pairs: clicks?.length || 0,
-      synonym_count: synonyms?.length || 0,
-      total_learned_clicks: totalClicks,
-      top_boosted: (clicks || []).slice(0, 10).map((c: any) => ({
+      approved_synonym_count: approvedSynonyms.length,
+      proposed_synonym_count: proposedSynonyms.length,
+      affinity_count: affinities?.length || 0,
+      total_affinity_clicks: totalClicks,
+      top_affinities: (affinities || []).slice(0, 10).map((c: any) => ({
         url: c.page_url,
         query: c.query,
         clicks: c.click_count,
-        ctr: 0,
-        boost: c.click_count,
+        confidence: c.confidence,
       })),
+      strategy: strategy ? {
+        prompt_additions: strategy.prompt_additions || "",
+        conversion_insights: strategy.conversion_insights || "",
+        contact_trigger_rules: strategy.contact_trigger_rules || null,
+        last_optimized_at: strategy.last_optimized_at || null,
+        optimization_log: strategy.optimization_log || "",
+      } : null,
       position_clicks: [],
     };
   },
