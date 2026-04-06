@@ -619,34 +619,6 @@ export default function Analytics() {
                   })()}
                 </CardContent>
               </Card>
-
-              {/* Key Events Bar Chart */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Top 10 — Key Events per sivu</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-2">
-                  <div className="h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={gaPages.filter(p => p.conversions > 0).sort((a, b) => b.conversions - a.conversions).slice(0, 10).map(p => ({ path: p.page_path.length > 30 ? "..." + p.page_path.slice(-27) : p.page_path, keyEvents: p.conversions, pageviews: p.pageviews }))}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-                        <XAxis dataKey="path" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={70} />
-                        <YAxis tick={{ fontSize: 11 }} width={40} />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                            fontSize: "12px",
-                          }}
-                          formatter={(value: number, name: string) => [value, name === "keyEvents" ? "Key Events" : "Katselut"]}
-                        />
-                        <Bar dataKey="keyEvents" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
             </>
           )}
         </TabsContent>
