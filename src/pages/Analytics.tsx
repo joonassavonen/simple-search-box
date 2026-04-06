@@ -150,6 +150,7 @@ export default function Analytics() {
   const [learningRunning, setLearningRunning] = useState(false);
   const [gaPages, setGaPages] = useState<GAPageData[]>([]);
   const [gaLoading, setGaLoading] = useState(false);
+  const [synonymPage, setSynonymPage] = useState(0);
 
   useEffect(() => {
     if (!siteId) {
