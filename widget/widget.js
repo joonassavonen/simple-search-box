@@ -471,6 +471,21 @@
       font-weight: 600; color: hsl(var(--green-dark));
     }
     .findai-results-header svg { width: 14px; height: 14px; }
+    .findai-show-all {
+      display: flex; align-items: center; justify-content: center;
+      width: calc(100% - 16px); margin: 8px 8px 4px;
+      min-height: 40px; border-radius: 12px;
+      border: 1px solid var(--border-light);
+      background: var(--bg2); color: var(--text);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
+      font-family: inherit;
+    }
+    .findai-show-all:hover {
+      background: hsl(var(--green-light));
+      border-color: hsl(var(--green-border));
+      color: hsl(var(--green-dark));
+    }
 
     /* AI summary card */
     .findai-ai-summary {
@@ -1609,11 +1624,14 @@
       };
     }
 
-    function renderResults(data) {
+    function renderResults(data, showAll) {
       if (!data.results || data.results.length === 0) {
         renderNoResults(data);
         return;
       }
+
+      const expanded = !!showAll;
+      const visibleResults = expanded ? data.results : data.results.slice(0, 3);
 
       currentSearchLogId = data.search_log_id;
       if (!data.intervention_card) {
@@ -1645,7 +1663,7 @@
         `;
       }
 
-      data.results.forEach((r, idx) => {
+      visibleResults.forEach((r, idx) => {
         html += renderResultItem(r, idx);
         if (data.intervention_card && (data.intervention_card.position || 2) > 0 && (data.intervention_card.position || 2) === idx + 2) {
           html += renderInterventionCard(data.intervention_card);
@@ -1659,6 +1677,10 @@
       }
       if (!data.intervention_card && cfg && cfg.enabled) {
         html += renderContactHtml(cfg, data.language || "fi");
+      }
+
+      if (data.results.length > 3) {
+        html += `<button type="button" class="findai-show-all" data-expanded="${expanded ? "1" : "0"}">${expanded ? "Näytä vähemmän" : `Näytä kaikki (${data.results.length})`}</button>`;
       }
 
       dropdown.innerHTML = html;
@@ -1675,6 +1697,13 @@
           trackClick(el.dataset.url, parseInt(el.dataset.idx || "0", 10), el.dataset.clickId || "");
         });
       });
+
+      const toggleBtn = dropdown.querySelector(".findai-show-all");
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", () => {
+          renderResults(data, !expanded);
+        });
+      }
     }
 
     // -----------------------------------------------------------------------
