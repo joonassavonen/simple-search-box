@@ -153,7 +153,9 @@ Deno.serve(async (req) => {
     if (pagesErr) throw new Error(pagesErr.message);
 
     // Score each page based on word matches (keyword phase)
-    const scored = (pages || []).map((page) => {
+    const scored = (pages || []).filter((page) => {
+      try { return new URL(page.url).pathname !== "/"; } catch { return true; }
+    }).map((page) => {
       const titleLower = (page.title || "").toLowerCase();
       const contentLower = (page.content || "").toLowerCase();
       const metaLower = (page.meta_description || "").toLowerCase();
