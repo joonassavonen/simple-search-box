@@ -702,6 +702,17 @@
         const stored = localStorage.getItem(`findai-contact-${SITE_ID}`);
         if (stored) contactConfig = JSON.parse(stored);
       } catch {}
+
+      // Fetch brand styles and apply to widget
+      supabaseRest("sites", {
+        "select": "brand_color,brand_font,brand_bg_color",
+        "id": `eq.${SITE_ID}`,
+        "limit": "1",
+      }).then(data => {
+        if (!data || !Array.isArray(data) || !data[0]) return;
+        const site = data[0];
+        applyBrandStyles(wrapper, style, site.brand_color, site.brand_font, site.brand_bg_color);
+      }).catch(() => {});
     } else {
       fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
         .then(r => r.json())
