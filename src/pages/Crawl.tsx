@@ -55,6 +55,19 @@ export default function Crawl() {
     }
   }
 
+  async function resumeCrawl(previousJobId: string) {
+    if (!siteId) return;
+    setCrawling(true);
+    try {
+      const newJob = await api.resumeCrawl(siteId, previousJobId);
+      setJob(newJob);
+      pollJob(newJob.job_id);
+    } catch (e: any) {
+      toast.error("Resume failed: " + e.message);
+      setCrawling(false);
+    }
+  }
+
   function pollJob(jobId: string) {
     const interval = setInterval(async () => {
       try {
