@@ -307,7 +307,8 @@ Säännöt:
 - Jos sivuilta ei löydy oikeaa vastausta → summary: null
 
 Palauta JSON:
-{"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5], "reasoning": ["perustelu per sivu"]}
+{"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5, VAIN relevantit], "reasoning": ["perustelu per sivu"]}
+Jos sivu ei selkeästi liity hakuun → ÄLÄ sisällytä ranking-listaan. Mieluummin 1-2 hyvää tulosta kuin 5 heikkoa.
 Palauta VAIN validi JSON.`
               },
               {
