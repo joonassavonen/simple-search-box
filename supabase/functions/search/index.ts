@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     // --- STRATEGY: Read optimization strategy (written by optimize agent) ---
     const { data: strategy } = await supabase
       .from("site_search_strategy")
-      .select("prompt_additions, contact_trigger_rules, high_ctr_patterns")
+      .select("contact_trigger_rules, high_ctr_patterns")
       .eq("site_id", site_id)
       .single();
 
