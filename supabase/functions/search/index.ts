@@ -398,7 +398,7 @@ Palauta VAIN validi JSON.`;
             model: "google/gemini-2.5-flash-lite",
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: `Hakusana: "${query}"\n\nSivut:\n${pagesContext}` }
+              { role: "user", content: `Hakusana: "${query}"\n\n${site.ai_context ? `YRITYSKONTEKSTI:\n${site.ai_context}\n\n` : ""}Sivut:\n${pagesContext}` }
             ],
           }),
         });
