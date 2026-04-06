@@ -452,7 +452,6 @@ Säännöt:
 - Epävarmoissa tapauksissa → summary: null (parempi olla hiljaa kuin olla tyhmä)
 - Jos käyttäjä kysyy rajatusta suosituksesta tai yhteensopivuudesta, älä nimeä tiettyä tuotetta, mallia tai brändiä ellei sivuissa sanota eksplisiittisesti että se sopii KAIKKIIN pyydettyihin rajoitteisiin
 - Jos näyttö ei riitä täydelliseen suositukseen, anna korkeintaan yleinen ohje ilman mallinimeä TAI palauta summary: null
-${strategy?.prompt_additions ? `\nLISÄOHJEET OPTIMOINTIAGENTILTA:\n${strategy.prompt_additions}` : ""}
 Palauta JSON:
 {"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5], "reasoning": ["perustelu per sivu"]}
 Palauta VAIN validi JSON.`
