@@ -268,6 +268,94 @@ export type Database = {
         }
         Relationships: []
       }
+      site_contact_configs: {
+        Row: {
+          chat_url: string | null
+          created_at: string
+          email: string | null
+          enabled: boolean
+          id: string
+          phone: string | null
+          site_id: string
+          updated_at: string
+        }
+        Insert: {
+          chat_url?: string | null
+          created_at?: string
+          email?: string | null
+          enabled?: boolean
+          id?: string
+          phone?: string | null
+          site_id: string
+          updated_at?: string
+        }
+        Update: {
+          chat_url?: string | null
+          created_at?: string
+          email?: string | null
+          enabled?: boolean
+          id?: string
+          phone?: string | null
+          site_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_contact_configs_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: true
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      site_search_strategy: {
+        Row: {
+          contact_trigger_rules: Json | null
+          conversion_insights: string | null
+          created_at: string
+          high_ctr_patterns: Json | null
+          id: string
+          last_optimized_at: string | null
+          optimization_log: string | null
+          prompt_additions: string | null
+          site_id: string
+          updated_at: string
+        }
+        Insert: {
+          contact_trigger_rules?: Json | null
+          conversion_insights?: string | null
+          created_at?: string
+          high_ctr_patterns?: Json | null
+          id?: string
+          last_optimized_at?: string | null
+          optimization_log?: string | null
+          prompt_additions?: string | null
+          site_id: string
+          updated_at?: string
+        }
+        Update: {
+          contact_trigger_rules?: Json | null
+          conversion_insights?: string | null
+          created_at?: string
+          high_ctr_patterns?: Json | null
+          id?: string
+          last_optimized_at?: string | null
+          optimization_log?: string | null
+          prompt_additions?: string | null
+          site_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_search_strategy_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: true
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sites: {
         Row: {
           ai_context: string | null
