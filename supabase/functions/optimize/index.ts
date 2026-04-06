@@ -37,9 +37,180 @@ interface ContactTriggerRules {
   trigger_categories: string[];
 }
 
+interface FailedQuerySuggestion {
+  url: string;
+  title: string;
+  reason: string;
+}
+
+function extractTitleWords(title: string): string {
+  return (title || "")
+    .toLowerCase()
+    .replace(/[^a-zäöåü0-9\s-]/g, "")
+    .split(/\s+/)
+    .filter((w: string) => w.length >= 3)
+    .slice(0, 5)
+    .join(" ");
+}
+
 function truncateText(value: string | null | undefined, maxLength: number): string {
   if (!value) return "";
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+}
+
+async function suggestPagesForFailedQueries(
+  supabase: ReturnType<typeof createClient>,
+  siteId: string,
+  failedQueries: { query: string; count: number }[],
+): Promise<{ suggestions: Record<string, FailedQuerySuggestion[]>; synonymsCreated: number }> {
+  if (!LOVABLE_API_KEY || failedQueries.length === 0) {
+    return { suggestions: {}, synonymsCreated: 0 };
+  }
+
+  const { data: pages } = await supabase
+    .from("pages")
+    .select("url, title, meta_description")
+    .eq("site_id", siteId)
+    .not("title", "is", null);
+
+  if (!pages?.length) {
+    return { suggestions: {}, synonymsCreated: 0 };
+  }
+
+  const pageList = pages
+    .map((p, i) => `${i + 1}. "${p.title}" — ${p.url}${p.meta_description ? ` (${String(p.meta_description).slice(0, 80)})` : ""}`)
+    .join("\n");
+
+  const queries = failedQueries.slice(0, 20).map((q) => q.query);
+
+  const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        {
+          role: "system",
+          content: `You are a search optimization assistant. You'll receive a list of search queries that returned no results on a website, and a list of all pages on that site.
+
+For each query, suggest 1-2 pages that could be relevant matches (if any exist). Consider:
+- Semantic similarity (the page covers the topic even if wording differs)
+- Products/services that match the search intent
+- Category pages that could contain what the user was looking for
+
+Respond using the suggest_pages tool.`,
+        },
+        {
+          role: "user",
+          content: `Failed search queries:\n${queries.map((q, i) => `${i + 1}. "${q}"`).join("\n")}\n\nAvailable pages:\n${pageList}`,
+        },
+      ],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "suggest_pages",
+            description: "Suggest matching pages for failed search queries",
+            parameters: {
+              type: "object",
+              properties: {
+                matches: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      query: { type: "string" },
+                      suggestions: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            url: { type: "string" },
+                            title: { type: "string" },
+                            reason: { type: "string" },
+                          },
+                          required: ["url", "title", "reason"],
+                          additionalProperties: false,
+                        },
+                      },
+                    },
+                    required: ["query", "suggestions"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["matches"],
+              additionalProperties: false,
+            },
+          },
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "suggest_pages" } },
+    }),
+  });
+
+  if (!aiRes.ok) {
+    throw new Error(`Failed-query AI analysis failed: ${aiRes.status}`);
+  }
+
+  const aiData = await aiRes.json();
+  const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+  const suggestions: Record<string, FailedQuerySuggestion[]> = {};
+  let synonymsCreated = 0;
+
+  if (!toolCall?.function?.arguments) {
+    return { suggestions, synonymsCreated };
+  }
+
+  const parsed = JSON.parse(toolCall.function.arguments);
+  for (const match of parsed.matches || []) {
+    if (!match.suggestions?.length) continue;
+    suggestions[match.query] = match.suggestions;
+
+    for (const suggestion of match.suggestions) {
+      const titleWords = extractTitleWords(suggestion.title || "");
+      const queryNorm = String(match.query || "").trim().toLowerCase();
+      if (!titleWords || !queryNorm) continue;
+
+      const { data: existing } = await supabase
+        .from("search_synonyms")
+        .select("id, confidence, times_used")
+        .eq("site_id", siteId)
+        .eq("query_from", queryNorm)
+        .eq("query_to", titleWords)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("search_synonyms")
+          .update({
+            confidence: Math.min(existing.confidence * 0.7 + 0.6 * 0.3, 1.0),
+            times_used: existing.times_used + 1,
+            source: "suggest-pages",
+            status: "approved",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+      } else {
+        await supabase
+          .from("search_synonyms")
+          .insert({
+            site_id: siteId,
+            query_from: queryNorm,
+            query_to: titleWords,
+            confidence: 0.6,
+            source: "suggest-pages",
+            status: "approved",
+          });
+        synonymsCreated++;
+      }
+    }
+  }
+
+  return { suggestions, synonymsCreated };
 }
 
 Deno.serve(async (req) => {
@@ -247,6 +418,20 @@ Deno.serve(async (req) => {
 
     log.push(`Top converting pages: ${topConverters.length}`);
 
+    let failedQuerySuggestions: Record<string, FailedQuerySuggestion[]> = {};
+    let failedQuerySynonymsCreated = 0;
+    if (zeroResultQueries.length > 0) {
+      try {
+        const failedAnalysis = await suggestPagesForFailedQueries(supabase, site_id, zeroResultQueries);
+        failedQuerySuggestions = failedAnalysis.suggestions;
+        failedQuerySynonymsCreated = failedAnalysis.synonymsCreated;
+        log.push(`Failed-query AI matches: ${Object.keys(failedQuerySuggestions).length}`);
+        log.push(`Failed-query synonyms created: ${failedQuerySynonymsCreated}`);
+      } catch (failedErr) {
+        log.push(`Failed-query AI analysis skipped: ${(failedErr as Error).message}`);
+      }
+    }
+
     // -----------------------------------------------------------------------
     // 3. AI agent: generate strategy based on data
     // -----------------------------------------------------------------------
@@ -420,6 +605,9 @@ Return ONLY valid JSON, no markdown.`
       low_ctr_queries: lowCtrQueries.length,
       contact_triggers_active: contactTriggerRules.show_on_zero_results || contactTriggerRules.show_on_low_ctr_queries,
       prompt_additions_length: promptAdditions.length,
+      suggestions: failedQuerySuggestions,
+      failed_query_matches: Object.keys(failedQuerySuggestions).length,
+      synonyms_created: failedQuerySynonymsCreated,
       log: log,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

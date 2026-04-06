@@ -197,7 +197,6 @@ export default function Analytics() {
   const [gaPages, setGaPages] = useState<GAPageData[]>([]);
   const [synonymPage, setSynonymPage] = useState(0);
   const [pageSuggestions, setPageSuggestions] = useState<Record<string, { url: string; title: string; reason: string }[]>>({});
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
 
   useEffect(() => {
@@ -283,9 +282,22 @@ export default function Analytics() {
     setOptimizing(true);
     try {
       const result = await api.runOptimization(siteId);
+      setPageSuggestions(result.suggestions || {});
+      const [ls, { data: syns }] = await Promise.all([
+        api.getLearningStats(siteId),
+        supabase
+          .from("search_synonyms")
+          .select("*")
+          .eq("site_id", siteId)
+          .order("confidence", { ascending: false })
+          .limit(50),
+      ]);
+      setLearningStats(ls);
+      setSynonyms((syns as any[]) || []);
+      const matchCount = Object.keys(result.suggestions || {}).length;
       toast({
         title: "Optimointi valmis",
-        description: `${result.high_ctr_patterns || 0} korkean CTR:n mallia, ${result.zero_result_queries || 0} nollatuloshakua analysoitu`,
+        description: `${result.high_ctr_patterns || 0} korkean CTR:n mallia, ${result.zero_result_queries || 0} nollatuloshakua analysoitu${matchCount ? `, ${matchCount} sivumatchia löytyi` : ""}${result.synonyms_created ? `, ${result.synonyms_created} synonyymia tallennettu` : ""}`,
       });
     } catch (e: any) {
       toast({ title: "Virhe", description: e.message, variant: "destructive" });
@@ -363,37 +375,6 @@ export default function Analytics() {
     setEditingSynonym(null);
     toast({ title: "Synonyymi päivitetty" });
   };
-  const analyzeFailed = async () => {
-    if (!siteId || !stats?.failed_searches?.length) return;
-    setSuggestionsLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("suggest-pages", {
-        body: { site_id: siteId, failed_queries: stats.failed_searches },
-      });
-      if (error) throw error;
-      setPageSuggestions(data.suggestions || {});
-      const matchCount = Object.keys(data.suggestions || {}).length;
-      const synCount = data.synonyms_created || 0;
-      if (matchCount > 0) {
-        toast({ title: `${matchCount} hakuun löytyi ehdotus`, description: synCount > 0 ? `${synCount} uutta synonyymia tallennettu oppimiseen` : "Synonyymit olivat jo tallessa" });
-        // Refresh synonyms list
-        const { data: syns } = await supabase
-          .from("search_synonyms")
-          .select("*")
-          .eq("site_id", siteId!)
-          .order("confidence", { ascending: false })
-          .limit(50);
-        if (syns) setSynonyms(syns);
-      } else {
-        toast({ title: "Ehdotuksia ei löytynyt" });
-      }
-    } catch (e: any) {
-      toast({ title: "Virhe", description: e.message, variant: "destructive" });
-    } finally {
-      setSuggestionsLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center rounded-[28px] border border-border bg-card py-20 shadow-sm">
@@ -1121,23 +1102,9 @@ export default function Analytics() {
                   </AccordionTrigger>
                   <AccordionContent className="pt-2">
                     <div className="space-y-4">
-                      {stats.failed_searches.length > 0 && (
-                        <div className="flex justify-start">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-9 gap-1.5 rounded-2xl border-border bg-background text-xs hover:bg-muted"
-                            onClick={analyzeFailed}
-                            disabled={suggestionsLoading}
-                          >
-                            {suggestionsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
-                            {suggestionsLoading ? "Analysoidaan…" : "Analysoi AI:lla"}
-                          </Button>
-                        </div>
-                      )}
                       {Object.keys(pageSuggestions).length === 0 ? (
                         <p className="text-sm italic text-muted-foreground">
-                          Tämä osio on valinnainen lisätyökalu. AI voi ehdottaa sivuideoita ja synonyymejä epäonnistuneille hauille, mutta perusoptimointi toimii ilman sitäkin.
+                          Tämä analyysi ajetaan automaattisesti osana optimointia. Kun seuraava optimointiajo löytää nollatuloshakuihin sopivia sivuja, ne näkyvät täällä.
                         </p>
                       ) : (
                         <div className="space-y-3">
