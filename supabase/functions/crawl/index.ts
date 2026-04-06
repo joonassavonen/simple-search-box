@@ -10,12 +10,30 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 async function doCrawl(jobId: string, siteId: string) {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const startedAt = Date.now();
+  const SOFT_TIME_LIMIT_MS = 75_000;
+  const PROGRESS_UPDATE_INTERVAL = 5;
+
+  let indexed = 0;
+  let pagesFound = 0;
+  const errors: string[] = [];
+  let timedOut = false;
+
+  const updateJob = async (patch: Record<string, unknown>) => {
+    const { error } = await supabase.from("crawl_jobs").update(patch).eq("id", jobId);
+    if (error) {
+      console.error("Failed to update crawl job:", error);
+    }
+  };
 
   try {
-    // Update job to discovering
-    await supabase.from("crawl_jobs").update({ status: "discovering" }).eq("id", jobId);
+    await updateJob({
+      status: "running",
+      error: null,
+      pages_found: 0,
+      pages_indexed: 0,
+    });
 
-    // Get site info
     const { data: site, error: siteErr } = await supabase
       .from("sites")
       .select("*")
@@ -23,14 +41,13 @@ async function doCrawl(jobId: string, siteId: string) {
       .single();
 
     if (siteErr || !site) {
-      await supabase.from("crawl_jobs").update({ status: "failed", error: "Site not found" }).eq("id", jobId);
+      await updateJob({ status: "error", error: "Site not found" });
       return;
     }
 
     const domain = site.domain.replace(/\/$/, "");
     const baseUrl = domain.startsWith("http") ? domain : `https://${domain}`;
 
-    // --- Phase 1: Discover URLs from sitemap ---
     let urls: string[] = [];
     const sitemapUrl = site.sitemap_url || `${baseUrl}/sitemap.xml`;
 
@@ -39,11 +56,11 @@ async function doCrawl(jobId: string, siteId: string) {
       const sitemapRes = await fetch(sitemapUrl, {
         headers: { "User-Agent": "FindAI-Crawler/1.0" },
       });
+
       if (sitemapRes.ok) {
         const xml = await sitemapRes.text();
-
-        // Check if this is a sitemap index
         const sitemapIndexMatches = [...xml.matchAll(/<sitemap>[\s\S]*?<loc>\s*(.*?)\s*<\/loc>[\s\S]*?<\/sitemap>/gi)];
+
         if (sitemapIndexMatches.length > 0) {
           console.log(`Found sitemap index with ${sitemapIndexMatches.length} child sitemaps`);
           for (const sm of sitemapIndexMatches.slice(0, 5)) {
@@ -79,33 +96,27 @@ async function doCrawl(jobId: string, siteId: string) {
       urls = [baseUrl];
     }
 
-    // Filter out non-HTML URLs (sitemaps, images, PDFs, etc.)
-    urls = urls.filter((u) => {
+    urls = [...new Set(urls)].filter((u) => {
       try {
         const parsed = new URL(u);
         const path = parsed.pathname.toLowerCase();
-        // Skip sitemap XML files
         if (path.includes("sitemap") || path.endsWith(".xml")) return false;
-        // Skip non-HTML resources
         const skipExts = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".svg", ".css", ".js", ".webp", ".ico", ".woff", ".woff2", ".ttf"];
-        if (skipExts.some(ext => path.endsWith(ext))) return false;
+        if (skipExts.some((ext) => path.endsWith(ext))) return false;
         return true;
       } catch {
         return false;
       }
     });
 
-    const totalFound = urls.length;
+    pagesFound = urls.length;
+    console.log(`Sitemap discovery complete: ${pagesFound} URLs found, crawling ${pagesFound}`);
 
-    console.log(`Sitemap discovery complete: ${totalFound} URLs found, crawling ${urls.length}`);
+    await updateJob({
+      status: "running",
+      pages_found: pagesFound,
+    });
 
-    // Update pages_found immediately
-    await supabase.from("crawl_jobs").update({
-      pages_found: urls.length,
-      status: "crawling",
-    }).eq("id", jobId);
-
-    // --- Phase 2: Extract brand styles from homepage ---
     try {
       console.log(`Extracting brand styles from ${baseUrl}`);
       const homeRes = await fetch(baseUrl, {
@@ -121,7 +132,7 @@ async function doCrawl(jobId: string, siteId: string) {
             brand_font: brand.font || null,
             brand_bg_color: brand.bgColor || null,
           }).eq("id", siteId);
-          console.log(`Brand styles extracted:`, brand);
+          console.log("Brand styles extracted:", brand);
         }
       } else {
         await homeRes.text();
@@ -130,11 +141,13 @@ async function doCrawl(jobId: string, siteId: string) {
       console.log("Brand extraction failed (non-fatal):", e);
     }
 
-    // --- Phase 3: Crawl each page ---
-    let indexed = 0;
-    const errors: string[] = [];
-
     for (const url of urls) {
+      if (Date.now() - startedAt > SOFT_TIME_LIMIT_MS) {
+        timedOut = true;
+        errors.push(`Crawl stopped early to avoid runtime timeout after ${indexed}/${pagesFound} pages`);
+        break;
+      }
+
       try {
         const pageRes = await fetch(url, {
           headers: { "User-Agent": "FindAI-Crawler/1.0" },
@@ -169,7 +182,7 @@ async function doCrawl(jobId: string, siteId: string) {
               schema_data: schemaData || null,
               last_indexed_at: new Date().toISOString(),
             },
-            { onConflict: "site_id,url" }
+            { onConflict: "site_id,url" },
           );
 
         if (upsertErr) {
@@ -177,45 +190,45 @@ async function doCrawl(jobId: string, siteId: string) {
           continue;
         }
 
-        indexed++;
-        if (indexed % 5 === 0) {
-          await supabase
-            .from("crawl_jobs")
-            .update({ pages_indexed: indexed })
-            .eq("id", jobId);
+        indexed += 1;
+        if (indexed % PROGRESS_UPDATE_INTERVAL === 0) {
+          await updateJob({
+            status: "running",
+            pages_found: pagesFound,
+            pages_indexed: indexed,
+          });
         }
       } catch (e) {
         errors.push(`${url}: ${(e as Error).message}`);
       }
     }
 
-    // Final update
-    const finalStatus = errors.length > 0 && indexed > 0
-      ? "done_with_errors"
-      : errors.length > 0
-        ? "failed"
-        : "done";
+    const finalStatus = timedOut || (indexed === 0 && errors.length > 0) ? "error" : "done";
 
-    await supabase.from("crawl_jobs").update({
+    await updateJob({
       status: finalStatus,
       pages_indexed: indexed,
-      pages_found: urls.length,
+      pages_found: pagesFound,
       error: errors.length > 0 ? errors.slice(0, 10).join("; ") : null,
-    }).eq("id", jobId);
+    });
 
-    await supabase.from("sites").update({
-      page_count: indexed,
-      last_crawled_at: new Date().toISOString(),
-    }).eq("id", siteId);
+    if (indexed > 0) {
+      await supabase.from("sites").update({
+        page_count: indexed,
+        last_crawled_at: new Date().toISOString(),
+      }).eq("id", siteId);
+    }
 
-    console.log(`Crawl complete: ${indexed}/${urls.length} pages indexed, ${errors.length} errors`);
+    console.log(`Crawl complete: ${indexed}/${pagesFound} pages indexed, ${errors.length} errors`);
   } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown crawl error";
     console.error("Crawl error:", e);
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-    await supabase.from("crawl_jobs").update({
-      status: "failed",
-      error: (e as Error).message,
-    }).eq("id", jobId);
+    await updateJob({
+      status: "error",
+      pages_indexed: indexed,
+      pages_found: pagesFound,
+      error: message,
+    });
   }
 }
 
@@ -225,19 +238,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { job_id, site_id } = await req.json();
-    if (!job_id || !site_id) {
+    const payload = await req.json();
+    const jobId = typeof payload?.job_id === "string" ? payload.job_id : null;
+    const siteId = typeof payload?.site_id === "string" ? payload.site_id : null;
+
+    if (!jobId || !siteId) {
       return new Response(JSON.stringify({ error: "job_id and site_id required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Run crawl in background
     // @ts-ignore: EdgeRuntime is available in Supabase Edge Functions
-    EdgeRuntime.waitUntil(doCrawl(job_id, site_id));
+    EdgeRuntime.waitUntil(doCrawl(jobId, siteId));
 
-    return new Response(JSON.stringify({ status: "started", job_id }), {
+    return new Response(JSON.stringify({ status: "started", job_id: jobId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
