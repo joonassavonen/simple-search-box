@@ -251,7 +251,7 @@ async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
       }
     }
 
-    const finalStatus = timedOut || (indexed === 0 && errors.length > 0) ? "error" : "done";
+    const finalStatus = timedOut ? "partial" : (indexed === 0 && errors.length > 0) ? "error" : "done";
 
     await updateJob({
       status: finalStatus,
