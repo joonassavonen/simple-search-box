@@ -429,7 +429,7 @@ Palauta VAIN validi JSON.`
           ...(isProduct && sd?.price ? { price: sd.price, currency: sd.currency || "EUR" } : {}),
         };
       });
-      }));
+      
 
     const responseMs = Date.now() - startTime;
 
