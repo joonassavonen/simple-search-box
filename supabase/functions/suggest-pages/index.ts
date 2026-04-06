@@ -174,6 +174,8 @@ Respond using the suggest_pages tool.`,
                 .update({
                   confidence: Math.min(existing.confidence * 0.7 + 0.6 * 0.3, 1.0),
                   times_used: existing.times_used + 1,
+                  source: "suggest-pages",
+                  status: "approved",
                   updated_at: new Date().toISOString(),
                 })
                 .eq("id", existing.id);
@@ -185,6 +187,8 @@ Respond using the suggest_pages tool.`,
                   query_from: queryNorm,
                   query_to: titleWords,
                   confidence: 0.6,
+                  source: "suggest-pages",
+                  status: "approved",
                 });
               synonymsCreated++;
             }

@@ -68,8 +68,6 @@ interface Synonym {
   query_to: string;
   confidence: number;
   times_used: number;
-  status?: "proposed" | "approved" | "rejected";
-  source?: string;
 }
 
 interface GAPageData {
@@ -345,18 +343,6 @@ export default function Analytics() {
     toast({ title: "Synonyymi poistettu" });
   };
 
-  const updateSynonymStatus = async (id: string, status: "approved" | "rejected") => {
-    // status column not in DB schema yet; update local state only
-    const error = null;
-    setSynonyms((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
-    if (siteId) {
-      const ls = await api.getLearningStats(siteId);
-      setLearningStats(ls);
-      setPageSuggestions(ls.failed_query_suggestions || {});
-    }
-    toast({ title: status === "approved" ? "Synonyymi hyväksytty" : "Synonyymi hylätty" });
-  };
-
   const startEdit = (s: Synonym) => {
     setEditingSynonym(s.id);
     setEditForm({ query_from: s.query_from, query_to: s.query_to });
@@ -403,8 +389,6 @@ export default function Analytics() {
   if (!stats || !site) return null;
 
   const ctrPct = (stats.click_through_rate * 100).toFixed(1);
-  const approvedSynonyms = synonyms.filter((s) => s.status === "approved");
-  const proposedSynonyms = synonyms.filter((s) => s.status === "proposed");
   const now = new Date();
   const daysNum = Number(dateRange);
   const periodStart = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
@@ -419,22 +403,6 @@ export default function Analytics() {
     ? new Date(strategy.last_optimized_at).toLocaleString("fi-FI")
     : null;
   const triggerCategories = strategy?.contact_trigger_rules?.trigger_categories ?? [];
-  const nextStep = !strategy
-    ? {
-        title: "Käynnistä automaattinen optimointi",
-        body: "Oppiminen on kerännyt perussignaalit, mutta hakua ei vielä ohjata aktiivisella strategialla. Päivitä strategia, kun haluat että järjestelmä alkaa hyödyntää dataa autonomisesti.",
-      }
-    : (learningStats?.affinity_count ?? 0) === 0
-      ? {
-          title: "Anna käyttäjädatan ensin kertyä",
-          body: "Kun hakuja ja klikkejä kertyy enemmän, järjestelmä pystyy oppimaan query → sivu -yhteyksiä ja optimoimaan tuloksia varmemmin ilman käsityötä.",
-        }
-      : {
-          title: "Automaattinen optimointi on aktiivinen",
-          body: proposedSynonyms.length > 0
-            ? `Järjestelmä hyödyntää jo käyttäjäsignaaleja autonomisesti. ${proposedSynonyms.length} synonyymiehdotusta odottaa valinnaista manuaalista tarkistusta lisätiedoissa.`
-            : "Järjestelmä hyödyntää jo käyttäjäsignaaleja autonomisesti. Manuaalista tarkistusta tarvitaan vain poikkeustapauksissa.",
-        };
 
   return (
     <div className="space-y-6">
@@ -759,421 +727,218 @@ export default function Analytics() {
           )}
         </TabsContent>
 
-        {/* ─── Learning Tab ─── */}
         <TabsContent value="learning" className="min-w-0 space-y-5">
-          <Card className={`rounded-[24px] ${panelClass}`}>
-            <CardContent className="p-5 sm:p-6">
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 space-y-3">
-                  <Badge variant="secondary" className="rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em]">
-                    Oppiminen & optimointi
-                  </Badge>
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-semibold tracking-tight text-foreground">Mahdollisimman autonominen optimointi</h2>
-                    <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                      Oppiminen kerää käyttäjäsignaalit, query → sivu -affiniteetit ja synonyymiehdotukset. Optimointi käyttää näitä signaaleja hakutulosten, AI-vastausten ja CTA-käyttäytymisen parantamiseen ilman jatkuvaa käsityötä.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="rounded-full border-border bg-muted/40 text-foreground">
-                      {approvedSynonyms.length} hyväksyttyä synonyymiä
-                    </Badge>
-                    <Badge variant={proposedSynonyms.length > 0 ? "default" : "secondary"} className="rounded-full">
-                      {proposedSynonyms.length} valinnaista tarkistusta
-                    </Badge>
-                    <Badge variant="outline" className="rounded-full border-border bg-muted/40 text-foreground">
-                      {learningStats?.affinity_count ?? 0} query → sivu -signaalia
-                    </Badge>
-                    {strategyLastUpdated && (
-                      <Badge variant="outline" className="rounded-full border-border bg-background text-muted-foreground">
-                        Strategia päivitetty {strategyLastUpdated}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[260px]">
-                  <Button onClick={runOptimization} disabled={optimizing} className="w-full rounded-2xl">
-                    {optimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
-                    {optimizing ? "Päivitetään strategiaa..." : "Suorita automaattinen optimointi"}
-                  </Button>
-                  <Button onClick={runLearning} disabled={learningRunning} variant="outline" className="w-full rounded-2xl">
-                    {learningRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                    {learningRunning ? "Päivitetään signaaleja..." : "Päivitä oppimissignaalit"}
-                  </Button>
-                </div>
+          {/* Actions */}
+          <div className={`rounded-[24px] border ${panelClass} p-5 sm:p-6`}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">Oppiminen & optimointi</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Analysoi hakudata ja päivitä hakustrategia automaattisesti.
+                </p>
+                {strategyLastUpdated && (
+                  <p className="mt-1 text-xs text-muted-foreground">Viimeksi optimoitu: {strategyLastUpdated}</p>
+                )}
               </div>
-
-              <div className="mt-6 space-y-4">
-                <div className="self-start rounded-[22px] border border-border bg-muted/35 p-4 sm:p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Seuraava suositus</p>
-                  <h3 className="mt-2 text-lg font-semibold tracking-tight text-foreground">{nextStep.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{nextStep.body}</p>
-                </div>
-                <div className="self-start rounded-[22px] border border-border bg-background p-4 sm:p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Aktiivinen strategia</p>
-                  {!strategy ? (
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Strategiaa ei ole vielä muodostettu. Automaattinen optimointi alkaa käytännössä tästä napista.
-                    </p>
-                  ) : (
-                    <div className="mt-3 space-y-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Hakua ohjaava painotus</p>
-                        <p className="mt-1 text-sm leading-6 text-foreground">{strategy.prompt_additions || "Ei lisäohjeita."}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Konversiohavainnot</p>
-                        <p className="mt-1 text-sm leading-6 text-foreground">{strategy.conversion_insights || "Ei vielä havaintoja."}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+              <div className="flex gap-2">
+                <Button onClick={runOptimization} disabled={optimizing} className="rounded-2xl">
+                  {optimizing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <WandSparkles className="mr-2 h-4 w-4" />}
+                  {optimizing ? "Optimoidaan..." : "Optimoi"}
+                </Button>
+                <Button onClick={runLearning} disabled={learningRunning} variant="outline" className="rounded-2xl">
+                  {learningRunning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {learningRunning ? "Opitaan..." : "Opi synonyymit"}
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <AnalyticsMetricCard
-              title="Valinnainen tarkistus"
-              value={String(proposedSynonyms.length)}
-              hint="Manuaalinen moderointi vain tarvittaessa"
-              icon={<Lightbulb className="h-5 w-5" />}
-              tone="accent"
-            />
-            <AnalyticsMetricCard
-              title="Käytössä haussa"
-              value={String(approvedSynonyms.length)}
-              hint="Hyväksytyt synonyymit vaikuttavat jo tuloksiin"
-              icon={<BookOpen className="h-5 w-5" />}
-              tone="primary"
-            />
-            <AnalyticsMetricCard
-              title="Käyttäjäsignaali"
-              value={String(learningStats?.total_affinity_clicks ?? 0)}
-              hint="Klikkaukset, joista query → sivu -affiniteetit muodostuvat"
-              icon={<MousePointerClick className="h-5 w-5" />}
-              tone="secondary"
-            />
+            </div>
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] xl:items-start">
-            <Card className={`${panelClass} self-start`}>
-              <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
-                  <Brain className="h-4 w-4 text-primary" />
-                  Automaattisesti käytössä olevat signaalit
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-5">
-                <div className="space-y-3">
-                  <div className="rounded-[20px] border border-border bg-muted/25 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Hyväksytyt synonyymit</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">{approvedSynonyms.length}</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Nämä yhteydet vaikuttavat jo suoraan hakutuloksiin ilman lisätoimenpiteitä.
-                    </p>
-                  </div>
-                  <div className="rounded-[20px] border border-border bg-muted/25 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Query → sivu -affiniteetit</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">{learningStats?.affinity_count ?? 0}</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Käyttäjien klikkikäyttäytymisestä opitut suhteet, joita optimointi voi käyttää järjestyksen parantamiseen.
-                    </p>
-                  </div>
-                  <div className="rounded-[20px] border border-border bg-muted/25 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Valinnainen manuaalinen tarkistus</p>
-                    <p className="mt-2 text-lg font-semibold text-foreground">{proposedSynonyms.length}</p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Nämä ehdotukset eivät estä automaattista optimointia. Voit tarkistaa ne myöhemmin lisätiedoista, jos haluat lisää kontrollia.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* KPI row */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <AnalyticsMetricCard title="Synonyymit" value={String(synonyms.length)} hint="Opitut synonyymit" icon={<BookOpen className="h-5 w-5" />} tone="primary" />
+            <AnalyticsMetricCard title="Klikkisignaalit" value={String(learningStats?.affinity_count ?? 0)} hint="Query → sivu -yhteydet" icon={<MousePointerClick className="h-5 w-5" />} tone="accent" />
+            <AnalyticsMetricCard title="Klikkejä yhteensä" value={String(learningStats?.total_affinity_clicks ?? 0)} hint="Käyttäjäsignaalit" icon={<TrendingUp className="h-5 w-5" />} tone="secondary" />
+          </div>
 
-            <Card className={`${panelClass} self-start`}>
+          {/* Strategy overview */}
+          {strategy && (
+            <Card className={panelClass}>
               <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
-                  <Zap className="h-4 w-4 text-primary" />
-                  Vahvimmat query → sivu -signaalit
+                <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary" />
+                  Aktiivinen strategia
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-5">
-                {topAffinityPreview.length === 0 ? (
-                  <p className="text-sm italic text-muted-foreground">
-                    Ei vielä tarpeeksi klikkisignaalia. Kun käyttäjät hakevat ja klikkaavat, tänne alkaa muodostua vahvimpia yhteyksiä.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {topAffinityPreview.map((item, index) => (
-                      <div key={`${item.query}-${item.url}-${index}`} className="rounded-[18px] border border-border bg-background p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground">{item.query}</p>
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-1 inline-flex max-w-full items-center gap-1 truncate text-sm text-primary hover:underline"
-                            >
-                              {new URL(item.url).pathname}
-                              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                            </a>
-                          </div>
-                          <Badge variant={item.confidence >= 0.7 ? "default" : "secondary"} className="rounded-full">
-                            {(item.confidence * 100).toFixed(0)} %
-                          </Badge>
-                        </div>
-                        <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{item.clicks} klikkiä</span>
-                          <span>Affiniteetti</span>
-                        </div>
-                      </div>
-                    ))}
+              <CardContent className="pt-4 space-y-3">
+                {strategy.prompt_additions && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Hakuohje</p>
+                    <p className="mt-1 text-sm text-foreground">{strategy.prompt_additions}</p>
+                  </div>
+                )}
+                {strategy.conversion_insights && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Konversiohavainnot</p>
+                    <p className="mt-1 text-sm text-foreground">{strategy.conversion_insights}</p>
+                  </div>
+                )}
+                {triggerCategories.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">CTA-kategoriat</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {triggerCategories.map((cat) => (
+                        <Badge key={cat} variant="secondary" className="rounded-full">{cat}</Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </div>
+          )}
 
-          <Card className={panelClass}>
-            <CardHeader className="border-b border-border pb-4">
-              <CardTitle className="text-base font-semibold text-foreground">Lisätiedot ja ylläpito</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <Accordion type="multiple" className="w-full">
-                <AccordionItem value="approved">
-                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline">
-                    Hyväksytyt synonyymit ({approvedSynonyms.length})
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-2">
-                    {approvedSynonyms.length === 0 ? (
-                      <p className="text-sm italic text-muted-foreground">
-                        Ei hyväksyttyjä synonyymejä vielä.
-                      </p>
-                    ) : (
-                      <>
-                        <div className="max-w-full overflow-x-auto">
-                          <Table className="min-w-[720px]">
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Hakulause</TableHead>
-                                <TableHead>Synonyymi</TableHead>
-                                <TableHead className="w-24 text-right">Luottamus</TableHead>
-                                <TableHead className="w-20 text-right">Käytöt</TableHead>
-                                <TableHead className="w-20 text-right">Toiminnot</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {approvedSynonyms.slice(synonymPage * QUERIES_PER_PAGE, (synonymPage + 1) * QUERIES_PER_PAGE).map((s) => (
-                                <TableRow key={s.id}>
-                                  {editingSynonym === s.id ? (
-                                    <>
-                                      <TableCell>
-                                        <input
-                                          className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
-                                          value={editForm.query_from}
-                                          onChange={(e) => setEditForm((f) => ({ ...f, query_from: e.target.value }))}
-                                        />
-                                      </TableCell>
-                                      <TableCell>
-                                        <input
-                                          className="w-full rounded border border-border bg-background px-2 py-1 text-sm"
-                                          value={editForm.query_to}
-                                          onChange={(e) => setEditForm((f) => ({ ...f, query_to: e.target.value }))}
-                                        />
-                                      </TableCell>
-                                      <TableCell className="text-right">
-                                        <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>
-                                          {(s.confidence * 100).toFixed(0)}%
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
-                                      <TableCell className="text-right">
-                                        <div className="flex justify-end gap-1">
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveEdit(s.id)}>
-                                            <Check className="h-3.5 w-3.5 text-green-600" />
-                                          </Button>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingSynonym(null)}>
-                                            <X className="h-3.5 w-3.5 text-muted-foreground" />
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <TableCell className="font-medium">{s.query_from}</TableCell>
-                                      <TableCell>{s.query_to}</TableCell>
-                                      <TableCell className="text-right">
-                                        <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>
-                                          {(s.confidence * 100).toFixed(0)}%
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
-                                      <TableCell className="text-right">
-                                        <div className="flex justify-end gap-1">
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(s)}>
-                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                          </Button>
-                                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSynonym(s.id)}>
-                                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </>
-                                  )}
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        {(() => {
-                          const totalSynPages = Math.ceil(approvedSynonyms.length / QUERIES_PER_PAGE);
-                          return totalSynPages > 1 ? (
-                            <div className="flex items-center justify-between pt-3">
-                              <span className="text-xs text-muted-foreground">
-                                {synonymPage * QUERIES_PER_PAGE + 1}–{Math.min((synonymPage + 1) * QUERIES_PER_PAGE, approvedSynonyms.length)} / {approvedSynonyms.length}
-                              </span>
-                              <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={synonymPage === 0} onClick={() => setSynonymPage(synonymPage - 1)}>
-                                  <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={synonymPage >= totalSynPages - 1} onClick={() => setSynonymPage(synonymPage + 1)}>
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ) : null;
-                        })()}
-                      </>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
+          {/* Top click signals */}
+          {topAffinityPreview.length > 0 && (
+            <Card className={panelClass}>
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-primary" />
+                  Vahvimmat klikkisignaalit
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="space-y-2">
+                  {topAffinityPreview.map((item, index) => (
+                    <div key={`${item.query}-${index}`} className="flex items-center justify-between rounded-xl border border-border bg-background p-3">
+                      <div className="min-w-0 mr-3">
+                        <p className="text-sm font-medium text-foreground truncate">{item.query}</p>
+                        <p className="text-xs text-muted-foreground truncate">{(() => { try { return new URL(item.url).pathname; } catch { return item.url; } })()}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-muted-foreground">{item.clicks} klik.</span>
+                        <Badge variant={item.confidence >= 0.7 ? "default" : "secondary"} className="rounded-full">
+                          {(item.confidence * 100).toFixed(0)}%
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-                <AccordionItem value="proposed">
-                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline">
-                    Manuaalinen tarkistus: ehdotetut synonyymit ({proposedSynonyms.length})
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-2">
-                    {proposedSynonyms.length === 0 ? (
-                      <p className="text-sm italic text-muted-foreground">
-                        Ei odottavia ehdotuksia.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {proposedSynonyms.map((s) => (
-                          <div key={s.id} className="rounded-[18px] border border-border bg-muted/25 p-4">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0 space-y-2">
-                                <div className="flex flex-wrap items-center gap-2 text-sm">
-                                  <span className="font-semibold text-foreground">{s.query_from}</span>
-                                  <span className="text-muted-foreground">→</span>
-                                  <span className="font-medium text-foreground">{s.query_to}</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"} className="rounded-full">
-                                    {(s.confidence * 100).toFixed(0)} % varmuus
-                                  </Badge>
-                                  {s.source && (
-                                    <Badge variant="outline" className="rounded-full border-border bg-background text-muted-foreground">
-                                      {s.source}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button size="sm" className="rounded-xl" onClick={() => updateSynonymStatus(s.id, "approved")}>
-                                  <Check className="mr-1.5 h-4 w-4" />
-                                  Hyväksy
-                                </Button>
-                                <Button size="sm" variant="outline" className="rounded-xl" onClick={() => updateSynonymStatus(s.id, "rejected")}>
-                                  <X className="mr-1.5 h-4 w-4" />
-                                  Hylkää
-                                </Button>
-                              </div>
-                            </div>
+          {/* AI suggestions for failed queries */}
+          {Object.keys(pageSuggestions).length > 0 && (
+            <Card className={panelClass}>
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                  <Lightbulb className="h-4 w-4 text-primary" />
+                  AI-ehdotukset nollatuloshauille
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="space-y-3">
+                  {Object.entries(pageSuggestions).map(([query, matches]) => (
+                    <div key={query} className="rounded-xl border border-border bg-muted/25 p-3">
+                      <p className="text-sm font-semibold text-foreground">{query}</p>
+                      <div className="mt-2 space-y-1">
+                        {matches.map((s, i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm">
+                            <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                            <a href={s.url} target="_blank" rel="noopener" className="text-primary hover:underline">{s.title}</a>
+                            <span className="text-muted-foreground">— {s.reason}</span>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-                <AccordionItem value="failed-ai">
-                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline">
-                    AI-analyysi epäonnistuneille hauille
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-2">
-                    <div className="space-y-4">
-                      {Object.keys(pageSuggestions).length === 0 ? (
-                        <p className="text-sm italic text-muted-foreground">
-                          Tämä analyysi ajetaan automaattisesti osana optimointia. Kun seuraava optimointiajo löytää nollatuloshakuihin sopivia sivuja, ne näkyvät täällä.
-                        </p>
-                      ) : (
-                        <div className="space-y-3">
-                          {Object.entries(pageSuggestions).map(([query, matches]) => (
-                            <div key={query} className="rounded-[18px] border border-border bg-muted/25 p-4">
-                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{query}</p>
-                              <div className="mt-3 space-y-2">
-                                {matches.map((s, i) => (
-                                  <div key={i} className="flex items-start gap-2 text-sm">
-                                    <TrendingUp className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-                                    <div>
-                                      <a href={s.url} target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
-                                        {s.title}
-                                      </a>
-                                      <span className="ml-1 text-muted-foreground">— {s.reason}</span>
-                                    </div>
+          {/* Synonyms table */}
+          <Card className={panelClass}>
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Synonyymit ({synonyms.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {synonyms.length === 0 ? (
+                <p className="text-sm italic text-muted-foreground">Ei synonyymejä vielä. Käytä "Opi synonyymit" -nappia.</p>
+              ) : (
+                <>
+                  <div className="max-w-full overflow-x-auto">
+                    <Table className="min-w-[600px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Hakulause</TableHead>
+                          <TableHead>Synonyymi</TableHead>
+                          <TableHead className="w-24 text-right">Luottamus</TableHead>
+                          <TableHead className="w-20 text-right">Käytöt</TableHead>
+                          <TableHead className="w-20 text-right">Toiminnot</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {synonyms.slice(synonymPage * QUERIES_PER_PAGE, (synonymPage + 1) * QUERIES_PER_PAGE).map((s) => (
+                          <TableRow key={s.id}>
+                            {editingSynonym === s.id ? (
+                              <>
+                                <TableCell>
+                                  <input className="w-full rounded border border-border bg-background px-2 py-1 text-sm" value={editForm.query_from} onChange={(e) => setEditForm((f) => ({ ...f, query_from: e.target.value }))} />
+                                </TableCell>
+                                <TableCell>
+                                  <input className="w-full rounded border border-border bg-background px-2 py-1 text-sm" value={editForm.query_to} onChange={(e) => setEditForm((f) => ({ ...f, query_to: e.target.value }))} />
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>{(s.confidence * 100).toFixed(0)}%</Badge>
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveEdit(s.id)}><Check className="h-3.5 w-3.5 text-primary" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingSynonym(null)}><X className="h-3.5 w-3.5 text-muted-foreground" /></Button>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="system">
-                  <AccordionTrigger className="text-sm font-medium text-foreground hover:no-underline">
-                    Strategian tekniset tiedot
-                  </AccordionTrigger>
-                  <AccordionContent className="pt-2">
-                    <div className="grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-[18px] border border-border bg-muted/25 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">CTA-säännöt</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Badge variant={strategy?.contact_trigger_rules?.show_on_zero_results ? "default" : "secondary"} className="rounded-full">
-                            Zero results CTA
-                          </Badge>
-                          <Badge variant={strategy?.contact_trigger_rules?.show_on_low_ctr_queries ? "default" : "secondary"} className="rounded-full">
-                            Low CTR CTA
-                          </Badge>
-                          {triggerCategories.map((rule) => (
-                            <Badge key={rule} variant="outline" className="rounded-full border-border bg-background text-foreground">
-                              {rule}
-                            </Badge>
-                          ))}
+                                </TableCell>
+                              </>
+                            ) : (
+                              <>
+                                <TableCell className="font-medium">{s.query_from}</TableCell>
+                                <TableCell>{s.query_to}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant={s.confidence >= 0.7 ? "default" : "secondary"}>{(s.confidence * 100).toFixed(0)}%</Badge>
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">{s.times_used}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(s)}><Pencil className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteSynonym(s.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                                  </div>
+                                </TableCell>
+                              </>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {(() => {
+                    const totalSynPages = Math.ceil(synonyms.length / QUERIES_PER_PAGE);
+                    return totalSynPages > 1 ? (
+                      <div className="flex items-center justify-between pt-3">
+                        <span className="text-xs text-muted-foreground">
+                          {synonymPage * QUERIES_PER_PAGE + 1}–{Math.min((synonymPage + 1) * QUERIES_PER_PAGE, synonyms.length)} / {synonyms.length}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={synonymPage === 0} onClick={() => setSynonymPage(synonymPage - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" disabled={synonymPage >= totalSynPages - 1} onClick={() => setSynonymPage(synonymPage + 1)}><ChevronRight className="h-4 w-4" /></Button>
                         </div>
                       </div>
-                      <div className="rounded-[18px] border border-border bg-muted/25 p-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Yhteenveto</p>
-                        <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                          <p>Affiniteetteja: <span className="font-medium text-foreground">{learningStats?.affinity_count ?? 0}</span></p>
-                          <p>Affiniteettiklikkejä: <span className="font-medium text-foreground">{learningStats?.total_affinity_clicks ?? 0}</span></p>
-                          <p>Viimeisin optimointi: <span className="font-medium text-foreground">{strategyLastUpdated ?? "Ei vielä ajettu"}</span></p>
-                        </div>
-                        {strategy?.optimization_log ? (
-                          <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                            {strategy.optimization_log}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                    ) : null;
+                  })()}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
