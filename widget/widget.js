@@ -118,6 +118,16 @@
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  function addUtm(url) {
+    try {
+      const u = new URL(url);
+      u.searchParams.set("utm_source", "findai");
+      u.searchParams.set("utm_medium", "AI-onsite-search");
+      u.searchParams.set("utm_campaign", "site-search");
+      return u.toString();
+    } catch { return url; }
+  }
+
   function starHtml(rating, reviewCount) {
     let stars = "";
     for (let i = 0; i < 5; i++) {
@@ -1064,8 +1074,9 @@
 
       if (data.ai_summary) {
         const firstUrl = data.results[0]?.url || "#";
+        const firstUrlUtm = addUtm(firstUrl);
         html += `
-          <a href="${escHtml(firstUrl)}" target="_blank" rel="noopener" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
+          <a href="${escHtml(firstUrlUtm)}" target="_blank" rel="noopener" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
             <div class="findai-ai-summary-text">
               <h3>${escHtml(data.ai_summary.split(".")[0])}</h3>
               <p>${escHtml(data.ai_summary)}</p>
@@ -1080,8 +1091,9 @@
         const snippet = cleanSnippet(r.snippet);
         const s = r.schema_data;
         const isProduct = s && s.type === "Product";
+        const urlUtm = addUtm(r.url);
 
-        html += `<a href="${escHtml(r.url)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
+        html += `<a href="${escHtml(urlUtm)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
 
         if (isProduct && s.image) {
           html += `<img class="findai-result-img" src="${escHtml(s.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
