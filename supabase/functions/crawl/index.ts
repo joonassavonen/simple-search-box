@@ -243,6 +243,13 @@ async function doCrawl(jobId: string, siteId: string) {
         page_count: indexed,
         last_crawled_at: new Date().toISOString(),
       }).eq("id", siteId);
+
+      // Generate AI context document for the site
+      try {
+        await generateAiContext(supabase, siteId);
+      } catch (ctxErr) {
+        console.error("AI context generation failed (non-fatal):", ctxErr);
+      }
     }
 
     console.log(`Crawl complete: ${indexed}/${pagesFound} pages indexed, ${errors.length} errors`);
