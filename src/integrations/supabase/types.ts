@@ -320,6 +320,7 @@ export type Database = {
           contact_trigger_rules: Json | null
           conversion_insights: string | null
           created_at: string
+          failed_query_suggestions: Json
           high_ctr_patterns: Json | null
           id: string
           last_optimized_at: string | null
@@ -332,6 +333,7 @@ export type Database = {
           contact_trigger_rules?: Json | null
           conversion_insights?: string | null
           created_at?: string
+          failed_query_suggestions?: Json
           high_ctr_patterns?: Json | null
           id?: string
           last_optimized_at?: string | null
@@ -344,6 +346,7 @@ export type Database = {
           contact_trigger_rules?: Json | null
           conversion_insights?: string | null
           created_at?: string
+          failed_query_suggestions?: Json
           high_ctr_patterns?: Json | null
           id?: string
           last_optimized_at?: string | null

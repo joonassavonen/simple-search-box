@@ -201,8 +201,6 @@ Respond using the suggest_pages tool.`,
             query_from: queryNorm,
             query_to: titleWords,
             confidence: 0.6,
-            source: "suggest-pages",
-            status: "approved",
           });
         synonymsCreated++;
       }
