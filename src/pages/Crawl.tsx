@@ -157,15 +157,22 @@ export default function Crawl() {
                 </p>
               )}
             </div>
-            <Button onClick={triggerCrawl} disabled={crawling}>
-              {crawling ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-1 h-4 w-4" />
+            <div className="flex gap-2">
+              {latestPartialJob && !crawling && (
+                <Button variant="outline" onClick={() => resumeCrawl(latestPartialJob.id)}>
+                  <PlayCircle className="mr-1 h-4 w-4" />
+                  Jatka
+                </Button>
               )}
-              {crawling ? "Crawling..." : "Start Crawl"}
-            </Button>
-          </div>
+              <Button onClick={triggerCrawl} disabled={crawling}>
+                {crawling ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-4 w-4" />
+                )}
+                {crawling ? "Crawling..." : "Start Crawl"}
+              </Button>
+            </div>
 
           {crawling && job && (
             <div className="space-y-2">
