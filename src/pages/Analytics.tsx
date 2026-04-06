@@ -237,7 +237,7 @@ export default function Analytics() {
         setStats(st);
         setLearningStats(ls);
         setPageSuggestions(ls.failed_query_suggestions || {});
-        const [{ data: syns }, { data: gaData }] = await Promise.all([
+        const [{ data: syns }, { data: gaData }, { data: strategyData }, { data: clickPopularity }] = await Promise.all([
           supabase
             .from("search_synonyms")
             .select("*")
@@ -250,10 +250,28 @@ export default function Analytics() {
             .eq("site_id", siteId!)
             .order("pageviews", { ascending: false })
             .limit(200),
+          (supabase as any)
+            .from("site_search_strategy")
+            .select("high_ctr_patterns")
+            .eq("site_id", siteId!)
+            .maybeSingle(),
+          supabase
+            .from("search_clicks")
+            .select("page_url, click_count")
+            .eq("site_id", siteId!)
+            .order("click_count", { ascending: false })
+            .limit(100),
         ]);
         if (!isMounted) return;
         setSynonyms((syns as any[]) || []);
         setGaPages((gaData as GAPageData[]) || []);
+        setHighCtrPatterns((strategyData?.high_ctr_patterns as HighCtrPattern[]) || []);
+        const popMap: Record<string, number> = {};
+        for (const c of (clickPopularity || []) as any[]) {
+          const path = (() => { try { return new URL(c.page_url).pathname; } catch { return c.page_url; } })();
+          popMap[path] = (popMap[path] || 0) + (c.click_count || 0);
+        }
+        setPopularityData(popMap);
       } catch (e: any) {
         if (!isMounted) return;
         setError(e.message);
