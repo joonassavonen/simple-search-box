@@ -401,9 +401,6 @@ export default function Analytics() {
   if (!stats || !site) return null;
 
   const ctrPct = (stats.click_through_rate * 100).toFixed(1);
-  const approvedSynonyms = synonyms.filter((s) => s.status === "approved");
-  const proposedSynonyms = synonyms.filter((s) => s.status === "proposed");
-  const now = new Date();
   const daysNum = Number(dateRange);
   const periodStart = new Date(now.getTime() - daysNum * 24 * 60 * 60 * 1000);
   const periodLabel = `${periodStart.toLocaleDateString("fi-FI", { day: "numeric", month: "short" })} – ${now.toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric" })}`;
