@@ -185,6 +185,12 @@ export const api = {
   // --- Crawl (Backend fetch) ---
 
   async triggerCrawl(siteId: string, sitemapUrl?: string): Promise<CrawlJob> {
+    await supabase
+      .from("crawl_jobs")
+      .update({ status: "cancelled", error: "Replaced by a newer crawl." })
+      .eq("site_id", siteId)
+      .in("status", ["pending", "running", "discovering", "crawling"]);
+
     // Create the job record
     const { data, error } = await supabase
       .from("crawl_jobs")
@@ -208,6 +214,12 @@ export const api = {
   },
 
   async resumeCrawl(siteId: string, previousJobId: string): Promise<CrawlJob> {
+    await supabase
+      .from("crawl_jobs")
+      .update({ status: "cancelled", error: "Replaced by a newer crawl." })
+      .eq("site_id", siteId)
+      .in("status", ["pending", "running", "discovering", "crawling"]);
+
     const { data, error } = await supabase
       .from("crawl_jobs")
       .insert({ site_id: siteId, status: "pending" })

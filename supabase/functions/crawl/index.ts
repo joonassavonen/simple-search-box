@@ -458,15 +458,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    if ((action === "pause" || action === "cancel") && jobId && siteId) {
+    if ((action === "pause" || action === "cancel") && siteId) {
       const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
       const status = action === "pause" ? "paused" : "cancelled";
       const errorText = action === "pause" ? "Crawl paused by user." : "Crawl stopped by user.";
       const { error } = await supabase
         .from("crawl_jobs")
         .update({ status, error: errorText })
-        .eq("id", jobId)
-        .eq("site_id", siteId);
+        .eq("site_id", siteId)
+        .in("status", ["pending", "running", "discovering", "crawling"]);
 
       if (error) {
         return new Response(JSON.stringify({ error: error.message }), {
@@ -475,7 +475,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ status, job_id: jobId }), {
+      return new Response(JSON.stringify({ status, job_id: jobId || null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
