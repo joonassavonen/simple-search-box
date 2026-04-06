@@ -142,25 +142,12 @@ export interface TrendingItem {
 
 export interface LearningStats {
   site_id: string;
-  approved_synonym_count: number;
-  proposed_synonym_count: number;
+  synonym_count: number;
   affinity_count: number;
   total_affinity_clicks: number;
   top_affinities: { url: string; query: string; clicks: number; confidence: number }[];
   failed_query_suggestions: Record<string, { url: string; title: string; reason: string }[]>;
-  strategy: {
-    prompt_additions: string;
-    conversion_insights: string;
-    contact_trigger_rules: {
-      show_on_zero_results?: boolean;
-      show_on_low_ctr_queries?: boolean;
-      low_ctr_threshold?: number;
-      trigger_categories?: string[];
-    } | null;
-    last_optimized_at: string | null;
-    optimization_log: string;
-  } | null;
-  position_clicks: { position: number; clicks: number }[];
+  last_optimized_at: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -653,7 +640,6 @@ export const api = {
   // --- Learning Stats (Supabase direct) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    // Use search_clicks as affinity source (no separate table needed)
     const { data: clicks } = await supabase
       .from("search_clicks")
       .select("query, page_url, click_count")
@@ -668,17 +654,15 @@ export const api = {
 
     const { data: strategy } = await (supabase as any)
       .from("site_search_strategy")
-      .select("prompt_additions, conversion_insights, contact_trigger_rules, last_optimized_at, optimization_log, failed_query_suggestions")
+      .select("last_optimized_at, failed_query_suggestions")
       .eq("site_id", siteId)
       .maybeSingle();
 
-    const allSynonyms = synonyms || [];
     const totalClicks = (clicks || []).reduce((sum: number, c: any) => sum + (c.click_count || 0), 0);
 
     return {
       site_id: siteId,
-      approved_synonym_count: allSynonyms.length,
-      proposed_synonym_count: 0,
+      synonym_count: (synonyms || []).length,
       affinity_count: clicks?.length || 0,
       total_affinity_clicks: totalClicks,
       top_affinities: (clicks || []).slice(0, 10).map((c: any) => ({
@@ -688,14 +672,7 @@ export const api = {
         confidence: Math.min(0.2 + c.click_count * 0.12, 1.0),
       })),
       failed_query_suggestions: strategy?.failed_query_suggestions || {},
-      strategy: strategy ? {
-        prompt_additions: strategy.prompt_additions || "",
-        conversion_insights: strategy.conversion_insights || "",
-        contact_trigger_rules: strategy.contact_trigger_rules || null,
-        last_optimized_at: strategy.last_optimized_at || null,
-        optimization_log: strategy.optimization_log || "",
-      } : null,
-      position_clicks: [],
+      last_optimized_at: strategy?.last_optimized_at || null,
     };
   },
 

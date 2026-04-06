@@ -264,7 +264,7 @@ export default function Analytics() {
       .on("postgres_changes", {
         event: "*",
         schema: "public",
-        table: "search_click_events",
+        table: "search_clicks",
         filter: `site_id=eq.${siteId}`,
       }, queueRefresh)
       .subscribe();
@@ -397,12 +397,10 @@ export default function Analytics() {
   const noClickCount = stats.no_click_queries.reduce((sum, item) => sum + item.count, 0);
   const panelClass = "border-border bg-card shadow-sm";
   const mutedPanelClass = "border-border bg-muted/30 shadow-sm";
-  const strategy = learningStats?.strategy ?? null;
   const topAffinityPreview = learningStats?.top_affinities.slice(0, 5) ?? [];
-  const strategyLastUpdated = strategy?.last_optimized_at
-    ? new Date(strategy.last_optimized_at).toLocaleString("fi-FI")
+  const lastOptimized = learningStats?.last_optimized_at
+    ? new Date(learningStats.last_optimized_at).toLocaleString("fi-FI")
     : null;
-  const triggerCategories = strategy?.contact_trigger_rules?.trigger_categories ?? [];
 
   return (
     <div className="space-y-6">
@@ -734,10 +732,10 @@ export default function Analytics() {
               <div>
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">Oppiminen & optimointi</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Analysoi hakudata ja päivitä hakustrategia automaattisesti.
+                  AI tunnistaa synonyymit hakulogeista ja yhdistää nollatuloshaut relevantteihin sivuihin.
                 </p>
-                {strategyLastUpdated && (
-                  <p className="mt-1 text-xs text-muted-foreground">Viimeksi optimoitu: {strategyLastUpdated}</p>
+                {lastOptimized && (
+                  <p className="mt-1 text-xs text-muted-foreground">Viimeksi optimoitu: {lastOptimized}</p>
                 )}
               </div>
               <div className="flex gap-2">
@@ -759,42 +757,6 @@ export default function Analytics() {
             <AnalyticsMetricCard title="Klikkisignaalit" value={String(learningStats?.affinity_count ?? 0)} hint="Query → sivu -yhteydet" icon={<MousePointerClick className="h-5 w-5" />} tone="accent" />
             <AnalyticsMetricCard title="Klikkejä yhteensä" value={String(learningStats?.total_affinity_clicks ?? 0)} hint="Käyttäjäsignaalit" icon={<TrendingUp className="h-5 w-5" />} tone="secondary" />
           </div>
-
-          {/* Strategy overview */}
-          {strategy && (
-            <Card className={panelClass}>
-              <CardHeader className="border-b border-border pb-4">
-                <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-primary" />
-                  Aktiivinen strategia
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 space-y-3">
-                {strategy.prompt_additions && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Hakuohje</p>
-                    <p className="mt-1 text-sm text-foreground">{strategy.prompt_additions}</p>
-                  </div>
-                )}
-                {strategy.conversion_insights && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Konversiohavainnot</p>
-                    <p className="mt-1 text-sm text-foreground">{strategy.conversion_insights}</p>
-                  </div>
-                )}
-                {triggerCategories.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">CTA-kategoriat</p>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {triggerCategories.map((cat) => (
-                        <Badge key={cat} variant="secondary" className="rounded-full">{cat}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Top click signals */}
           {topAffinityPreview.length > 0 && (
