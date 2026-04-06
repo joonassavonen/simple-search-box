@@ -620,6 +620,20 @@ export default function Analytics() {
             </Card>
           </div>
 
+          <Card className={panelClass}>
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                  <SearchX className="h-4 w-4 text-primary" />
+                  Haut ilman tuloksia
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <PaginatedQueryList
+                  items={stats.failed_searches}
+                  emptyMessage="Ei epäonnistuneita hakuja."
+                />
+              </CardContent>
+          </Card>
           </div>
         </TabsContent>
 
