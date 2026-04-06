@@ -156,18 +156,39 @@ export default function SearchPreview() {
               <div id="findai-preview-container" ref={containerRef} className="min-h-[60px]" />
             )}
 
-            {/* Floating hint */}
+            {/* Floating hint + side toggle */}
             {mode.value === "floating" && (
-              <Card className="border-dashed border-border/50">
-                <CardContent className="py-8 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Kelluva "Hae"-nappi näkyy oikeassa alakulmassa →
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-1">
-                    Klikkaa nappia testataksesi
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xs text-muted-foreground">Sijainti:</span>
+                  <Button
+                    variant={floatSide === "bottom-left" ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-7 cursor-pointer"
+                    onClick={() => setFloatSide("bottom-left")}
+                  >
+                    ← Vasen
+                  </Button>
+                  <Button
+                    variant={floatSide === "bottom-right" ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-7 cursor-pointer"
+                    onClick={() => setFloatSide("bottom-right")}
+                  >
+                    Oikea →
+                  </Button>
+                </div>
+                <Card className="border-dashed border-border/50">
+                  <CardContent className="py-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Kelluva "Hae"-nappi näkyy {floatSide === "bottom-right" ? "oikeassa" : "vasemmassa"} alakulmassa {floatSide === "bottom-right" ? "→" : "←"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60 mt-1">
+                      Klikkaa nappia testataksesi
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {/* Embed snippet */}
