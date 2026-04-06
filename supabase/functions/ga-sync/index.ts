@@ -231,88 +231,14 @@ async function syncSiteGA(supabase: any, accessToken: string, siteId: string, ga
       );
     }
 
-    // Parse service account JSON
     const serviceAccount = JSON.parse(GA_SERVICE_ACCOUNT_JSON);
-
-    // Get access token
-    console.log("Getting Google access token...");
     const accessToken = await getAccessToken(serviceAccount);
+    const result = await syncSiteGA(supabase, accessToken, site_id, gaPropertyId);
 
-    // Fetch last 30 days
-    const endDate = "today";
-    const startDate = "30daysAgo";
-
-    console.log(`Fetching GA4 data for property ${gaPropertyId}...`);
-    const report = await fetchGA4Report(accessToken, gaPropertyId, startDate, endDate);
-
-    if (!report.rows || report.rows.length === 0) {
-      return new Response(
-        JSON.stringify({ message: "No data found in GA4 for this period", synced: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Calculate period dates
-    const now = new Date();
-    const periodEnd = now.toISOString().split("T")[0];
-    const periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
-
-    // Delete old analytics for this site/period
-    await supabase
-      .from("page_analytics")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("period_start", periodStart)
-      .eq("period_end", periodEnd);
-
-    // Parse and upsert rows
-    const rows = report.rows.map((row: any) => {
-      const pagePath = row.dimensionValues[0].value;
-      const pageviews = parseInt(row.metricValues[0].value) || 0;
-      const sessions = parseInt(row.metricValues[1].value) || 0;
-      const bounceRate = parseFloat(row.metricValues[2].value) || 0;
-      const avgTime = parseFloat(row.metricValues[3].value) || 0;
-      const conversions = parseInt(row.metricValues[4].value) || 0;
-      const conversionRate = sessions > 0 ? conversions / sessions : 0;
-
-      return {
-        site_id,
-        page_path: pagePath,
-        pageviews,
-        sessions,
-        bounce_rate: Math.round(bounceRate * 100) / 100,
-        avg_time_on_page: Math.round(avgTime * 100) / 100,
-        conversions,
-        conversion_rate: Math.round(conversionRate * 10000) / 10000,
-        period_start: periodStart,
-        period_end: periodEnd,
-        fetched_at: new Date().toISOString(),
-      };
-    });
-
-    // Insert in batches of 50
-    let inserted = 0;
-    for (let i = 0; i < rows.length; i += 50) {
-      const batch = rows.slice(i, i + 50);
-      const { error: insertErr } = await supabase.from("page_analytics").insert(batch);
-      if (insertErr) {
-        console.error("Insert error batch", i, insertErr.message);
-      } else {
-        inserted += batch.length;
-      }
-    }
-
-    console.log(`Synced ${inserted}/${rows.length} pages from GA4`);
+    console.log(`Synced ${result.synced}/${result.total_rows || 0} pages from GA4`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        synced: inserted,
-        total_rows: rows.length,
-        period: { start: periodStart, end: periodEnd },
-      }),
+      JSON.stringify({ success: true, ...result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
