@@ -394,19 +394,20 @@ export const api = {
       ? logs.reduce((sum, l) => sum + l.results_count, 0) / logs.length
       : 0;
 
-    // Build daily time series
+    // Build daily time series — only days with data
     const dailyMap: Record<string, { searches: number; clicks: number; no_results: number }> = {};
-    for (let d = 0; d < days; d++) {
-      const date = new Date(now.getTime() - d * 24 * 60 * 60 * 1000);
-      const key = date.toISOString().slice(0, 10);
-      dailyMap[key] = { searches: 0, clicks: 0, no_results: 0 };
-    }
     for (const l of logs) {
       const key = l.created_at.slice(0, 10);
-      if (dailyMap[key]) {
-        dailyMap[key].searches++;
-        if (l.clicked || clickedLogIds.has(l.id)) dailyMap[key].clicks++;
-        if (l.results_count === 0) dailyMap[key].no_results++;
+      if (!dailyMap[key]) dailyMap[key] = { searches: 0, clicks: 0, no_results: 0 };
+      dailyMap[key].searches++;
+      if (l.clicked) dailyMap[key].clicks++;
+      if (l.results_count === 0) dailyMap[key].no_results++;
+    }
+    // Add clicks from search_clicks table
+    for (const e of events) {
+      const key = e.last_clicked_at?.slice(0, 10);
+      if (key && dailyMap[key]) {
+        dailyMap[key].clicks += (e.click_count || 1);
       }
     }
     const daily: import("./api").DailyMetric[] = Object.entries(dailyMap)
@@ -416,7 +417,7 @@ export const api = {
         searches: d.searches,
         clicks: d.clicks,
         no_results: d.no_results,
-        click_rate: d.searches > 0 ? Math.round((d.clicks / d.searches) * 100) : 0,
+        click_rate: d.searches > 0 ? Math.round((d.clicks / d.searches) * 10000) / 100 : 0,
       }));
 
     return {
