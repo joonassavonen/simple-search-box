@@ -460,15 +460,51 @@ export default function Analytics() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="md:col-span-2">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <SearchX className="h-4 w-4 text-muted-foreground" />
-                  Top searches with no results
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <SearchX className="h-4 w-4 text-muted-foreground" />
+                    Haut ilman tuloksia
+                  </CardTitle>
+                  {stats.failed_searches.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={analyzeFailed}
+                      disabled={suggestionsLoading}
+                    >
+                      {suggestionsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
+                      {suggestionsLoading ? "Analysoidaan…" : "Analysoi AI:lla"}
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="pt-0">
-                <PaginatedQueryList items={stats.failed_searches} emptyMessage="No failed searches 🎉" />
+                <PaginatedQueryList
+                  items={stats.failed_searches}
+                  emptyMessage="Ei epäonnistuneita hakuja 🎉"
+                  renderExtra={(query) => {
+                    const matches = pageSuggestions[query];
+                    if (!matches?.length) return null;
+                    return (
+                      <div className="mt-1 ml-2 space-y-1">
+                        {matches.map((s, i) => (
+                          <div key={i} className="flex items-start gap-1.5 text-[11px]">
+                            <TrendingUp className="h-3 w-3 text-primary mt-0.5 shrink-0" />
+                            <div>
+                              <a href={s.url} target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
+                                {s.title}
+                              </a>
+                              <span className="text-muted-foreground ml-1">— {s.reason}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }}
+                />
               </CardContent>
             </Card>
 
