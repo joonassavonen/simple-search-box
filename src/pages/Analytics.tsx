@@ -94,9 +94,11 @@ const QUERIES_PER_PAGE = 10;
 function PaginatedQueryList({
   items,
   emptyMessage,
+  renderExtra,
 }: {
   items: { query: string; count: number }[];
   emptyMessage: string;
+  renderExtra?: (query: string) => React.ReactNode;
 }) {
   const [page, setPage] = useState(0);
   const totalPages = Math.ceil(items.length / QUERIES_PER_PAGE);
@@ -110,9 +112,12 @@ function PaginatedQueryList({
     <div>
       <div className="space-y-1">
         {paged.map((r, i) => (
-          <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
-            <span className="text-sm truncate mr-2">{r.query}</span>
-            <span className="text-sm font-medium text-muted-foreground tabular-nums">{r.count}</span>
+          <div key={i} className="border-b border-border/30 last:border-0 py-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-sm truncate mr-2">{r.query}</span>
+              <span className="text-sm font-medium text-muted-foreground tabular-nums">{r.count}</span>
+            </div>
+            {renderExtra?.(r.query)}
           </div>
         ))}
       </div>
