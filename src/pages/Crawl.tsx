@@ -60,10 +60,14 @@ export default function Crawl() {
       try {
         const status = await api.getCrawlJob(jobId);
         setJob(status);
-        if (["done", "done_with_errors", "failed"].includes(status.status)) {
+        if (["done", "error"].includes(status.status)) {
           clearInterval(interval);
           setCrawling(false);
-          toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
+          if (status.status === "done") {
+            toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
+          } else {
+            toast.error(status.error || "Crawl stopped before completion");
+          }
           await loadData();
         }
       } catch {
@@ -78,11 +82,10 @@ export default function Crawl() {
 
   const getHistorySummary = (entry: { status: string; pages_indexed: number; pages_found: number }) => {
     if (entry.status === "pending") return "Queued";
-    if (entry.status === "discovering") return "Discovering pages...";
-    if (entry.status === "crawling") {
+    if (entry.status === "running") {
       return entry.pages_found > 0
         ? `${entry.pages_indexed}/${entry.pages_found} pages indexed`
-        : `${entry.pages_indexed} pages indexed`;
+        : "Discovering pages...";
     }
     if (entry.pages_found > 0) {
       return `${entry.pages_indexed} pages indexed / ${entry.pages_found} found`;
@@ -215,8 +218,8 @@ export default function Crawl() {
                 <div key={h.id} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
                   <div className="flex items-center gap-3">
                     {h.status === "done" ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-500" />
-                    ) : h.status === "failed" ? (
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                    ) : h.status === "error" ? (
                       <XCircle className="h-4 w-4 text-destructive" />
                     ) : (
                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -230,7 +233,7 @@ export default function Crawl() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={h.status === "done" ? "default" : h.status === "failed" ? "destructive" : "secondary"}>
+                  <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : "secondary"}>
                     {h.status}
                   </Badge>
                 </div>
