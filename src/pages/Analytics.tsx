@@ -119,15 +119,15 @@ function AnalyticsMetricCard({
   } as const;
 
   return (
-    <Card className="border-border/80 bg-card shadow-sm">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1.5">
+    <Card className="min-w-0 border-border/80 bg-card shadow-sm">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1.5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</p>
             <div className="font-mono text-2xl font-semibold tracking-tight text-foreground">{value}</div>
             {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
           </div>
-          <div className={`rounded-2xl p-3 ring-1 ${toneMap[tone]}`}>{icon}</div>
+          <div className={`self-start rounded-2xl p-3 ring-1 ${toneMap[tone]}`}>{icon}</div>
         </div>
       </CardContent>
     </Card>
@@ -470,7 +470,7 @@ export default function Analytics() {
         </TabsList>
 
         {/* ─── Search Performance Tab ─── */}
-        <TabsContent value="performance" className="space-y-5">
+        <TabsContent value="performance" className="min-w-0 space-y-5">
           <div className={`rounded-[24px] border ${panelClass} p-4 sm:p-6`}>
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-baseline gap-3">
@@ -490,7 +490,7 @@ export default function Analytics() {
           </div>
 
           {/* KPI Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <AnalyticsMetricCard title="CTR" value={`${ctrPct} %`} hint="Kuinka moni haku johtaa klikkiin" icon={<Activity className="h-5 w-5" />} tone="primary" />
             <AnalyticsMetricCard title="Haut yhteensä" value={stats.total_searches.toLocaleString("fi-FI")} hint="Kaikki haut valitulla jaksolla" icon={<Search className="h-5 w-5" />} tone="muted" />
             <AnalyticsMetricCard title="Haut 7 päivää" value={stats.searches_last_7d.toLocaleString("fi-FI")} hint="Tuore kysyntä viimeiseltä viikolta" icon={<TrendingUp className="h-5 w-5" />} tone="accent" />
@@ -635,7 +635,7 @@ export default function Analytics() {
         </TabsContent>
 
         {/* ─── GA Tab ─── */}
-        <TabsContent value="ga" className="space-y-5">
+        <TabsContent value="ga" className="min-w-0 space-y-5">
           {gaPages.length === 0 ? (
             <Card className={panelClass}>
               <CardContent className="p-8 text-center">
@@ -665,7 +665,7 @@ export default function Analytics() {
                         </span>
                       )}
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                       <AnalyticsMetricCard title="Katselut" value={totalPV.toLocaleString("fi-FI")} hint="Sivujen kokonaisnäytöt" icon={<Eye className="h-5 w-5" />} tone="primary" />
                       <AnalyticsMetricCard title="Key Events" value={totalKE.toLocaleString("fi-FI")} hint="Tavoitetapahtumat yhteensä" icon={<Target className="h-5 w-5" />} tone="accent" />
                       <AnalyticsMetricCard title="Key Event Rate" value={`${overallRate.toFixed(2)} %`} hint="Konversiot katselua kohti" icon={<TrendingUp className="h-5 w-5" />} tone="secondary" />
@@ -683,7 +683,7 @@ export default function Analytics() {
                     Top-sivut ja hakuboostaus (kävijämäärällä painotettu Key Event Rate)
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="min-w-0 pt-0">
                   {(() => {
                     const totalPV = gaPages.reduce((s, p) => s + p.pageviews, 0) || 1;
                     const maxPV = Math.max(...gaPages.map(p => p.pageviews), 1);
@@ -700,7 +700,7 @@ export default function Analytics() {
                     const maxWR = pagesWithBoost[0]?.weightedRate || 0.0001;
 
                     return (
-                      <div className="overflow-x-auto">
+                      <div className="max-w-full overflow-x-auto">
                       <Table className="min-w-[720px]">
                         <TableHeader>
                           <TableRow>
@@ -753,7 +753,7 @@ export default function Analytics() {
         </TabsContent>
 
         {/* ─── Learning Tab ─── */}
-        <TabsContent value="learning" className="space-y-5">
+        <TabsContent value="learning" className="min-w-0 space-y-5">
           {/* AI Optimization Agent */}
           <Card className={panelClass}>
             <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -805,7 +805,7 @@ export default function Analytics() {
           </div>
 
           {/* Learning KPI Cards */}
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <AnalyticsMetricCard title="Hyväksytyt synonyymit" value={String(learningStats?.approved_synonym_count ?? 0)} hint="Suoraan haussa käytössä" icon={<BookOpen className="h-5 w-5" />} tone="primary" />
             <AnalyticsMetricCard title="Ehdotetut synonyymit" value={String(learningStats?.proposed_synonym_count ?? 0)} hint="Odottaa tarkistusta" icon={<Lightbulb className="h-5 w-5" />} tone="accent" />
             <AnalyticsMetricCard title="Klikki-affiniteetit" value={String(learningStats?.affinity_count ?? 0)} hint="Query → URL -suhteet" icon={<MousePointerClick className="h-5 w-5" />} tone="secondary" />
@@ -867,13 +867,13 @@ export default function Analytics() {
                 Klikki-affiniteetit — Top query → URL -parit
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="min-w-0 pt-0">
               {!learningStats || learningStats.top_affinities.length === 0 ? (
                 <p className="text-sm italic text-muted-foreground">
                   Ei opittuja affiniteetteja vielä. Klikkausdataa kertyy sitä mukaa kun käyttäjät hakevat.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="max-w-full overflow-x-auto">
                 <Table className="min-w-[680px]">
                   <TableHeader>
                     <TableRow>
@@ -921,13 +921,13 @@ export default function Analytics() {
                 Ehdotetut synonyymit
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="min-w-0 pt-0">
               {proposedSynonyms.length === 0 ? (
                 <p className="text-sm italic text-muted-foreground">
                   Ei odottavia ehdotuksia.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="max-w-full overflow-x-auto">
                 <Table className="min-w-[680px]">
                   <TableHeader>
                     <TableRow>
@@ -976,14 +976,14 @@ export default function Analytics() {
                 Hyväksytyt synonyymit
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
+            <CardContent className="min-w-0 pt-0">
               {approvedSynonyms.length === 0 ? (
                 <p className="text-sm italic text-muted-foreground">
                   Ei hyväksyttyjä synonyymejä vielä.
                 </p>
               ) : (
                 <>
-                <div className="overflow-x-auto">
+                <div className="max-w-full overflow-x-auto">
                 <Table className="min-w-[720px]">
                   <TableHeader>
                     <TableRow>
