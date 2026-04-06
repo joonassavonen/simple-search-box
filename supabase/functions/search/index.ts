@@ -115,23 +115,29 @@ Deno.serve(async (req) => {
     }
 
     // --- GA ANALYTICS BOOST: Get page analytics data ---
+    // Uses visitor-weighted key event rate: (key_events / pageviews) * pageviews_normalized
+    // This rewards pages that have both good conversion AND meaningful traffic
     const { data: gaData } = await supabase
       .from("page_analytics")
-      .select("page_path, pageviews, conversions, conversion_rate")
+      .select("page_path, pageviews, conversions")
       .eq("site_id", site_id)
       .order("conversions", { ascending: false })
       .limit(200);
 
-    const gaBoosts: Record<string, { pageviews: number; conversions: number; convRate: number }> = {};
+    const gaBoosts: Record<string, { pageviews: number; keyEvents: number; weightedRate: number }> = {};
     if (gaData && gaData.length > 0) {
-      // Normalize: find max values for relative scoring
       const maxPV = Math.max(...gaData.map(g => g.pageviews), 1);
-      const maxConv = Math.max(...gaData.map(g => g.conversions), 1);
+      const totalPV = gaData.reduce((s, g) => s + g.pageviews, 0) || 1;
       for (const g of gaData) {
+        const keyEventRate = g.pageviews > 0 ? g.conversions / g.pageviews : 0;
+        // Weighted rate = key_event_rate * (pageviews / total_pageviews)
+        // This penalizes pages with few visits even if their rate is high
+        const pvWeight = g.pageviews / totalPV;
+        const weightedRate = keyEventRate * pvWeight;
         gaBoosts[g.page_path] = {
-          pageviews: g.pageviews / maxPV,         // 0-1 normalized
-          conversions: g.conversions / maxConv,     // 0-1 normalized
-          convRate: g.conversion_rate,
+          pageviews: g.pageviews / maxPV,
+          keyEvents: g.conversions,
+          weightedRate,
         };
       }
     }
