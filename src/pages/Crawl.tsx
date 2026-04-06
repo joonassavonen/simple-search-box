@@ -60,10 +60,14 @@ export default function Crawl() {
       try {
         const status = await api.getCrawlJob(jobId);
         setJob(status);
-        if (["done", "done_with_errors", "failed"].includes(status.status)) {
+        if (["done", "error"].includes(status.status)) {
           clearInterval(interval);
           setCrawling(false);
-          toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
+          if (status.status === "done") {
+            toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
+          } else {
+            toast.error(status.error || "Crawl stopped before completion");
+          }
           await loadData();
         }
       } catch {
@@ -78,11 +82,10 @@ export default function Crawl() {
 
   const getHistorySummary = (entry: { status: string; pages_indexed: number; pages_found: number }) => {
     if (entry.status === "pending") return "Queued";
-    if (entry.status === "discovering") return "Discovering pages...";
-    if (entry.status === "crawling") {
+    if (entry.status === "running") {
       return entry.pages_found > 0
         ? `${entry.pages_indexed}/${entry.pages_found} pages indexed`
-        : `${entry.pages_indexed} pages indexed`;
+        : "Discovering pages...";
     }
     if (entry.pages_found > 0) {
       return `${entry.pages_indexed} pages indexed / ${entry.pages_found} found`;
