@@ -218,8 +218,8 @@ export default function Crawl() {
                 <div key={h.id} className="flex items-center justify-between rounded-lg border border-border/50 p-3">
                   <div className="flex items-center gap-3">
                     {h.status === "done" ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-500" />
-                    ) : h.status === "failed" ? (
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                    ) : h.status === "error" ? (
                       <XCircle className="h-4 w-4 text-destructive" />
                     ) : (
                       <Clock className="h-4 w-4 text-muted-foreground" />
@@ -233,7 +233,7 @@ export default function Crawl() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={h.status === "done" ? "default" : h.status === "failed" ? "destructive" : "secondary"}>
+                  <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : "secondary"}>
                     {h.status}
                   </Badge>
                 </div>
