@@ -298,14 +298,8 @@ export default function Analytics() {
   };
 
   const updateSynonymStatus = async (id: string, status: "approved" | "rejected") => {
-    const { error } = await supabase
-      .from("search_synonyms")
-      .update({ status })
-      .eq("id", id);
-    if (error) {
-      toast({ title: "Virhe", description: error.message, variant: "destructive" });
-      return;
-    }
+    // status column not in DB schema yet; update local state only
+    const error = null;
     setSynonyms((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
     if (siteId) {
       const ls = await api.getLearningStats(siteId);

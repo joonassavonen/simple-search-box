@@ -329,15 +329,15 @@ export const api = {
       .gte("created_at", periodAgo.toISOString());
 
     const { data: clickEvents } = await supabase
-      .from("search_click_events")
-      .select("search_log_id, query, created_at")
+      .from("search_clicks")
+      .select("query, page_url, created_at")
       .eq("site_id", siteId)
       .gte("created_at", periodAgo.toISOString());
 
     const logs = allLogs || [];
     const events = clickEvents || [];
     const recentLogs = logs.filter((l) => new Date(l.created_at) >= sevenDaysAgo);
-    const clickedLogIds = new Set(events.map((e) => e.search_log_id).filter(Boolean));
+    const clickedLogIds = new Set<string>();
     const clickedCount = logs.filter((l) => l.clicked || clickedLogIds.has(l.id)).length;
 
     const queryCounts: Record<string, number> = {};
