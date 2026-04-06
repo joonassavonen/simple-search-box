@@ -560,7 +560,7 @@ export default function Analytics() {
                     const totalPV = gaPages.reduce((s, p) => s + p.pageviews, 0) || 1;
                     const maxPV = Math.max(...gaPages.map(p => p.pageviews), 1);
                     const pagesWithBoost = gaPages
-                      .filter(p => p.pageviews > 0)
+                      .filter(p => p.pageviews > 0 && (p.conversions / p.pageviews) <= 1)
                       .map(p => {
                         const keyEventRate = p.conversions / p.pageviews;
                         const pvWeight = p.pageviews / totalPV;
