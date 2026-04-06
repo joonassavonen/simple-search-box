@@ -259,11 +259,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- AI Re-ranking & Summary ---
-    // AI summary only as fallback when results are weak (0-2 results or low scores)
+    // --- AI Re-ranking & Guidance ---
+    // AI summary only when: no results, very weak results, or query is a question/comparison
     let aiSummary: string | undefined;
     let finalResults = keywordResults;
-    const useAiFallback = keywordResults.length <= 2 || (keywordResults.length > 0 && keywordResults[0].score < 20);
+
+    const isQuestion = /\?|mikä|mitä|miksi|miten|kumpi|vertailu|ero |eroa |paras|suosit|kannat/i.test(query);
+    const hasStrongResults = keywordResults.length > 0 && keywordResults[0].score >= 15;
+    const useAiGuidance = keywordResults.length === 0 || (!hasStrongResults && keywordResults.length <= 2) || isQuestion;
 
     if (LOVABLE_API_KEY && keywordResults.length > 0) {
       try {
@@ -293,6 +296,26 @@ Deno.serve(async (req) => {
           return `[${i + 1}] ${r.title}\nURL: ${r.url}\n${meta ? meta + "\n" : ""}${r.content.slice(0, 400)}`;
         }).join("\n\n");
 
+        const systemPrompt = useAiGuidance
+          ? `Olet yrityksen asiakaspalvelija ja neuvoja. Käyttäjä hakee sivustolta tietoa.
+
+Säännöt:
+- Vastaa samalla kielellä kuin haku (suomi/englanti)
+- Käytä me-muotoa (yrityksen ääni)
+- ${isQuestion ? "Käyttäjä kysyy kysymystä tai vertailua → anna konkreettinen, hyödyllinen vastaus kuin asiantunteva myyjä. Vertaa tuotteita, suosittele, kerro erot." : "Tulokset ovat heikkoja → auta asiakasta: kerro mitä löytyi ja ehdota ottamaan yhteyttä lisätietojen saamiseksi."}
+- 1-3 lausetta, konkreettinen ja hyödyllinen
+- ÄLÄ kirjoita "Löytyi X tulosta", "Sivustolta löytyy" — käyttäjä näkee tulokset itse
+- Jos sivuilta ei löydy oikeaa vastausta → summary: null
+
+Palauta JSON:
+{"summary": "Asiakaspalvelijan vastaus" tai null, "ranking": [sivunumerot max 5, VAIN relevantit], "reasoning": ["perustelu per sivu"]}
+Palauta VAIN validi JSON.`
+          : `Olet hakutulosten uudelleenjärjestäjä. ÄLÄ anna yhteenvetoa, anna vain ranking.
+
+Palauta JSON:
+{"summary": null, "ranking": [sivunumerot max 5, VAIN relevantit], "reasoning": ["perustelu per sivu"]}
+Palauta VAIN validi JSON.`;
+
         const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -302,28 +325,8 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             model: "google/gemini-2.5-flash-lite",
             messages: [
-              {
-                role: "system",
-                content: `Olet yrityksen sivustohaun avustaja. Vastaa käyttäjän hakuun SUORALLA VASTAUKSELLA yrityksen äänellä (me-muoto).
-
-Säännöt:
-- Vastaa samalla kielellä kuin haku (suomi/englanti)
-- Anna 1-2 lauseen KONKREETTINEN vastaus, älä kuvailua hakutuloksista
-- Tuotehaku → mainitse paras tuote nimeltä + hinta jos tiedossa. Esim: "Gree Bora 35 ilmalämpöpumppu sopii kodin viilennykseen, hinta 1 290€."
-- Tietokysymys → vastaa suoraan sisällön perusteella. Esim: "Huollon voi varata verkossa tai soittamalla 09 4289 1192."
-- Palveluhaku → kerro miten palvelun saa
-- ÄLÄ KOSKAAN kirjoita "Löytyi X tulosta", "Sivustolta löytyy", "Valikoimasta löytyy" — käyttäjä näkee tulokset itse
-- Jos sivuilta ei löydy oikeaa vastausta → summary: null
-
-Palauta JSON:
-{"summary": "Suora vastaus" tai null, "ranking": [sivunumerot max 5, VAIN relevantit], "reasoning": ["perustelu per sivu"]}
-Jos sivu ei selkeästi liity hakuun → ÄLÄ sisällytä ranking-listaan. Mieluummin 1-2 hyvää tulosta kuin 5 heikkoa.
-Palauta VAIN validi JSON.`
-              },
-              {
-                role: "user",
-                content: `Hakusana: "${query}"\n\nSivut:\n${pagesContext}`
-              }
+              { role: "system", content: systemPrompt },
+              { role: "user", content: `Hakusana: "${query}"\n\nSivut:\n${pagesContext}` }
             ],
           }),
         });
@@ -335,7 +338,7 @@ Palauta VAIN validi JSON.`
           const jsonMatch = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
           const parsed = JSON.parse(jsonMatch);
 
-          if (parsed.summary && useAiFallback) {
+          if (parsed.summary && useAiGuidance) {
             aiSummary = parsed.summary;
           }
 
