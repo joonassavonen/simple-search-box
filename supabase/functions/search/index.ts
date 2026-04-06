@@ -259,15 +259,81 @@ Deno.serve(async (req) => {
       }
     }
 
-    // --- AI Re-ranking & Guidance ---
-    // AI summary only when: no results, very weak results, or query is a question/comparison
+    // --- AI Semantic Fallback + Re-ranking & Guidance ---
     let aiSummary: string | undefined;
     let finalResults = keywordResults;
 
-    const isQuestion = /\?|mikä|mitä|miksi|miten|kumpi|vertailu|ero |eroa |paras|suosit|kannat/i.test(query);
+    const isQuestion = /\?|mikä|mitä|miksi|miten|kumpi|vertailu|ero |eroa |paras|suosit|kannat|asennat|teette/i.test(query);
     const hasStrongResults = keywordResults.length > 0 && keywordResults[0].score >= 15;
     const useAiGuidance = keywordResults.length === 0 || (!hasStrongResults && keywordResults.length <= 2) || isQuestion;
 
+    // When zero keyword results, do AI semantic search over all pages
+    if (LOVABLE_API_KEY && keywordResults.length === 0 && pages && pages.length > 0) {
+      try {
+        const filteredPages = (pages || [])
+          .filter((p) => { try { return new URL(p.url).pathname !== "/"; } catch { return true; } })
+          .slice(0, 50);
+        const allPagesContext = filteredPages
+          .map((p, i) => `[${i + 1}] ${p.title || "?"} — ${p.url}\n${(p.meta_description || p.content || "").slice(0, 150)}`)
+          .join("\n\n");
+
+        const semanticRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-lite",
+            messages: [
+              {
+                role: "system",
+                content: `Olet sivustohaun semanttinen hakukone ja asiakaspalvelija. Käyttäjän avainsanahaku ei löytänyt tuloksia. Tehtäväsi on löytää sivuista ne jotka SEMANTTISESTI vastaavat käyttäjän tarpeeseen, vaikka sanat eivät täsmää.
+
+Esim. "asennatteko hyvinkäällä" → etsi asennuspalvelusivuja (paikkakunta ei välttämättä mainita mutta palvelu löytyy)
+"huollatteko espossa" → etsi huoltopalvelusivuja
+
+Vastaa asiakaspalvelijana me-muodossa. Anna konkreettinen, hyödyllinen vastaus.
+
+Palauta JSON:
+{"summary": "Asiakaspalvelijan vastaus" tai null, "pages": [sivunumerot max 3, VAIN oikeasti relevantit]}
+Jos yhtään sivua ei oikeasti liity hakuun → {"summary": null, "pages": []}
+Palauta VAIN validi JSON.`,
+              },
+              { role: "user", content: `Hakusana: "${query}"\n\nSivut:\n${allPagesContext}` },
+            ],
+          }),
+        });
+
+        if (semanticRes.ok) {
+          const semanticData = await semanticRes.json();
+          const sContent = semanticData.choices?.[0]?.message?.content || "";
+          const jsonStr = sContent.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+          const sParsed = JSON.parse(jsonStr);
+
+          if (sParsed.summary) aiSummary = sParsed.summary;
+
+          if (sParsed.pages && Array.isArray(sParsed.pages) && sParsed.pages.length > 0) {
+            finalResults = sParsed.pages
+              .map((idx: number) => filteredPages[idx - 1])
+              .filter(Boolean)
+              .map((p: any) => ({
+                url: p.url,
+                title: p.title || p.url,
+                content: p.content || "",
+                schema_data: p.schema_data || null,
+                score: 50,
+                snippet: p.meta_description || (p.content || "").slice(0, 200),
+                matchedWords: [],
+              }));
+          }
+        }
+      } catch (e) {
+        console.error("AI semantic fallback failed:", e);
+      }
+    }
+
+    // AI Re-ranking (when keyword results exist)
     if (LOVABLE_API_KEY && keywordResults.length > 0) {
       try {
         const pagesContext = keywordResults.slice(0, 10).map((r, i) => {
