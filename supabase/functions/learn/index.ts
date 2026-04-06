@@ -136,7 +136,7 @@ Return [] if no clear synonyms found.`
 
       const { data: existing } = await supabase
         .from("search_synonyms")
-        .select("id, confidence, times_used, status")
+        .select("id, confidence, times_used")
         .eq("site_id", site_id)
         .eq("query_from", from)
         .eq("query_to", to)
@@ -149,8 +149,6 @@ Return [] if no clear synonyms found.`
           .update({
             confidence: Math.min(newConfidence, 1.0),
             times_used: existing.times_used + 1,
-            source: existing.status === "approved" ? "approved" : "ai",
-            status: existing.status === "approved" ? "approved" : "proposed",
             updated_at: new Date().toISOString(),
           })
           .eq("id", existing.id);
@@ -163,8 +161,6 @@ Return [] if no clear synonyms found.`
             query_from: from,
             query_to: to,
             confidence: pair.confidence,
-            source: "ai",
-            status: "proposed",
           });
         proposedCreated++;
       }
