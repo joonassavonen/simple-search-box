@@ -530,7 +530,7 @@ export const api = {
         .eq("site_id", siteId);
       if (error) throw new Error(error.message);
     } else {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("site_contact_configs")
         .insert({
           site_id: siteId,
