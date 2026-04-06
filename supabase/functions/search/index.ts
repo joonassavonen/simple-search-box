@@ -267,14 +267,15 @@ Deno.serve(async (req) => {
     const hasStrongResults = keywordResults.length > 0 && keywordResults[0].score >= 15;
     const useAiGuidance = keywordResults.length === 0 || (!hasStrongResults && keywordResults.length <= 2) || isQuestion;
 
-    // When zero keyword results, do AI semantic search over all pages
+    // When zero keyword results, do AI semantic search over all pages with FULL context
     if (LOVABLE_API_KEY && keywordResults.length === 0 && pages && pages.length > 0) {
       try {
         const filteredPages = (pages || [])
           .filter((p) => { try { return new URL(p.url).pathname !== "/"; } catch { return true; } })
-          .slice(0, 50);
+          .slice(0, 40);
+        // Give AI much more content per page so it can understand context (regions, services, etc.)
         const allPagesContext = filteredPages
-          .map((p, i) => `[${i + 1}] ${p.title || "?"} — ${p.url}\n${(p.meta_description || p.content || "").slice(0, 150)}`)
+          .map((p, i) => `[${i + 1}] ${p.title || "?"} — ${p.url}\n${(p.content || p.meta_description || "").slice(0, 600)}`)
           .join("\n\n");
 
         const semanticRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -284,20 +285,26 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash-lite",
+            model: "google/gemini-2.5-flash",
             messages: [
               {
                 role: "system",
-                content: `Olet sivustohaun semanttinen hakukone ja asiakaspalvelija. Käyttäjän avainsanahaku ei löytänyt tuloksia. Tehtäväsi on löytää sivuista ne jotka SEMANTTISESTI vastaavat käyttäjän tarpeeseen, vaikka sanat eivät täsmää.
+                content: `Olet sivustohaun semanttinen hakukone ja asiakaspalvelija. Käyttäjän avainsanahaku ei löytänyt tuloksia. Tehtäväsi on:
 
-Esim. "asennatteko hyvinkäällä" → etsi asennuspalvelusivuja (paikkakunta ei välttämättä mainita mutta palvelu löytyy)
-"huollatteko espossa" → etsi huoltopalvelusivuja
+1. Lukea sivujen KOKO sisältö huolellisesti ja ymmärtää konteksti
+2. Löytää VAIN ne sivut jotka OIKEASTI vastaavat käyttäjän tarpeeseen
+3. Vastata asiakaspalvelijana yrityksen me-muodossa SIVUJEN SISÄLLÖN perusteella
 
-Vastaa asiakaspalvelijana me-muodossa. Anna konkreettinen, hyödyllinen vastaus.
+TÄRKEÄÄ:
+- Lue sivujen sisältö tarkkaan — siellä voi mainita palvelualueita, alueita, kaupunkeja
+- Esim. "Uusimaa" kattaa Hyvinkään, Järvenpään, Espoon jne. — jos sivu mainitsee Uudenmaan, se kattaa myös Hyvinkään
+- ÄLÄ palauta sivuja jotka vain sattuvat liittymään samaan aihepiiriin mutta eivät vastaa KYSYTTYYN asiaan
+- Esim. "asennatteko hyvinkäällä" → palauta VAIN sivu joka kattaa Hyvinkään alueen, EI kaikkia asennussivuja eri kaupungeista
+- Vastaa rehellisesti sivujen sisällön perusteella — älä keksi tietoa
 
 Palauta JSON:
-{"summary": "Asiakaspalvelijan vastaus" tai null, "pages": [sivunumerot max 3, VAIN oikeasti relevantit]}
-Jos yhtään sivua ei oikeasti liity hakuun → {"summary": null, "pages": []}
+{"summary": "Tarkka vastaus sivujen sisällön perusteella" tai null, "pages": [sivunumerot max 2, VAIN tarkalleen relevantit]}
+Jos yhtään sivua ei oikeasti vastaa hakuun → {"summary": null, "pages": []}
 Palauta VAIN validi JSON.`,
               },
               { role: "user", content: `Hakusana: "${query}"\n\nSivut:\n${allPagesContext}` },
