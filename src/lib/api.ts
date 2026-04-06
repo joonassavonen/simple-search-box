@@ -653,17 +653,17 @@ export const api = {
   // --- Learning Stats (Supabase direct) ---
 
   async getLearningStats(siteId: string): Promise<LearningStats> {
-    const { data: affinities } = await supabase
-      .from("query_page_affinities" as any)
-      .select("query, page_url, click_count, confidence")
+    // Use search_clicks as affinity source (no separate table needed)
+    const { data: clicks } = await supabase
+      .from("search_clicks")
+      .select("query, page_url, click_count")
       .eq("site_id", siteId)
-      .order("confidence", { ascending: false })
       .order("click_count", { ascending: false })
       .limit(20);
 
     const { data: synonyms } = await supabase
       .from("search_synonyms")
-      .select("query_from, query_to, confidence, status")
+      .select("query_from, query_to, confidence")
       .eq("site_id", siteId);
 
     const { data: strategy } = await (supabase as any)
@@ -672,21 +672,20 @@ export const api = {
       .eq("site_id", siteId)
       .maybeSingle();
 
-    const approvedSynonyms = (synonyms || []).filter((s: any) => s.status === "approved");
-    const proposedSynonyms = (synonyms || []).filter((s: any) => s.status === "proposed");
-    const totalClicks = (affinities || []).reduce((sum: number, c: any) => sum + (c.click_count || 0), 0);
+    const allSynonyms = synonyms || [];
+    const totalClicks = (clicks || []).reduce((sum: number, c: any) => sum + (c.click_count || 0), 0);
 
     return {
       site_id: siteId,
-      approved_synonym_count: approvedSynonyms.length,
-      proposed_synonym_count: proposedSynonyms.length,
-      affinity_count: affinities?.length || 0,
+      approved_synonym_count: allSynonyms.length,
+      proposed_synonym_count: 0,
+      affinity_count: clicks?.length || 0,
       total_affinity_clicks: totalClicks,
-      top_affinities: (affinities || []).slice(0, 10).map((c: any) => ({
+      top_affinities: (clicks || []).slice(0, 10).map((c: any) => ({
         url: c.page_url,
         query: c.query,
         clicks: c.click_count,
-        confidence: c.confidence,
+        confidence: Math.min(0.2 + c.click_count * 0.12, 1.0),
       })),
       failed_query_suggestions: strategy?.failed_query_suggestions || {},
       strategy: strategy ? {
@@ -705,7 +704,7 @@ export const api = {
       body: { site_id: siteId },
     });
     if (error) throw new Error(error.message || "Learning failed");
-    return { discovered: data?.synonyms_created || 0 };
+    return { discovered: data?.discovered || 0 };
   },
 
   // --- Optimization (Background AI Agent) ---
