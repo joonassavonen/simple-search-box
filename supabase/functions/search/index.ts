@@ -623,7 +623,7 @@ Palauta VAIN validi JSON.`
         };
       }
 
-      interventionCard = buildInterventionCard({
+      interventionCard = await buildInterventionCard({
         query,
         language,
         intent: interventionIntent,
@@ -847,7 +847,7 @@ function detectLanguage(query: string): "fi" | "en" {
   return finnishScore >= englishScore ? "fi" : "en";
 }
 
-function buildInterventionCard(params: {
+async function buildInterventionCard(params: {
   query: string;
   language: "fi" | "en";
   intent: { type: "contact" | "service" | "commercial" | "urgent" | null; confidence: number; matchedTerms: string[] };
@@ -902,15 +902,111 @@ function buildInterventionCard(params: {
 
   const contextHint = String(site?.ai_context || "").toLowerCase();
   const coolingHint = /\bviilenn|jäähdy|cool/i.test(query);
-  const body = interventionBody(intent.type, language, coolingHint, contextHint);
+  const fallbackTitle = interventionTitle(intent.type, query, language);
+  const fallbackBody = interventionBody(intent.type, language, coolingHint, contextHint);
+  const aiCopy = await generateInterventionCopy({
+    query,
+    language,
+    intentType: intent.type,
+    actions,
+    site,
+    topResult: results[0],
+    fallbackTitle,
+    fallbackBody,
+  });
 
   return {
     type: intent.type,
-    title: interventionTitle(intent.type, query, language),
-    body,
+    title: aiCopy?.title || fallbackTitle,
+    body: aiCopy?.body || fallbackBody,
     position: intent.type === "contact" || intent.type === "urgent" ? 0 : 2,
     actions: actions.slice(0, 2),
   };
+}
+
+async function generateInterventionCopy(params: {
+  query: string;
+  language: "fi" | "en";
+  intentType: "contact" | "service" | "commercial" | "urgent";
+  actions: Array<{ label: string; url: string; kind: "phone" | "chat" | "email" | "page" }>;
+  site: { ai_context?: string | null; name?: string | null; domain?: string | null };
+  topResult?: any;
+  fallbackTitle: string;
+  fallbackBody: string;
+}) {
+  if (!LOVABLE_API_KEY) return null;
+
+  const { query, language, intentType, actions, site, topResult, fallbackTitle, fallbackBody } = params;
+
+  try {
+    const actionSummary = actions
+      .slice(0, 2)
+      .map((action) => `${action.kind}: ${action.label}`)
+      .join(" | ");
+
+    const prompt = `Kirjoita hakutulos-widgetin intervention-kortille LUONNOLLINEN otsikko ja 1 lyhyt kuvauslause.
+
+Säännöt:
+- Kieli: ${language === "fi" ? "suomi" : "english"}
+- Ääni: luonnollinen, avulias, kaupallinen mutta ei aggressiivinen
+- Älä toista hakua kömpelösti sellaisenaan lainausmerkeissä ellei se ole oikeasti luontevaa
+- Älä lupaa mitään mitä konteksti ei tue
+- Otsikko max 70 merkkiä
+- Kuvaus max 140 merkkiä
+- Tee copystä vähemmän geneerinen kuin fallback
+- Jos näyttö ei riitä, palauta lähes fallbackin tasoinen turvallinen versio
+
+Konteksti:
+- Intent: ${intentType}
+- Haku: ${query}
+- Yritys: ${site?.name || site?.domain || "site"}
+- CTA:t: ${actionSummary}
+- Paras osuma: ${topResult?.title || "-"}
+${site?.ai_context ? `- Sivustokonteksti: ${String(site.ai_context).slice(0, 900)}` : ""}
+
+Fallback:
+- title: ${fallbackTitle}
+- body: ${fallbackBody}
+
+Palauta VAIN validi JSON:
+{"title":"...", "body":"..."}`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: "You write concise onsite conversion microcopy. Return JSON only.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    const parsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    const title = String(parsed?.title || "").trim();
+    const body = String(parsed?.body || "").trim();
+    if (!title) return null;
+    return {
+      title: title.slice(0, 90),
+      body: body ? body.slice(0, 180) : fallbackBody,
+    };
+  } catch (error) {
+    console.error("Intervention copy generation failed:", error);
+    return null;
+  }
 }
 
 function interventionTitle(type: "contact" | "service" | "commercial" | "urgent", query: string, language: "fi" | "en") {
