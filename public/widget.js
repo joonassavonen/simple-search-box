@@ -473,12 +473,14 @@
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
     }
     .findai-result-badge {
-      display: inline-block; margin-top: 4px;
-      font-size: 10px; font-weight: 500;
-      padding: 1px 6px; border-radius: 4px;
+      display: inline-flex; align-items: center;
+      font-size: 10px; font-weight: 600;
+      line-height: 1;
+      padding: 3px 7px; border-radius: 999px;
+      white-space: nowrap;
     }
-    .findai-badge-instock { background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0; }
-    .findai-badge-outofstock { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+    .findai-badge-instock { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
+    .findai-badge-outofstock { background: #fff1f2; color: #be123c; border: 1px solid #fecdd3; }
     .findai-result-snippet {
       font-size: 12px; color: var(--text-muted); margin-top: 2px;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
@@ -1117,7 +1119,9 @@
       html += '<div class="findai-result-body">';
       html += `<div class="findai-result-title">${escHtml(title)}</div>`;
 
-      if (isProduct && (s.price || s.rating)) {
+      const availability = isProduct ? formatAvailability(s.availability) : null;
+
+      if (isProduct && (s.price || s.rating || availability)) {
         html += '<div class="findai-result-product-meta">';
         if (s.price) {
           html += `<div class="findai-result-price">${formatPrice(s.price, s.currency)}</div>`;
@@ -1125,18 +1129,14 @@
         if (s.rating) {
           html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
         }
+        if (availability) {
+          html += `<div class="findai-result-badge ${availability.className}">${escHtml(availability.label)}</div>`;
+        }
         html += '</div>';
       }
 
       if (snippet) {
         html += `<div class="findai-result-snippet">${escHtml(snippet)}</div>`;
-      }
-
-      if (isProduct) {
-        const availability = formatAvailability(s.availability);
-        if (availability) {
-          html += `<div class="findai-result-badge ${availability.className}">${escHtml(availability.label)}</div>`;
-        }
       }
 
       if (s && s.type === "Article" && s.datePublished) {
