@@ -397,12 +397,10 @@ export default function Analytics() {
   const noClickCount = stats.no_click_queries.reduce((sum, item) => sum + item.count, 0);
   const panelClass = "border-border bg-card shadow-sm";
   const mutedPanelClass = "border-border bg-muted/30 shadow-sm";
-  const strategy = learningStats?.strategy ?? null;
   const topAffinityPreview = learningStats?.top_affinities.slice(0, 5) ?? [];
-  const strategyLastUpdated = strategy?.last_optimized_at
-    ? new Date(strategy.last_optimized_at).toLocaleString("fi-FI")
+  const lastOptimized = learningStats?.last_optimized_at
+    ? new Date(learningStats.last_optimized_at).toLocaleString("fi-FI")
     : null;
-  const triggerCategories = strategy?.contact_trigger_rules?.trigger_categories ?? [];
 
   return (
     <div className="space-y-6">
