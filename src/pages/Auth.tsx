@@ -11,7 +11,6 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
