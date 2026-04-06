@@ -520,9 +520,23 @@
 
     /* Trending */
     .findai-trending { padding: 12px; }
+    .findai-trending-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; margin-bottom: 8px;
+    }
     .findai-trending-title {
       font-size: 11px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px;
+      letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 0;
+    }
+    .findai-trending-close {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border: none; border-radius: 999px;
+      background: transparent; color: var(--text-muted); cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .findai-trending-close:hover {
+      background: rgba(107,114,128,0.08);
+      color: var(--text);
     }
     .findai-trending-list { display: flex; flex-wrap: wrap; gap: 6px; }
     .findai-trending-item {
@@ -926,6 +940,7 @@
     // Event handlers
     // -----------------------------------------------------------------------
     let inputFocused = false;
+    let trendingDismissed = false;
     let placeholderTypingTimer = null;
     let placeholderCycleTimer = null;
     let placeholderAnimationToken = 0;
@@ -1040,7 +1055,8 @@
       input.value = "";
       lastQuery = "";
       updateClearBtn();
-      hideDropdown();
+      if (inputFocused && !trendingDismissed) renderTrending();
+      else hideDropdown();
       input.focus();
     });
 
@@ -1053,12 +1069,13 @@
       inputFocused = true;
       stopPlaceholderAnimation(false);
       input.placeholder = "";
-      if (!input.value.trim()) renderTrending();
+      if (!input.value.trim() && !trendingDismissed) renderTrending();
     });
 
     input.addEventListener("blur", () => {
       setTimeout(() => {
         inputFocused = false;
+        trendingDismissed = false;
         if (!input.value.trim()) startPlaceholderAnimation();
       }, 200);
     });
@@ -1071,11 +1088,13 @@
 
       if (!q) {
         if (!inputFocused) startPlaceholderAnimation();
-        renderTrending();
+        if (trendingDismissed) hideDropdown();
+        else renderTrending();
         lastQuery = "";
         return;
       }
 
+      trendingDismissed = false;
       stopPlaceholderAnimation(false);
 
       if (q.length >= 2) {
@@ -1173,6 +1192,7 @@
     }
 
     function selectSuggestion(q) {
+      trendingDismissed = false;
       stopPlaceholderAnimation(false);
       input.value = q;
       updateClearBtn();
@@ -1263,7 +1283,7 @@
         return;
       }
 
-      let html = '<div class="findai-trending"><div class="findai-trending-title">Suosittua juuri nyt</div>';
+      let html = '<div class="findai-trending"><div class="findai-trending-header"><div class="findai-trending-title">Suosittua juuri nyt</div><button class="findai-trending-close" type="button" aria-label="Sulje">' + ICON_CLOSE + '</button></div>';
 
       if (featuredItems.length > 0) {
         featuredItems.slice(0, 6).forEach((item, idx) => {
@@ -1282,8 +1302,19 @@
       dropdown.innerHTML = html;
       showDropdown();
 
+      const closeBtn = dropdown.querySelector(".findai-trending-close");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          trendingDismissed = true;
+          hideDropdown();
+        });
+      }
+
       dropdown.querySelectorAll(".findai-trending-item").forEach(btn => {
         btn.addEventListener("click", () => {
+          trendingDismissed = false;
           input.value = btn.dataset.query;
           updateClearBtn();
           lastQuery = btn.dataset.query;
@@ -1420,6 +1451,7 @@
     // API calls
     // -----------------------------------------------------------------------
     function doSearch(query) {
+      trendingDismissed = false;
       stopPlaceholderAnimation(false);
       renderLoading();
 
