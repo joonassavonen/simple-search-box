@@ -118,6 +118,16 @@
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
+  function addUtm(url) {
+    try {
+      const u = new URL(url);
+      u.searchParams.set("utm_source", "findai");
+      u.searchParams.set("utm_medium", "AI-onsite-search");
+      u.searchParams.set("utm_campaign", "site-search");
+      return u.toString();
+    } catch { return url; }
+  }
+
   function starHtml(rating, reviewCount) {
     let stars = "";
     for (let i = 0; i < 5; i++) {
