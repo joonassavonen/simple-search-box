@@ -131,6 +131,41 @@
     return stars;
   }
 
+  // Hex to HSL helper (returns "H, S%, L%" string for CSS vars)
+  function hexToHsl(hex) {
+    hex = hex.replace(/^#/, "");
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    const r = parseInt(hex.substring(0,2),16)/255;
+    const g = parseInt(hex.substring(2,4),16)/255;
+    const b = parseInt(hex.substring(4,6),16)/255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h=0, s=0, l=(max+min)/2;
+    if (max !== min) {
+      const d = max-min;
+      s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+      switch(max) {
+        case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+        case g: h = ((b-r)/d + 2)/6; break;
+        case b: h = ((r-g)/d + 4)/6; break;
+      }
+    }
+    return `${Math.round(h*360)}, ${Math.round(s*100)}%, ${Math.round(l*100)}%`;
+  }
+
+  function hslLighten(hslStr, amount) {
+    const parts = hslStr.match(/(\d+),\s*(\d+)%,\s*(\d+)%/);
+    if (!parts) return hslStr;
+    const newL = Math.min(100, parseInt(parts[3]) + amount);
+    return `${parts[1]}, ${parts[2]}%, ${newL}%`;
+  }
+
+  function hslDarken(hslStr, amount) {
+    const parts = hslStr.match(/(\d+),\s*(\d+)%,\s*(\d+)%/);
+    if (!parts) return hslStr;
+    const newL = Math.max(0, parseInt(parts[3]) - amount);
+    return `${parts[1]}, ${parts[2]}%, ${newL}%`;
+  }
+
   // Supabase PostgREST helper
   function supabaseRest(table, params) {
     const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
@@ -491,6 +526,45 @@
   const ICON_TRENDING = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`;
 
   // -------------------------------------------------------------------------
+  // Apply brand styles from site settings
+  // -------------------------------------------------------------------------
+  function applyBrandStyles(wrapper, styleEl, brandColor, brandFont, brandBgColor) {
+    let overrideCSS = "";
+    if (brandColor) {
+      const hsl = hexToHsl(brandColor);
+      overrideCSS += `
+        .findai-wrapper {
+          --green: ${hsl};
+          --green-light: ${hslLighten(hsl, 52)};
+          --green-border: ${hslLighten(hsl, 40)};
+          --green-dark: ${hslDarken(hsl, 5)};
+          --green-cta: ${hslDarken(hsl, 5)};
+        }
+        .findai-input:focus {
+          border-color: hsl(${hsl});
+          box-shadow: 0 4px 12px hsla(${hsl}, 0.1);
+        }
+        .findai-result-price { color: hsl(${hslDarken(hsl, 5)}); }
+      `;
+    }
+    if (brandFont) {
+      overrideCSS += `
+        :host { font-family: '${brandFont}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      `;
+    }
+    if (brandBgColor) {
+      overrideCSS += `
+        .findai-wrapper { --bg: ${brandBgColor}; }
+      `;
+    }
+    if (overrideCSS) {
+      const brandStyle = document.createElement("style");
+      brandStyle.textContent = overrideCSS;
+      styleEl.parentNode.appendChild(brandStyle);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Widget state
   // -------------------------------------------------------------------------
   let currentSearchLogId = null;
@@ -667,6 +741,17 @@
         const stored = localStorage.getItem(`findai-contact-${SITE_ID}`);
         if (stored) contactConfig = JSON.parse(stored);
       } catch {}
+
+      // Fetch brand styles and apply to widget
+      supabaseRest("sites", {
+        "select": "brand_color,brand_font,brand_bg_color",
+        "id": `eq.${SITE_ID}`,
+        "limit": "1",
+      }).then(data => {
+        if (!data || !Array.isArray(data) || !data[0]) return;
+        const site = data[0];
+        applyBrandStyles(wrapper, style, site.brand_color, site.brand_font, site.brand_bg_color);
+      }).catch(() => {});
     } else {
       fetch(`${API_URL}/api/sites/${SITE_ID}/trending?limit=6`)
         .then(r => r.json())
