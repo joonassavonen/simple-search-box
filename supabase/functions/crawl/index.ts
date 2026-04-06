@@ -243,6 +243,13 @@ async function doCrawl(jobId: string, siteId: string) {
         page_count: indexed,
         last_crawled_at: new Date().toISOString(),
       }).eq("id", siteId);
+
+      // Generate AI context document for the site
+      try {
+        await generateAiContext(supabase, siteId);
+      } catch (ctxErr) {
+        console.error("AI context generation failed (non-fatal):", ctxErr);
+      }
     }
 
     console.log(`Crawl complete: ${indexed}/${pagesFound} pages indexed, ${errors.length} errors`);
@@ -258,6 +265,78 @@ async function doCrawl(jobId: string, siteId: string) {
   }
 }
 
+async function generateAiContext(supabase: any, siteId: string) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) return;
+
+  // Fetch all pages for the site
+  const { data: pages } = await supabase
+    .from("pages")
+    .select("url, title, content, meta_description")
+    .eq("site_id", siteId)
+    .not("title", "is", null)
+    .limit(60);
+
+  if (!pages || pages.length === 0) return;
+
+  const { data: site } = await supabase
+    .from("sites")
+    .select("name, domain")
+    .eq("id", siteId)
+    .single();
+
+  // Build page summaries for AI
+  const pageSummaries = pages
+    .map((p: any) => `• ${p.title} (${p.url})\n  ${(p.content || p.meta_description || "").slice(0, 300)}`)
+    .join("\n\n");
+
+  const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content: `Luo sivustosta tiivis kontekstidokumentti hakuassistenttia varten. Dokumentin tulee sisältää:
+
+1. **Yrityksen yleiskuvaus**: Mikä yritys on, mitä se tekee
+2. **Palvelut**: Lista kaikista palveluista (asennus, huolto, myynti jne.)
+3. **Palvelualueet**: Missä yritys toimii (kaupungit, alueet, maakunnat). Jos mainitaan esim. "Uusimaa", listaa myös mitä kaupunkeja se kattaa.
+4. **Tuotteet/tuotemerkit**: Päätuotemerkit ja -kategoriat
+5. **Yhteystiedot**: Puhelin, sähköposti, osoite jos löytyy
+6. **Erityispiirteet**: Kampanjat, sertifikaatit, takuut, erityispalvelut
+
+Kirjoita selkeästi ja tiiviisti. Tämä dokumentti syötetään AI-hakuassistentille jotta se voi vastata asiakkaille tarkasti.`,
+        },
+        {
+          role: "user",
+          content: `Sivusto: ${site?.name || "?"} (${site?.domain || "?"})\n\nSivut:\n${pageSummaries}`,
+        },
+      ],
+    }),
+  });
+
+  if (!aiRes.ok) {
+    console.error("AI context generation error:", aiRes.status);
+    return;
+  }
+
+  const aiData = await aiRes.json();
+  const context = aiData.choices?.[0]?.message?.content || "";
+
+  if (context.length > 50) {
+    await supabase
+      .from("sites")
+      .update({ ai_context: context })
+      .eq("id", siteId);
+    console.log(`AI context generated: ${context.length} chars`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -265,8 +344,19 @@ Deno.serve(async (req) => {
 
   try {
     const payload = await req.json();
-    const jobId = typeof payload?.job_id === "string" ? payload.job_id : null;
+    const action = payload?.action;
     const siteId = typeof payload?.site_id === "string" ? payload.site_id : null;
+    const jobId = typeof payload?.job_id === "string" ? payload.job_id : null;
+
+    // Allow triggering AI context generation independently
+    if (action === "generate_context" && siteId) {
+      const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+      await generateAiContext(supabase, siteId);
+      const { data: updated } = await supabase.from("sites").select("ai_context").eq("id", siteId).single();
+      return new Response(JSON.stringify({ status: "ok", context_length: updated?.ai_context?.length || 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!jobId || !siteId) {
       return new Response(JSON.stringify({ error: "job_id and site_id required" }), {
