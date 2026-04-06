@@ -1086,6 +1086,7 @@
     function openSearch() {
       if (overlay) {
         overlay.classList.add("open");
+        if (trigger) trigger.style.display = "none";
         input.focus();
         document.addEventListener("keydown", handleGlobalKey);
       }
@@ -1094,6 +1095,7 @@
     function closeSearch() {
       if (overlay) {
         overlay.classList.remove("open");
+        if (trigger) trigger.style.display = "";
         document.removeEventListener("keydown", handleGlobalKey);
       }
     }
