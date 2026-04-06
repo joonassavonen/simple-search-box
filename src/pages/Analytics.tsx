@@ -264,7 +264,7 @@ export default function Analytics() {
       .on("postgres_changes", {
         event: "*",
         schema: "public",
-        table: "search_click_events",
+        table: "search_clicks",
         filter: `site_id=eq.${siteId}`,
       }, queueRefresh)
       .subscribe();
