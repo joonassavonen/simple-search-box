@@ -117,43 +117,53 @@ async function fetchGA4Report(
 
 // Reusable sync logic for a single site
 async function syncSiteGA(supabase: any, accessToken: string, siteId: string, gaPropertyId: string) {
-  const report = await fetchGA4Report(accessToken, gaPropertyId, "30daysAgo", "today");
-
-  if (!report.rows || report.rows.length === 0) {
-    return { synced: 0, message: "No data" };
-  }
-
+  // Fetch current 30 days AND previous 30 days for growth comparison
   const now = new Date();
   const periodEnd = now.toISOString().split("T")[0];
   const periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const prevPeriodEnd = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const prevPeriodStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-  await supabase.from("page_analytics").delete().eq("site_id", siteId).eq("period_start", periodStart).eq("period_end", periodEnd);
+  const [report, prevReport] = await Promise.all([
+    fetchGA4Report(accessToken, gaPropertyId, "30daysAgo", "today"),
+    fetchGA4Report(accessToken, gaPropertyId, prevPeriodStart, prevPeriodEnd),
+  ]);
 
-  const rows = report.rows.map((row: any) => {
-    const pagePath = row.dimensionValues[0].value;
-    const pageviews = parseInt(row.metricValues[0].value) || 0;
-    const sessions = parseInt(row.metricValues[1].value) || 0;
-    const bounceRate = parseFloat(row.metricValues[2].value) || 0;
-    const avgTime = parseFloat(row.metricValues[3].value) || 0;
-    const conversions = parseInt(row.metricValues[4].value) || 0;
-    const conversionRate = sessions > 0 ? conversions / sessions : 0;
-    return {
-      site_id: siteId, page_path: pagePath, pageviews, sessions,
-      bounce_rate: Math.round(bounceRate * 100) / 100,
-      avg_time_on_page: Math.round(avgTime * 100) / 100,
-      conversions, conversion_rate: Math.round(conversionRate * 10000) / 10000,
-      period_start: periodStart, period_end: periodEnd,
-      fetched_at: new Date().toISOString(),
-    };
-  });
+  // Delete old data for both periods
+  await supabase.from("page_analytics").delete().eq("site_id", siteId);
+
+  const mapRows = (rep: any, pStart: string, pEnd: string) => {
+    if (!rep.rows || rep.rows.length === 0) return [];
+    return rep.rows.map((row: any) => {
+      const pagePath = row.dimensionValues[0].value;
+      const pageviews = parseInt(row.metricValues[0].value) || 0;
+      const sessions = parseInt(row.metricValues[1].value) || 0;
+      const bounceRate = parseFloat(row.metricValues[2].value) || 0;
+      const avgTime = parseFloat(row.metricValues[3].value) || 0;
+      const conversions = parseInt(row.metricValues[4].value) || 0;
+      const conversionRate = sessions > 0 ? conversions / sessions : 0;
+      return {
+        site_id: siteId, page_path: pagePath, pageviews, sessions,
+        bounce_rate: Math.round(bounceRate * 100) / 100,
+        avg_time_on_page: Math.round(avgTime * 100) / 100,
+        conversions, conversion_rate: Math.round(conversionRate * 10000) / 10000,
+        period_start: pStart, period_end: pEnd,
+        fetched_at: new Date().toISOString(),
+      };
+    });
+  };
+
+  const currentRows = mapRows(report, periodStart, periodEnd);
+  const prevRows = mapRows(prevReport, prevPeriodStart, prevPeriodEnd);
+  const allRows = [...currentRows, ...prevRows];
 
   let inserted = 0;
-  for (let i = 0; i < rows.length; i += 50) {
-    const batch = rows.slice(i, i + 50);
+  for (let i = 0; i < allRows.length; i += 50) {
+    const batch = allRows.slice(i, i + 50);
     const { error: insertErr } = await supabase.from("page_analytics").insert(batch);
     if (!insertErr) inserted += batch.length;
   }
-  return { synced: inserted, total_rows: rows.length };
+  return { synced: inserted, total_rows: allRows.length, current: currentRows.length, previous: prevRows.length };
 }
 
 Deno.serve(async (req) => {
