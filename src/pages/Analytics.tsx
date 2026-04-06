@@ -343,18 +343,6 @@ export default function Analytics() {
     toast({ title: "Synonyymi poistettu" });
   };
 
-  const updateSynonymStatus = async (id: string, status: "approved" | "rejected") => {
-    // status column not in DB schema yet; update local state only
-    const error = null;
-    setSynonyms((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
-    if (siteId) {
-      const ls = await api.getLearningStats(siteId);
-      setLearningStats(ls);
-      setPageSuggestions(ls.failed_query_suggestions || {});
-    }
-    toast({ title: status === "approved" ? "Synonyymi hyväksytty" : "Synonyymi hylätty" });
-  };
-
   const startEdit = (s: Synonym) => {
     setEditingSynonym(s.id);
     setEditForm({ query_from: s.query_from, query_to: s.query_to });
