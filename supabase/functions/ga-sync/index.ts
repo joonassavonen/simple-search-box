@@ -115,6 +115,47 @@ async function fetchGA4Report(
   return await resp.json();
 }
 
+// Reusable sync logic for a single site
+async function syncSiteGA(supabase: any, accessToken: string, siteId: string, gaPropertyId: string) {
+  const report = await fetchGA4Report(accessToken, gaPropertyId, "30daysAgo", "today");
+
+  if (!report.rows || report.rows.length === 0) {
+    return { synced: 0, message: "No data" };
+  }
+
+  const now = new Date();
+  const periodEnd = now.toISOString().split("T")[0];
+  const periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  await supabase.from("page_analytics").delete().eq("site_id", siteId).eq("period_start", periodStart).eq("period_end", periodEnd);
+
+  const rows = report.rows.map((row: any) => {
+    const pagePath = row.dimensionValues[0].value;
+    const pageviews = parseInt(row.metricValues[0].value) || 0;
+    const sessions = parseInt(row.metricValues[1].value) || 0;
+    const bounceRate = parseFloat(row.metricValues[2].value) || 0;
+    const avgTime = parseFloat(row.metricValues[3].value) || 0;
+    const conversions = parseInt(row.metricValues[4].value) || 0;
+    const conversionRate = sessions > 0 ? conversions / sessions : 0;
+    return {
+      site_id: siteId, page_path: pagePath, pageviews, sessions,
+      bounce_rate: Math.round(bounceRate * 100) / 100,
+      avg_time_on_page: Math.round(avgTime * 100) / 100,
+      conversions, conversion_rate: Math.round(conversionRate * 10000) / 10000,
+      period_start: periodStart, period_end: periodEnd,
+      fetched_at: new Date().toISOString(),
+    };
+  });
+
+  let inserted = 0;
+  for (let i = 0; i < rows.length; i += 50) {
+    const batch = rows.slice(i, i + 50);
+    const { error: insertErr } = await supabase.from("page_analytics").insert(batch);
+    if (!insertErr) inserted += batch.length;
+  }
+  return { synced: inserted, total_rows: rows.length };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -128,19 +169,47 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body = await req.json();
-    const { site_id } = body;
-
-    if (!site_id) {
-      return new Response(
-        JSON.stringify({ error: "site_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    let bodyJson: any = {};
+    try { bodyJson = await req.json(); } catch { /* empty body from cron is ok */ }
+    const { site_id, sync_all } = bodyJson;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // Get the site's GA property ID
+    // If sync_all or no site_id, sync all sites with GA property IDs
+    if (sync_all || !site_id) {
+      const { data: sites } = await supabase
+        .from("sites")
+        .select("id, ga_property_id, domain")
+        .not("ga_property_id", "is", null);
+
+      if (!sites || sites.length === 0) {
+        return new Response(
+          JSON.stringify({ message: "No sites with GA Property ID configured", synced: 0 }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const serviceAccount = JSON.parse(GA_SERVICE_ACCOUNT_JSON);
+      const accessToken = await getAccessToken(serviceAccount);
+      const results: any[] = [];
+
+      for (const s of sites) {
+        try {
+          const r = await syncSiteGA(supabase, accessToken, s.id, s.ga_property_id!);
+          results.push({ site_id: s.id, domain: s.domain, ...r });
+        } catch (e) {
+          results.push({ site_id: s.id, domain: s.domain, error: (e as Error).message });
+        }
+      }
+
+      console.log(`Cron GA sync: ${results.length} sites processed`);
+      return new Response(
+        JSON.stringify({ success: true, results }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Single site sync
     const { data: site, error: siteErr } = await supabase
       .from("sites")
       .select("ga_property_id, domain")
@@ -162,88 +231,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse service account JSON
     const serviceAccount = JSON.parse(GA_SERVICE_ACCOUNT_JSON);
-
-    // Get access token
-    console.log("Getting Google access token...");
     const accessToken = await getAccessToken(serviceAccount);
+    const result = await syncSiteGA(supabase, accessToken, site_id, gaPropertyId);
 
-    // Fetch last 30 days
-    const endDate = "today";
-    const startDate = "30daysAgo";
-
-    console.log(`Fetching GA4 data for property ${gaPropertyId}...`);
-    const report = await fetchGA4Report(accessToken, gaPropertyId, startDate, endDate);
-
-    if (!report.rows || report.rows.length === 0) {
-      return new Response(
-        JSON.stringify({ message: "No data found in GA4 for this period", synced: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Calculate period dates
-    const now = new Date();
-    const periodEnd = now.toISOString().split("T")[0];
-    const periodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
-
-    // Delete old analytics for this site/period
-    await supabase
-      .from("page_analytics")
-      .delete()
-      .eq("site_id", site_id)
-      .eq("period_start", periodStart)
-      .eq("period_end", periodEnd);
-
-    // Parse and upsert rows
-    const rows = report.rows.map((row: any) => {
-      const pagePath = row.dimensionValues[0].value;
-      const pageviews = parseInt(row.metricValues[0].value) || 0;
-      const sessions = parseInt(row.metricValues[1].value) || 0;
-      const bounceRate = parseFloat(row.metricValues[2].value) || 0;
-      const avgTime = parseFloat(row.metricValues[3].value) || 0;
-      const conversions = parseInt(row.metricValues[4].value) || 0;
-      const conversionRate = sessions > 0 ? conversions / sessions : 0;
-
-      return {
-        site_id,
-        page_path: pagePath,
-        pageviews,
-        sessions,
-        bounce_rate: Math.round(bounceRate * 100) / 100,
-        avg_time_on_page: Math.round(avgTime * 100) / 100,
-        conversions,
-        conversion_rate: Math.round(conversionRate * 10000) / 10000,
-        period_start: periodStart,
-        period_end: periodEnd,
-        fetched_at: new Date().toISOString(),
-      };
-    });
-
-    // Insert in batches of 50
-    let inserted = 0;
-    for (let i = 0; i < rows.length; i += 50) {
-      const batch = rows.slice(i, i + 50);
-      const { error: insertErr } = await supabase.from("page_analytics").insert(batch);
-      if (insertErr) {
-        console.error("Insert error batch", i, insertErr.message);
-      } else {
-        inserted += batch.length;
-      }
-    }
-
-    console.log(`Synced ${inserted}/${rows.length} pages from GA4`);
+    console.log(`Synced ${result.synced}/${result.total_rows || 0} pages from GA4`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        synced: inserted,
-        total_rows: rows.length,
-        period: { start: periodStart, end: periodEnd },
-      }),
+      JSON.stringify({ success: true, ...result }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
