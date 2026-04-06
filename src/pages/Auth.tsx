@@ -65,18 +65,9 @@ export default function Auth() {
               />
             </div>
             <Button type="submit" className="w-full rounded-lg" disabled={loading}>
-              {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
+              {loading ? "Loading..." : "Sign In"}
             </Button>
           </form>
-          <div className="mt-5 text-center text-sm">
-            <button
-              type="button"
-              className="text-primary hover:text-primary/80 underline-offset-4 hover:underline transition-colors"
-              onClick={() => setIsSignUp(!isSignUp)}
-            >
-              {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>
