@@ -14,29 +14,34 @@ const EMBED_MODES: { value: EmbedMode; label: string; icon: typeof Search; descr
   { value: "header-icon", label: "Hakuikoni", icon: SearchIcon, description: "Hakuikoni upotetaan headeriin — klikkaus avaa overlay-haun" },
 ];
 
+const WIDGET_URL = `${window.location.origin}/widget.js`;
+const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+
 function getSnippet(mode: EmbedMode, siteId: string) {
+  const supabaseAttrs = `\n  data-supabase-url="${SUPABASE_URL_VALUE}"\n  data-supabase-key="${SUPABASE_KEY_VALUE}"`;
   if (mode === "inline") {
     return `<div id="findai-search"></div>
 <script
-  src="YOUR_DOMAIN/widget.js"
+  src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="inline"
-  data-inline-target="#findai-search">
+  data-inline-target="#findai-search"${supabaseAttrs}>
 </script>`;
   }
   if (mode === "floating") {
     return `<script
-  src="YOUR_DOMAIN/widget.js"
+  src="${WIDGET_URL}"
   data-site-id="${siteId}"
-  data-position="bottom-right">
+  data-position="bottom-right"${supabaseAttrs}>
 </script>`;
   }
   return `<div id="findai-search"></div>
 <script
-  src="YOUR_DOMAIN/widget.js"
+  src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="header-icon"
-  data-inline-target="#findai-search">
+  data-inline-target="#findai-search"${supabaseAttrs}>
 </script>`;
 }
 
