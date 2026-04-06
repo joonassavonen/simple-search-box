@@ -1098,8 +1098,9 @@
         const snippet = cleanSnippet(r.snippet);
         const s = r.schema_data;
         const isProduct = s && s.type === "Product";
+        const urlUtm = addUtm(r.url);
 
-        html += `<a href="${escHtml(r.url)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
+        html += `<a href="${escHtml(urlUtm)}" target="_blank" rel="noopener" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
 
         if (isProduct && s.image) {
           html += `<img class="findai-result-img" src="${escHtml(s.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
