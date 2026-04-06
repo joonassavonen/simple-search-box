@@ -103,29 +103,29 @@ function AnalyticsMetricCard({
   value,
   hint,
   icon,
-  tone = "blue",
+  tone = "primary",
 }: {
   title: string;
   value: string;
   hint?: string;
   icon: React.ReactNode;
-  tone?: "blue" | "amber" | "emerald" | "slate";
+  tone?: "primary" | "accent" | "secondary" | "muted";
 }) {
   const toneMap = {
-    blue: "bg-blue-50 text-blue-700 ring-blue-100",
-    amber: "bg-amber-50 text-amber-700 ring-amber-100",
-    emerald: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    slate: "bg-slate-100 text-slate-700 ring-slate-200",
+    primary: "bg-primary/10 text-primary ring-primary/15",
+    accent: "bg-accent text-accent-foreground ring-border",
+    secondary: "bg-secondary text-secondary-foreground ring-border",
+    muted: "bg-muted text-muted-foreground ring-border",
   } as const;
 
   return (
-    <Card className="border-slate-200/80 bg-white/95 shadow-[0_20px_60px_-44px_rgba(15,23,42,0.35)] backdrop-blur">
+    <Card className="border-border/80 bg-card shadow-sm">
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</p>
-            <div className="text-2xl font-semibold tracking-tight text-slate-950 font-mono">{value}</div>
-            {hint && <p className="text-sm text-slate-600">{hint}</p>}
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</p>
+            <div className="font-mono text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+            {hint && <p className="text-sm text-muted-foreground">{hint}</p>}
           </div>
           <div className={`rounded-2xl p-3 ring-1 ${toneMap[tone]}`}>{icon}</div>
         </div>
@@ -368,9 +368,9 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center rounded-[28px] border border-slate-200/80 bg-white/90 py-20 shadow-[0_24px_80px_-48px_rgba(30,64,175,0.35)]">
-        <div className="flex items-center gap-3 text-slate-600">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+      <div className="flex min-h-[60vh] items-center justify-center rounded-[28px] border border-border bg-card py-20 shadow-sm">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
           <span className="text-sm font-medium">Ladataan analytiikkaa...</span>
         </div>
       </div>
@@ -379,7 +379,7 @@ export default function Analytics() {
 
   if (error) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center rounded-[28px] border border-red-200 bg-red-50/90 py-20 text-red-700 shadow-[0_24px_80px_-48px_rgba(239,68,68,0.35)]">
+      <div className="flex min-h-[60vh] items-center justify-center rounded-[28px] border border-destructive/20 bg-destructive/10 py-20 text-destructive shadow-sm">
         <div className="flex items-center gap-3">
           <AlertCircle className="h-5 w-5" />
           <span className="text-sm font-medium">Virhe: {error}</span>
@@ -400,57 +400,57 @@ export default function Analytics() {
   const failedSearchCount = stats.failed_searches.reduce((sum, item) => sum + item.count, 0);
   const noClickCount = stats.no_click_queries.reduce((sum, item) => sum + item.count, 0);
   const topQuery = stats.top_queries[0]?.query || "Ei vielä dataa";
-  const panelClass = "border-slate-200/80 bg-white/95 shadow-[0_24px_80px_-52px_rgba(30,41,59,0.28)] backdrop-blur";
-  const mutedPanelClass = "border-slate-200/70 bg-slate-50/90 shadow-[0_18px_50px_-45px_rgba(15,23,42,0.24)]";
+  const panelClass = "border-border bg-card shadow-sm";
+  const mutedPanelClass = "border-border bg-muted/30 shadow-sm";
 
   return (
-    <div className="relative overflow-hidden rounded-[32px] bg-[linear-gradient(180deg,#f8fbff_0%,#f8fafc_55%,#ffffff_100%)] p-4 sm:p-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.14),transparent_28%),radial-gradient(circle_at_top_right,rgba(245,158,11,0.12),transparent_24%)]" />
+    <div className="relative overflow-hidden rounded-[32px] bg-background p-4 sm:p-6">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,hsl(var(--primary)/0.10),transparent_28%),radial-gradient(circle_at_top_right,hsl(var(--accent)/0.18),transparent_24%)]" />
       <div className="relative space-y-6">
       {/* Header */}
       <div className={`overflow-hidden rounded-[28px] border ${panelClass}`}>
-        <div className="border-b border-slate-200/80 bg-[linear-gradient(135deg,rgba(30,64,175,0.08),rgba(59,130,246,0.02)_45%,rgba(245,158,11,0.06))] px-6 py-6 sm:px-8">
+        <div className="border-b border-border bg-[linear-gradient(135deg,hsl(var(--primary)/0.08),transparent_45%,hsl(var(--accent)/0.14))] px-6 py-6 sm:px-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="rounded-full bg-blue-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-800 hover:bg-blue-100">
+                <Badge className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary hover:bg-primary/10">
                   Search Intelligence
                 </Badge>
-                <Badge variant="outline" className="rounded-full border-slate-300 bg-white/80 px-3 py-1 text-xs text-slate-600">
+                <Badge variant="outline" className="rounded-full border-border bg-background/80 px-3 py-1 text-xs text-muted-foreground">
                   {periodLabel}
                 </Badge>
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                   {site.name} Analytics
                 </h1>
-                <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+                <p className="max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
                   Yhdellä näkymällä hakujen laatu, sisältöjen kysyntä, konversiopotentiaali ja oppimisen tila. Tavoitteena nopea tilannekuva ja selkeä priorisointi.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <div className="rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-xs text-slate-700">
-                  <span className="font-semibold text-slate-900">{site.domain}</span>
+                <div className="rounded-full border border-border bg-background/85 px-3 py-1.5 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{site.domain}</span>
                 </div>
-                <div className="rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-xs text-slate-700">
-                  Top query: <span className="font-semibold text-slate-900">{topQuery}</span>
+                <div className="rounded-full border border-border bg-background/85 px-3 py-1.5 text-xs text-muted-foreground">
+                  Top query: <span className="font-semibold text-foreground">{topQuery}</span>
                 </div>
-                <div className="rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-xs text-slate-700">
-                  Nollatuloshaut: <span className="font-semibold text-slate-900">{failedSearchCount}</span>
+                <div className="rounded-full border border-border bg-background/85 px-3 py-1.5 text-xs text-muted-foreground">
+                  Nollatuloshaut: <span className="font-semibold text-foreground">{failedSearchCount}</span>
                 </div>
-                <div className="rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-xs text-slate-700">
-                  Ilman klikkiä: <span className="font-semibold text-slate-900">{noClickCount}</span>
+                <div className="rounded-full border border-border bg-background/85 px-3 py-1.5 text-xs text-muted-foreground">
+                  Ilman klikkiä: <span className="font-semibold text-foreground">{noClickCount}</span>
                 </div>
               </div>
             </div>
             <div className="flex flex-col gap-3 sm:min-w-[220px]">
-              <Button variant="ghost" asChild className="justify-start rounded-2xl border border-slate-200 bg-white/80 text-slate-700 hover:bg-slate-100">
+              <Button variant="ghost" asChild className="justify-start rounded-2xl border border-border bg-background/80">
                 <Link to="/">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   All Sites
                 </Link>
               </Button>
-              <Button asChild className="justify-start rounded-2xl bg-slate-950 text-white hover:bg-slate-800">
+              <Button asChild className="justify-start rounded-2xl">
                 <Link to={`/search/${siteId}`}>
                   <Search className="mr-2 h-4 w-4" />
                   Test Search
@@ -459,34 +459,34 @@ export default function Analytics() {
             </div>
           </div>
         </div>
-        <div className="grid gap-3 border-t border-slate-200/80 bg-white/80 px-6 py-4 sm:grid-cols-3 sm:px-8">
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">CTR</p>
-            <p className="mt-2 font-mono text-2xl font-semibold text-slate-950">{ctrPct} %</p>
+        <div className="grid gap-3 border-t border-border bg-background/80 px-6 py-4 sm:grid-cols-3 sm:px-8">
+          <div className="rounded-2xl border border-border bg-muted/40 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">CTR</p>
+            <p className="mt-2 font-mono text-2xl font-semibold text-foreground">{ctrPct} %</p>
           </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Haut 30d</p>
-            <p className="mt-2 font-mono text-2xl font-semibold text-slate-950">{stats.total_searches.toLocaleString("fi-FI")}</p>
+          <div className="rounded-2xl border border-border bg-muted/40 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Haut 30d</p>
+            <p className="mt-2 font-mono text-2xl font-semibold text-foreground">{stats.total_searches.toLocaleString("fi-FI")}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Indeksoidut sivut</p>
-            <p className="mt-2 font-mono text-2xl font-semibold text-slate-950">{stats.pages_indexed.toLocaleString("fi-FI")}</p>
+          <div className="rounded-2xl border border-border bg-muted/40 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Indeksoidut sivut</p>
+            <p className="mt-2 font-mono text-2xl font-semibold text-foreground">{stats.pages_indexed.toLocaleString("fi-FI")}</p>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="performance" className="space-y-5">
-        <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-[24px] border border-slate-200/80 bg-white/90 p-2 shadow-[0_18px_50px_-44px_rgba(15,23,42,0.3)] sm:grid-cols-3">
-          <TabsTrigger value="performance" className="gap-2 rounded-[18px] px-4 py-3 text-slate-600 data-[state=active]:bg-slate-950 data-[state=active]:text-white data-[state=active]:shadow-none">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-[24px] border border-border bg-card p-2 shadow-sm sm:grid-cols-3">
+          <TabsTrigger value="performance" className="gap-2 rounded-[18px] px-4 py-3 data-[state=active]:shadow-none">
             <FileSearch className="h-4 w-4" />
             Hakuanalyysi
           </TabsTrigger>
-          <TabsTrigger value="ga" className="gap-2 rounded-[18px] px-4 py-3 text-slate-600 data-[state=active]:bg-slate-950 data-[state=active]:text-white data-[state=active]:shadow-none">
+          <TabsTrigger value="ga" className="gap-2 rounded-[18px] px-4 py-3 data-[state=active]:shadow-none">
             <BarChart3 className="h-4 w-4" />
             Google Analytics
           </TabsTrigger>
-          <TabsTrigger value="learning" className="gap-2 rounded-[18px] px-4 py-3 text-slate-600 data-[state=active]:bg-slate-950 data-[state=active]:text-white data-[state=active]:shadow-none">
+          <TabsTrigger value="learning" className="gap-2 rounded-[18px] px-4 py-3 data-[state=active]:shadow-none">
             <Brain className="h-4 w-4" />
             Oppiminen
           </TabsTrigger>
@@ -497,11 +497,11 @@ export default function Analytics() {
           <div className={`rounded-[24px] border ${panelClass} p-5 sm:p-6`}>
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-baseline gap-3">
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Search performance</h2>
-              <span className="text-sm text-slate-500">{periodLabel}</span>
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">Search performance</h2>
+              <span className="text-sm text-muted-foreground">{periodLabel}</span>
             </div>
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-              <SelectTrigger className="h-10 w-[140px] rounded-2xl border-slate-200 bg-slate-50 text-xs">
+              <SelectTrigger className="h-10 w-[140px] rounded-2xl border-border bg-background text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -522,13 +522,13 @@ export default function Analytics() {
 
           {/* Line Chart */}
           <Card className={`mt-5 ${mutedPanelClass}`}>
-            <CardHeader className="flex flex-col gap-3 border-b border-slate-200/80 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <CardHeader className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-950">Daily trend</CardTitle>
-                <p className="mt-1 text-sm text-slate-500">Seuraa kysynnän, klikkien ja epäonnistuneiden hakujen rytmiä päiväkohtaisesti.</p>
+                <CardTitle className="text-base font-semibold text-foreground">Daily trend</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">Seuraa kysynnän, klikkien ja epäonnistuneiden hakujen rytmiä päiväkohtaisesti.</p>
               </div>
               <Select value={chartMetric} onValueChange={(v) => setChartMetric(v as ChartMetric)}>
-                <SelectTrigger className="h-10 w-[170px] rounded-2xl border-slate-200 bg-white text-xs">
+                <SelectTrigger className="h-10 w-[170px] rounded-2xl border-border bg-background text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -543,7 +543,7 @@ export default function Analytics() {
               <div className="h-[280px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={stats.daily}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200/80" />
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/80" />
                     <XAxis
                       dataKey="date"
                       tickFormatter={(d: string) => {
@@ -583,9 +583,9 @@ export default function Analytics() {
           {/* Three column tables */}
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <Card className={panelClass}>
-              <CardHeader className="border-b border-slate-200/70 pb-4">
-                <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                  <FileSearch className="h-4 w-4 text-blue-600" />
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                  <FileSearch className="h-4 w-4 text-primary" />
                   Top searches
                 </CardTitle>
               </CardHeader>
@@ -595,17 +595,17 @@ export default function Analytics() {
             </Card>
 
             <Card className={`md:col-span-2 ${panelClass}`}>
-              <CardHeader className="border-b border-slate-200/70 pb-4">
+              <CardHeader className="border-b border-border pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                    <SearchX className="h-4 w-4 text-amber-600" />
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                    <SearchX className="h-4 w-4 text-primary" />
                     Haut ilman tuloksia
                   </CardTitle>
                   {stats.failed_searches.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 gap-1.5 rounded-2xl border-slate-200 bg-slate-50 text-xs hover:bg-slate-100"
+                      className="h-9 gap-1.5 rounded-2xl border-border bg-background text-xs hover:bg-muted"
                       onClick={analyzeFailed}
                       disabled={suggestionsLoading}
                     >
@@ -626,7 +626,7 @@ export default function Analytics() {
                       <div className="mt-1 ml-2 space-y-1">
                         {matches.map((s, i) => (
                           <div key={i} className="flex items-start gap-1.5 text-[11px]">
-                            <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-blue-600" />
+                            <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
                             <div>
                               <a href={s.url} target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
                                 {s.title}
@@ -643,9 +643,9 @@ export default function Analytics() {
             </Card>
 
             <Card className={panelClass}>
-              <CardHeader className="border-b border-slate-200/70 pb-4">
-                <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                  <Ban className="h-4 w-4 text-slate-500" />
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                  <Ban className="h-4 w-4 text-muted-foreground" />
                   Top searches with no clicks
                 </CardTitle>
               </CardHeader>
@@ -662,9 +662,9 @@ export default function Analytics() {
           {gaPages.length === 0 ? (
             <Card className={panelClass}>
               <CardContent className="p-8 text-center">
-                <BarChart3 className="mx-auto mb-3 h-10 w-10 text-slate-400" />
-                <h3 className="mb-1 font-semibold text-slate-900">Ei GA-dataa</h3>
-                <p className="text-sm text-slate-500">
+                <BarChart3 className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+                <h3 className="mb-1 font-semibold text-foreground">Ei GA-dataa</h3>
+                <p className="text-sm text-muted-foreground">
                   Synkronoi Google Analytics -data Integraatiot-sivulla ensin.
                 </p>
               </CardContent>
@@ -681,9 +681,9 @@ export default function Analytics() {
                 return (
                   <>
                     <div className="flex items-center justify-between">
-                      <h2 className="text-xl font-semibold tracking-tight text-slate-950">Google Analytics — Key Events</h2>
+                      <h2 className="text-xl font-semibold tracking-tight text-foreground">Google Analytics — Key Events</h2>
                       {fetched && (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                           Synkronoitu: {new Date(fetched).toLocaleDateString("fi-FI", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </span>
                       )}
@@ -700,9 +700,9 @@ export default function Analytics() {
 
               {/* Top Pages with Boost Effect */}
               <Card className={panelClass}>
-                <CardHeader className="border-b border-slate-200/70 pb-4">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                    <Zap className="h-4 w-4 text-blue-600" />
+                <CardHeader className="border-b border-border pb-4">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                    <Zap className="h-4 w-4 text-primary" />
                     Top-sivut ja hakuboostaus (kävijämäärällä painotettu Key Event Rate)
                   </CardTitle>
                 </CardHeader>
@@ -777,13 +777,13 @@ export default function Analytics() {
         <TabsContent value="learning" className="space-y-5">
           {/* AI Optimization Agent */}
           <Card className={panelClass}>
-            <CardHeader className="flex flex-col gap-4 border-b border-slate-200/70 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <CardHeader className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-              <CardTitle className="text-base flex items-center gap-2 text-slate-950">
-                <WandSparkles className="h-5 w-5 text-amber-600" />
+              <CardTitle className="text-base flex items-center gap-2 text-foreground">
+                <WandSparkles className="h-5 w-5 text-primary" />
                 AI-optimointiagentti
               </CardTitle>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Agentti yhdistää hakudatan, affiniteetit, synonyymit ja konversiosignaalit jatkuvaksi optimointistrategiaksi.
               </p>
               </div>
@@ -791,7 +791,7 @@ export default function Analytics() {
                 size="sm"
                 onClick={runOptimization}
                 disabled={optimizing}
-                className="rounded-2xl bg-slate-950 text-white hover:bg-slate-800"
+                className="rounded-2xl"
               >
                 {optimizing ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
@@ -802,7 +802,7 @@ export default function Analytics() {
               </Button>
             </CardHeader>
             <CardContent>
-              <p className="text-sm leading-6 text-slate-600">
+              <p className="text-sm leading-6 text-muted-foreground">
                 Optimointiagentti analysoi hakuhistorian, CTR-datan ja konversiot, ja kirjoittaa strategian joka ohjaa hakutekoälyä ja yhteydenotto-CTA:iden näyttämistä dynaamisesti.
               </p>
             </CardContent>
@@ -810,12 +810,12 @@ export default function Analytics() {
 
           <div className={`flex flex-col gap-4 rounded-[24px] border ${panelClass} p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6`}>
             <div>
-              <h2 className="text-xl font-semibold tracking-tight text-slate-950">Oppiva haku</h2>
-              <p className="mt-1 text-sm leading-6 text-slate-500">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">Oppiva haku</h2>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 Oppiminen erottaa nyt hyväksytyt synonyymit, AI:n ehdottamat synonyymit ja käyttäjien klikkauskäyttäytymisestä opitut query → sivu -affiniteetit.
               </p>
             </div>
-            <Button onClick={runLearning} disabled={learningRunning} className="rounded-2xl bg-blue-600 text-white hover:bg-blue-700">
+            <Button onClick={runLearning} disabled={learningRunning} className="rounded-2xl">
               {learningRunning ? (
                 <Loader2 className="mr-1 h-4 w-4 animate-spin" />
               ) : (
@@ -835,34 +835,34 @@ export default function Analytics() {
 
           {/* Strategy */}
           <Card className={panelClass}>
-            <CardHeader className="border-b border-slate-200/70 pb-4">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                <Sparkles className="h-4 w-4 text-blue-600" />
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                <Sparkles className="h-4 w-4 text-primary" />
                 Aktiivinen optimointistrategia
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0 space-y-4">
               {!learningStats?.strategy ? (
-                <p className="text-sm italic text-slate-500">
+                <p className="text-sm italic text-muted-foreground">
                   Strategiaa ei ole vielä muodostettu. Käynnistä optimointi, kun hakudataa on kertynyt.
                 </p>
               ) : (
                 <>
                   {learningStats.strategy.last_optimized_at && (
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       Päivitetty {new Date(learningStats.strategy.last_optimized_at).toLocaleString("fi-FI")}
                     </p>
                   )}
                   <div>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Prompt-lisäohjeet</p>
-                    <p className="text-sm leading-6 text-slate-700">{learningStats.strategy.prompt_additions || "Ei lisäohjeita."}</p>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Prompt-lisäohjeet</p>
+                    <p className="text-sm leading-6 text-foreground">{learningStats.strategy.prompt_additions || "Ei lisäohjeita."}</p>
                   </div>
                   <div>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Konversiohavainnot</p>
-                    <p className="text-sm leading-6 text-slate-700">{learningStats.strategy.conversion_insights || "Ei vielä havaintoja."}</p>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Konversiohavainnot</p>
+                    <p className="text-sm leading-6 text-foreground">{learningStats.strategy.conversion_insights || "Ei vielä havaintoja."}</p>
                   </div>
                   <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">CTA-säännöt</p>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">CTA-säännöt</p>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant={learningStats.strategy.contact_trigger_rules?.show_on_zero_results ? "default" : "secondary"} className="rounded-full">
                         Zero results CTA
@@ -871,7 +871,7 @@ export default function Analytics() {
                         Low CTR CTA
                       </Badge>
                       {learningStats.strategy.contact_trigger_rules?.trigger_categories?.map((rule) => (
-                        <Badge key={rule} variant="outline" className="rounded-full border-slate-300 bg-slate-50 text-slate-700">{rule}</Badge>
+                        <Badge key={rule} variant="outline" className="rounded-full border-border bg-muted/40 text-foreground">{rule}</Badge>
                       ))}
                     </div>
                   </div>
@@ -882,15 +882,15 @@ export default function Analytics() {
 
           {/* Affinities Table */}
           <Card className={panelClass}>
-            <CardHeader className="border-b border-slate-200/70 pb-4">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                <Zap className="h-4 w-4 text-blue-600" />
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                <Zap className="h-4 w-4 text-primary" />
                 Klikki-affiniteetit — Top query → URL -parit
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               {!learningStats || learningStats.top_affinities.length === 0 ? (
-                <p className="text-sm italic text-slate-500">
+                <p className="text-sm italic text-muted-foreground">
                   Ei opittuja affiniteetteja vielä. Klikkausdataa kertyy sitä mukaa kun käyttäjät hakevat.
                 </p>
               ) : (
@@ -934,15 +934,15 @@ export default function Analytics() {
 
           {/* Proposed Synonyms */}
           <Card className={panelClass}>
-            <CardHeader className="border-b border-slate-200/70 pb-4">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                <Lightbulb className="h-4 w-4 text-amber-600" />
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                <Lightbulb className="h-4 w-4 text-primary" />
                 Ehdotetut synonyymit
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               {proposedSynonyms.length === 0 ? (
-                <p className="text-sm italic text-slate-500">
+                <p className="text-sm italic text-muted-foreground">
                   Ei odottavia ehdotuksia.
                 </p>
               ) : (
@@ -987,15 +987,15 @@ export default function Analytics() {
 
           {/* Approved Synonyms Table */}
           <Card className={panelClass}>
-            <CardHeader className="border-b border-slate-200/70 pb-4">
-              <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-900">
-                <BookOpen className="h-4 w-4 text-blue-600" />
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                <BookOpen className="h-4 w-4 text-primary" />
                 Hyväksytyt synonyymit
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
               {approvedSynonyms.length === 0 ? (
-                <p className="text-sm italic text-slate-500">
+                <p className="text-sm italic text-muted-foreground">
                   Ei hyväksyttyjä synonyymejä vielä.
                 </p>
               ) : (
@@ -1098,14 +1098,14 @@ export default function Analytics() {
           {/* Affinity Chart */}
           {learningStats && learningStats.top_affinities.length > 0 && (
             <Card className={mutedPanelClass}>
-              <CardHeader className="border-b border-slate-200/70 pb-4">
-                <CardTitle className="text-sm font-medium text-slate-900">Klikkausjakauma — Top affiniteetit</CardTitle>
+              <CardHeader className="border-b border-border pb-4">
+                <CardTitle className="text-sm font-medium text-foreground">Klikkausjakauma — Top affiniteetit</CardTitle>
               </CardHeader>
               <CardContent className="pt-5">
                 <div className="h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={learningStats.top_affinities.slice(0, 8)}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-200/80" />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border/80" />
                       <XAxis
                         dataKey="query"
                         tick={{ fontSize: 11 }}
