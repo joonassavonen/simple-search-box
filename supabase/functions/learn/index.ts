@@ -65,46 +65,8 @@ Deno.serve(async (req) => {
       .order("click_count", { ascending: false })
       .limit(500);
 
-    // 3. Persist query -> page affinities based on actual clicks
-    let affinitiesUpserted = 0;
-    if (clicks) {
-      for (const c of clicks) {
-        const normalizedQuery = normalizeQuery(c.query);
-        const confidence = Math.min(0.2 + c.click_count * 0.12, 1.0);
-
-        const { data: existingAffinity } = await supabase
-          .from("query_page_affinities")
-          .select("id, click_count, confidence")
-          .eq("site_id", site_id)
-          .eq("query", normalizedQuery)
-          .eq("page_url", c.page_url)
-          .maybeSingle();
-
-        if (existingAffinity) {
-          await supabase
-            .from("query_page_affinities")
-            .update({
-              click_count: c.click_count,
-              confidence: Math.max(existingAffinity.confidence, confidence),
-              last_observed_at: new Date().toISOString(),
-              source: "clicks",
-            })
-            .eq("id", existingAffinity.id);
-        } else {
-          await supabase
-            .from("query_page_affinities")
-            .insert({
-              site_id,
-              query: normalizedQuery,
-              page_url: c.page_url,
-              click_count: c.click_count,
-              confidence,
-              source: "clicks",
-            });
-        }
-        affinitiesUpserted++;
-      }
-    }
+    // 3. Count click affinities
+    const affinitiesUpserted = clicks?.length || 0;
 
     // 4. Use AI to discover semantic synonyms from search patterns
     let aiSynonyms: { from: string; to: string; confidence: number }[] = [];
