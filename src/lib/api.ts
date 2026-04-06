@@ -510,7 +510,7 @@ export const api = {
     const updated = { ...current, ...config, site_id: siteId };
 
     // Upsert: try update first, then insert
-    const { data: existing } = await supabase
+    const { data: existing } = await (supabase as any)
       .from("site_contact_configs")
       .select("id")
       .eq("site_id", siteId)
