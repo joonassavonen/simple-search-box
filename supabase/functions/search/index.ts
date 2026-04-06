@@ -500,6 +500,10 @@ Palauta VAIN validi JSON.`
       }
     }
 
+    if (aiSummary && isQuestion && finalResults.length > 1) {
+      finalResults = pruneWeakResultsForQuestionQuery(finalResults, queryLower, words);
+    }
+
     // --- LEARNING: Zero-result suggestions ---
     let suggestions: string[] = [];
     if (finalResults.length === 0) {
@@ -994,6 +998,43 @@ function stabilizeRerankedResults(reranked: any[], keywordResults: any[], queryL
     return (aiOrder.get(a.url) ?? 999) - (aiOrder.get(b.url) ?? 999)
       || (keywordOrder.get(a.url) ?? 999) - (keywordOrder.get(b.url) ?? 999);
   });
+}
+
+function pruneWeakResultsForQuestionQuery(finalResults: any[], queryLower: string, words: string[]) {
+  const specificTerms = extractSpecificQueryTerms(queryLower, words);
+  if (specificTerms.length === 0) {
+    return finalResults.slice(0, 3);
+  }
+
+  const scored = finalResults.map((result, idx) => {
+    const haystack = `${result.title || ""} ${result.snippet || ""} ${(result.content || "").slice(0, 500)}`.toLowerCase();
+    const termMatches = specificTerms.filter((term) => haystack.includes(term)).length;
+    const exactQuestionHit = specificTerms.some((term) => (result.title || "").toLowerCase().includes(term));
+    return { result, idx, termMatches, exactQuestionHit };
+  });
+
+  const filtered = scored.filter((entry) => entry.termMatches > 0 || entry.exactQuestionHit);
+  if (filtered.length > 0) {
+    return filtered
+      .sort((a, b) => b.termMatches - a.termMatches || Number(b.exactQuestionHit) - Number(a.exactQuestionHit) || a.idx - b.idx)
+      .map((entry) => entry.result)
+      .slice(0, 3);
+  }
+
+  return finalResults.slice(0, Math.min(2, finalResults.length));
+}
+
+function extractSpecificQueryTerms(queryLower: string, words: string[]) {
+  const genericTerms = new Set([
+    "mitä", "miten", "miksi", "milloin", "missä", "voiko", "onko", "jos", "kun", "että", "tehdä",
+    "ilmalämpöpumppu", "ilmalämpöpumput", "lämpöpumppu", "lämpöpumput", "laite", "laitteet",
+    "se", "ne", "tämä", "tuo", "with", "what", "how", "why", "when", "where", "can", "should",
+    "if", "the", "a", "an", "do", "does",
+  ]);
+
+  return words
+    .map((word) => String(word || "").trim().toLowerCase())
+    .filter((word) => word.length >= 4 && !genericTerms.has(word));
 }
 
 function extractSnippet(content: string, words: string[], maxLen = 200): string {
