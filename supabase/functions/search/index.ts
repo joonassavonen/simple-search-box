@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     // Verify site exists and is active
     const { data: site } = await supabase
       .from("sites")
-      .select("id, is_active")
+      .select("id, is_active, ai_context")
       .eq("id", site_id)
       .single();
 
