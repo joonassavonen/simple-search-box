@@ -311,6 +311,10 @@ export default function Analytics() {
             <FileSearch className="h-4 w-4" />
             Hakuanalyysi
           </TabsTrigger>
+          <TabsTrigger value="ga" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" />
+            Google Analytics
+          </TabsTrigger>
           <TabsTrigger value="learning" className="gap-1.5">
             <Brain className="h-4 w-4" />
             Oppiminen
