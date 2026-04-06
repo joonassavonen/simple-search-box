@@ -129,6 +129,7 @@ Deno.serve(async (req) => {
       const maxPV = Math.max(...gaData.map(g => g.pageviews), 1);
       const totalPV = gaData.reduce((s, g) => s + g.pageviews, 0) || 1;
       for (const g of gaData) {
+        if (g.page_path === "/") continue; // Skip homepage
         const keyEventRate = g.pageviews > 0 ? g.conversions / g.pageviews : 0;
         // Weighted rate = key_event_rate * (pageviews / total_pageviews)
         // This penalizes pages with few visits even if their rate is high
