@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api, Site, CrawlJob } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export default function Crawl() {
   const PAGE_SIZE = 10;
+  const ACTIVE_STATUSES = ["pending", "running", "discovering", "crawling"];
   const { siteId } = useParams();
   const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,13 +20,14 @@ export default function Crawl() {
   const [history, setHistory] = useState<any[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotal, setHistoryTotal] = useState(0);
+  const pollIntervalRef = useRef<number | null>(null);
 
   const loadData = useCallback(async () => {
     if (!siteId) return;
     try {
       const from = (historyPage - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
-      const [s, { data: jobs, count }] = await Promise.all([
+      const [s, { data: jobs, count }, { data: activeJob }] = await Promise.all([
         api.getSite(siteId),
         supabase
           .from("crawl_jobs")
@@ -33,10 +35,35 @@ export default function Crawl() {
           .eq("site_id", siteId)
           .order("created_at", { ascending: false })
           .range(from, to),
+        supabase
+          .from("crawl_jobs")
+          .select("*")
+          .eq("site_id", siteId)
+          .in("status", ACTIVE_STATUSES)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
       setSite(s);
       setHistory(jobs || []);
       setHistoryTotal(count || 0);
+
+      if (activeJob) {
+        setJob({
+          job_id: activeJob.id,
+          status: activeJob.status,
+          pages_found: activeJob.pages_found,
+          pages_indexed: activeJob.pages_indexed,
+          error: activeJob.error,
+        });
+        setCrawling(true);
+      } else {
+        setCrawling(false);
+        setJob((prev) => {
+          if (!prev || ACTIVE_STATUSES.includes(prev.status)) return null;
+          return prev;
+        });
+      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -51,6 +78,17 @@ export default function Crawl() {
   useEffect(() => {
     setHistoryPage(1);
   }, [siteId]);
+
+  useEffect(() => {
+    if (!job || !ACTIVE_STATUSES.includes(job.status)) return;
+    pollJob(job.job_id);
+    return () => {
+      if (pollIntervalRef.current) {
+        window.clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [job?.job_id]);
 
   async function triggerCrawl() {
     if (!siteId) return;
@@ -105,12 +143,19 @@ export default function Crawl() {
   }
 
   function pollJob(jobId: string) {
-    const interval = setInterval(async () => {
+    if (pollIntervalRef.current) {
+      window.clearInterval(pollIntervalRef.current);
+    }
+
+    pollIntervalRef.current = window.setInterval(async () => {
       try {
         const status = await api.getCrawlJob(jobId);
         setJob(status);
         if (["done", "error", "partial", "paused", "cancelled"].includes(status.status)) {
-          clearInterval(interval);
+          if (pollIntervalRef.current) {
+            window.clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
           setCrawling(false);
           if (status.status === "done") {
             toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
@@ -126,7 +171,10 @@ export default function Crawl() {
           await loadData();
         }
       } catch {
-        clearInterval(interval);
+        if (pollIntervalRef.current) {
+          window.clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
         setCrawling(false);
       }
     }, 2000);
