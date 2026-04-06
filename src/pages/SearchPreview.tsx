@@ -201,7 +201,7 @@ export default function SearchPreview() {
               <CardContent>
                 <div className="relative">
                   <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {getSnippet(mode.value, siteId || "")}
+                    {getSnippet(mode.value, siteId || "", floatSide)}
                   </pre>
                   <Button
                     variant="ghost"
