@@ -4,7 +4,7 @@ import { api, Site, CrawlJob } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle, XCircle, Clock, Palette, Type } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle, XCircle, Clock, Palette, Type, PlayCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

@@ -182,6 +182,27 @@ export const api = {
     };
   },
 
+  async resumeCrawl(siteId: string, previousJobId: string): Promise<CrawlJob> {
+    const { data, error } = await supabase
+      .from("crawl_jobs")
+      .insert({ site_id: siteId, status: "pending" })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+
+    supabase.functions.invoke("crawl", {
+      body: { job_id: data.id, site_id: siteId, resume_from_job: previousJobId },
+    }).catch((err) => console.error("Background resume crawl failed:", err));
+
+    return {
+      job_id: data.id,
+      status: data.status,
+      pages_found: data.pages_found,
+      pages_indexed: data.pages_indexed,
+      error: data.error,
+    };
+  },
+
   async getCrawlJob(jobId: string): Promise<CrawlJob> {
     const { data, error } = await supabase
       .from("crawl_jobs")
