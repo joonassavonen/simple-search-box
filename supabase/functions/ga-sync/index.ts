@@ -156,7 +156,7 @@ async function syncSiteGA(supabase: any, accessToken: string, siteId: string, ga
   return { synced: inserted, total_rows: rows.length };
 }
 
-
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
