@@ -26,7 +26,6 @@ function lexicalSimilarity(a: string, b: string): number {
   return overlap / Math.max(aTokens.size, bTokens.size);
 }
 
-// This function processes search logs and builds learned synonyms/associations
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -43,7 +42,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-    // 1. Get recent search logs with results
+    // 1. Get recent search logs
     const { data: logs } = await supabase
       .from("search_logs")
       .select("query, results_count, created_at")
@@ -52,71 +51,21 @@ Deno.serve(async (req) => {
       .limit(500);
 
     if (!logs || logs.length === 0) {
-      return new Response(JSON.stringify({ message: "No search data to learn from", synonyms_created: 0 }), {
+      return new Response(JSON.stringify({ message: "No search data to learn from", discovered: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // 2. Get click data to find which queries lead to same pages
-    const { data: clicks } = await supabase
-      .from("search_clicks")
-      .select("query, page_url, click_count")
-      .eq("site_id", site_id)
-      .order("click_count", { ascending: false })
-      .limit(500);
-
-    // 3. Persist query -> page affinities based on actual clicks
-    let affinitiesUpserted = 0;
-    if (clicks) {
-      for (const c of clicks) {
-        const normalizedQuery = normalizeQuery(c.query);
-        const confidence = Math.min(0.2 + c.click_count * 0.12, 1.0);
-
-        const { data: existingAffinity } = await supabase
-          .from("query_page_affinities")
-          .select("id, click_count, confidence")
-          .eq("site_id", site_id)
-          .eq("query", normalizedQuery)
-          .eq("page_url", c.page_url)
-          .maybeSingle();
-
-        if (existingAffinity) {
-          await supabase
-            .from("query_page_affinities")
-            .update({
-              click_count: c.click_count,
-              confidence: Math.max(existingAffinity.confidence, confidence),
-              last_observed_at: new Date().toISOString(),
-              source: "clicks",
-            })
-            .eq("id", existingAffinity.id);
-        } else {
-          await supabase
-            .from("query_page_affinities")
-            .insert({
-              site_id,
-              query: normalizedQuery,
-              page_url: c.page_url,
-              click_count: c.click_count,
-              confidence,
-              source: "clicks",
-            });
-        }
-        affinitiesUpserted++;
-      }
-    }
-
-    // 4. Use AI to discover semantic synonyms from search patterns
+    // 2. Use AI to discover semantic synonyms
     let aiSynonyms: { from: string; to: string; confidence: number }[] = [];
     if (LOVABLE_API_KEY && logs.length >= 10) {
       try {
-        // Get unique queries with their success rates
         const queryStats: Record<string, { total: number; withResults: number }> = {};
         for (const log of logs) {
-          const q = log.query.toLowerCase().trim();
+          const q = (log as any).query.toLowerCase().trim();
           if (!queryStats[q]) queryStats[q] = { total: 0, withResults: 0 };
           queryStats[q].total++;
-          if (log.results_count > 0) queryStats[q].withResults++;
+          if ((log as any).results_count > 0) queryStats[q].withResults++;
         }
 
         const queryList = Object.entries(queryStats)
@@ -163,9 +112,9 @@ Return [] if no clear synonyms found.`
       }
     }
 
-    // 5. Store AI synonym candidates conservatively as proposals
-    let proposedCreated = 0;
-    let proposedUpdated = 0;
+    // 3. Store synonyms
+    let created = 0;
+    let updated = 0;
     for (const pair of aiSynonyms) {
       const from = normalizeQuery(pair.from);
       const to = normalizeQuery(pair.to);
@@ -174,25 +123,23 @@ Return [] if no clear synonyms found.`
 
       const { data: existing } = await supabase
         .from("search_synonyms")
-        .select("id, confidence, times_used, status")
+        .select("id, confidence, times_used")
         .eq("site_id", site_id)
         .eq("query_from", from)
         .eq("query_to", to)
         .maybeSingle();
 
       if (existing) {
-        const newConfidence = (existing.confidence * 0.7 + pair.confidence * 0.3);
+        const newConfidence = ((existing as any).confidence * 0.7 + pair.confidence * 0.3);
         await supabase
           .from("search_synonyms")
           .update({
             confidence: Math.min(newConfidence, 1.0),
-            times_used: existing.times_used + 1,
-            source: existing.status === "approved" ? "approved" : "ai",
-            status: existing.status === "approved" ? "approved" : "proposed",
+            times_used: (existing as any).times_used + 1,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existing.id);
-        proposedUpdated++;
+          .eq("id", (existing as any).id);
+        updated++;
       } else {
         await supabase
           .from("search_synonyms")
@@ -201,21 +148,17 @@ Return [] if no clear synonyms found.`
             query_from: from,
             query_to: to,
             confidence: pair.confidence,
-            source: "ai",
-            status: "proposed",
           });
-        proposedCreated++;
+        created++;
       }
     }
 
     return new Response(JSON.stringify({
       message: "Learning complete",
       logs_analyzed: logs.length,
-      clicks_analyzed: clicks?.length || 0,
-      affinities_upserted: affinitiesUpserted,
       ai_synonyms_found: aiSynonyms.length,
-      synonyms_created: proposedCreated,
-      synonyms_updated: proposedUpdated,
+      discovered: created,
+      updated,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -1,19 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-/**
- * Optimize Edge Function — Background AI Agent
- *
- * Analyzes CTR, conversion data, and search patterns for a site.
- * Writes an optimization strategy to `site_search_strategy` that the
- * search edge function reads at query time to:
- *   - Dynamically adjust the AI re-ranking prompt
- *   - Decide when to show contact CTAs (phone/WhatsApp/email buttons)
- *   - Prioritize high-converting pages
- *
- * Invoke: supabase.functions.invoke("optimize", { body: { site_id } })
- * Recommended: run daily or after significant data changes.
- */
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -78,7 +64,7 @@ async function suggestPagesForFailedQueries(
   }
 
   const pageList = pages
-    .map((p, i) => `${i + 1}. "${p.title}" — ${p.url}${p.meta_description ? ` (${String(p.meta_description).slice(0, 80)})` : ""}`)
+    .map((p: any, i: number) => `${i + 1}. "${p.title}" — ${p.url}${p.meta_description ? ` (${String(p.meta_description).slice(0, 80)})` : ""}`)
     .join("\n");
 
   const queries = failedQueries.slice(0, 20).map((q) => q.query);
@@ -187,13 +173,11 @@ Respond using the suggest_pages tool.`,
         await supabase
           .from("search_synonyms")
           .update({
-            confidence: Math.min(existing.confidence * 0.7 + 0.6 * 0.3, 1.0),
-            times_used: existing.times_used + 1,
-            source: "suggest-pages",
-            status: "approved",
+            confidence: Math.min((existing as any).confidence * 0.7 + 0.6 * 0.3, 1.0),
+            times_used: (existing as any).times_used + 1,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", existing.id);
+          .eq("id", (existing as any).id);
       } else {
         await supabase
           .from("search_synonyms")
@@ -202,8 +186,6 @@ Respond using the suggest_pages tool.`,
             query_from: queryNorm,
             query_to: titleWords,
             confidence: 0.6,
-            source: "suggest-pages",
-            status: "approved",
           });
         synonymsCreated++;
       }
@@ -233,12 +215,9 @@ Deno.serve(async (req) => {
 
     log.push(`Optimization started at ${now.toISOString()}`);
 
-    // -----------------------------------------------------------------------
     // 1. Gather data
-    // -----------------------------------------------------------------------
-
-    // Search logs (last 30 days)
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
     const { data: site } = await supabase
       .from("sites")
       .select("name, domain, ai_context")
@@ -253,8 +232,6 @@ Deno.serve(async (req) => {
       .eq("site_id", site_id)
       .maybeSingle();
 
-    log.push(`Existing strategy: ${existingStrategy ? "found" : "none"}`);
-
     const { data: searchLogs } = await supabase
       .from("search_logs")
       .select("query, results_count, clicked, created_at")
@@ -265,7 +242,6 @@ Deno.serve(async (req) => {
 
     log.push(`Search logs (30d): ${searchLogs?.length || 0}`);
 
-    // Click data
     const { data: clickData } = await supabase
       .from("search_clicks")
       .select("query, page_url, click_count")
@@ -275,37 +251,15 @@ Deno.serve(async (req) => {
 
     log.push(`Click records: ${clickData?.length || 0}`);
 
-    const { data: clickEvents } = await supabase
-      .from("search_click_events" as any)
-      .select("query, page_url, click_position, session_id, created_at")
-      .eq("site_id", site_id)
-      .gte("created_at", thirtyDaysAgo)
-      .order("created_at", { ascending: false })
-      .limit(2000);
-
-    log.push(`Click events (30d): ${clickEvents?.length || 0}`);
-
-    const { data: approvedSynonyms } = await supabase
+    const { data: synonymsData } = await supabase
       .from("search_synonyms")
-      .select("query_from, query_to, confidence, source")
+      .select("query_from, query_to, confidence")
       .eq("site_id", site_id)
-      .eq("status", "approved")
       .order("confidence", { ascending: false })
       .limit(100);
 
-    log.push(`Approved synonyms: ${approvedSynonyms?.length || 0}`);
+    log.push(`Synonyms: ${synonymsData?.length || 0}`);
 
-    const { data: affinityData } = await supabase
-      .from("query_page_affinities" as any)
-      .select("query, page_url, click_count, confidence, source, last_observed_at")
-      .eq("site_id", site_id)
-      .order("confidence", { ascending: false })
-      .order("click_count", { ascending: false })
-      .limit(100);
-
-    log.push(`Query affinities: ${affinityData?.length || 0}`);
-
-    // GA analytics
     const { data: gaData } = await supabase
       .from("page_analytics")
       .select("page_path, pageviews, conversions, conversion_rate")
@@ -315,60 +269,46 @@ Deno.serve(async (req) => {
 
     log.push(`GA analytics rows: ${gaData?.length || 0}`);
 
-    // Contact config
     const { data: contactConfig } = await supabase
       .from("site_contact_configs")
       .select("enabled, email, phone, chat_url")
       .eq("site_id", site_id)
-      .single();
+      .maybeSingle();
 
     const hasContactMethods = contactConfig &&
       contactConfig.enabled &&
       (contactConfig.phone || contactConfig.email || contactConfig.chat_url);
 
-    log.push(`Contact config: ${hasContactMethods ? "active" : "not configured"}`);
-
-    // -----------------------------------------------------------------------
     // 2. Analyze search patterns
-    // -----------------------------------------------------------------------
-
-    // Query-level stats
     const queryStats: Record<string, { total: number; clicked: number; zeroResults: number }> = {};
     for (const l of searchLogs || []) {
-      const q = l.query.trim().toLowerCase();
+      const q = (l as any).query.trim().toLowerCase();
       if (!queryStats[q]) queryStats[q] = { total: 0, clicked: 0, zeroResults: 0 };
       queryStats[q].total++;
-      if (l.clicked) queryStats[q].clicked++;
-      if (l.results_count === 0) queryStats[q].zeroResults++;
+      if ((l as any).clicked) queryStats[q].clicked++;
+      if ((l as any).results_count === 0) queryStats[q].zeroResults++;
     }
 
-    // Find low-CTR queries (searched often but rarely clicked)
     const lowCtrQueries = Object.entries(queryStats)
       .filter(([, s]) => s.total >= 3 && (s.clicked / s.total) < 0.1)
       .sort((a, b) => b[1].total - a[1].total)
       .slice(0, 20)
       .map(([q, s]) => ({ query: q, searches: s.total, ctr: s.clicked / s.total }));
 
-    log.push(`Low-CTR queries: ${lowCtrQueries.length}`);
-
-    // Find zero-result queries
     const zeroResultQueries = Object.entries(queryStats)
       .filter(([, s]) => s.zeroResults > 0)
       .sort((a, b) => b[1].zeroResults - a[1].zeroResults)
       .slice(0, 20)
       .map(([q, s]) => ({ query: q, count: s.zeroResults }));
 
-    log.push(`Zero-result queries: ${zeroResultQueries.length}`);
-
-    // High-CTR patterns (query → URL pairs that convert well)
+    // High-CTR patterns from click data
     const highCtrPatterns: HighCtrPattern[] = [];
-    const patternSource = affinityData?.length ? affinityData : clickData;
-    if (patternSource) {
-      // Group by query, find best URL
+    if (clickData) {
       const queryClicks: Record<string, { url: string; clicks: number }[]> = {};
-      for (const c of patternSource) {
-        if (!queryClicks[c.query]) queryClicks[c.query] = [];
-        queryClicks[c.query].push({ url: c.page_url, clicks: c.click_count });
+      for (const c of clickData) {
+        const q = (c as any).query;
+        if (!queryClicks[q]) queryClicks[q] = [];
+        queryClicks[q].push({ url: (c as any).page_url, clicks: (c as any).click_count });
       }
 
       for (const [query, urls] of Object.entries(queryClicks)) {
@@ -391,33 +331,17 @@ Deno.serve(async (req) => {
 
     log.push(`High-CTR patterns: ${highCtrPatterns.length}`);
 
-    const clickPositionBreakdown = Object.entries(
-      (clickEvents || []).reduce((acc: Record<number, number>, event: any) => {
-        const position = Number(event.click_position);
-        if (!Number.isFinite(position)) return acc;
-        acc[position] = (acc[position] || 0) + 1;
-        return acc;
-      }, {}),
-    )
-      .map(([position, clicks]) => ({ position: Number(position), clicks }))
-      .sort((a, b) => a.position - b.position)
-      .slice(0, 10);
-
-    log.push(`Click position buckets: ${clickPositionBreakdown.length}`);
-
-    // Top converting pages from GA
     const topConverters = (gaData || [])
-      .filter(g => g.conversions > 0)
+      .filter((g: any) => g.conversions > 0)
       .slice(0, 10)
-      .map(g => ({
+      .map((g: any) => ({
         path: g.page_path,
         conversions: g.conversions,
         rate: g.conversion_rate,
         views: g.pageviews,
       }));
 
-    log.push(`Top converting pages: ${topConverters.length}`);
-
+    // AI analysis for failed queries
     let failedQuerySuggestions: Record<string, FailedQuerySuggestion[]> = {};
     let failedQuerySynonymsCreated = 0;
     if (zeroResultQueries.length > 0) {
@@ -432,47 +356,41 @@ Deno.serve(async (req) => {
       }
     }
 
-    // -----------------------------------------------------------------------
-    // 3. AI agent: generate strategy based on data
-    // -----------------------------------------------------------------------
-
-    let promptAdditions = existingStrategy?.prompt_additions || "";
-    let conversionInsights = existingStrategy?.conversion_insights || "";
+    // 3. AI strategy generation
+    let promptAdditions = (existingStrategy as any)?.prompt_additions || "";
+    let conversionInsights = (existingStrategy as any)?.conversion_insights || "";
     let contactTriggerRules: ContactTriggerRules = {
-      show_on_zero_results: existingStrategy?.contact_trigger_rules?.show_on_zero_results ?? true,
-      show_on_low_ctr_queries: existingStrategy?.contact_trigger_rules?.show_on_low_ctr_queries ?? !!hasContactMethods,
-      low_ctr_threshold: existingStrategy?.contact_trigger_rules?.low_ctr_threshold ?? 0.1,
-      trigger_categories: existingStrategy?.contact_trigger_rules?.trigger_categories || [],
+      show_on_zero_results: (existingStrategy as any)?.contact_trigger_rules?.show_on_zero_results ?? true,
+      show_on_low_ctr_queries: (existingStrategy as any)?.contact_trigger_rules?.show_on_low_ctr_queries ?? !!hasContactMethods,
+      low_ctr_threshold: (existingStrategy as any)?.contact_trigger_rules?.low_ctr_threshold ?? 0.1,
+      trigger_categories: (existingStrategy as any)?.contact_trigger_rules?.trigger_categories || [],
     };
 
     if (LOVABLE_API_KEY && (searchLogs?.length || 0) >= 10) {
       try {
         const dataContext = JSON.stringify({
           site: {
-            name: site?.name || null,
-            domain: site?.domain || null,
-            ai_context: truncateText(site?.ai_context, 4000) || null,
+            name: (site as any)?.name || null,
+            domain: (site as any)?.domain || null,
+            ai_context: truncateText((site as any)?.ai_context, 4000) || null,
           },
           current_strategy: existingStrategy ? {
-            last_optimized_at: existingStrategy.last_optimized_at || null,
-            prompt_additions: existingStrategy.prompt_additions || "",
-            conversion_insights: existingStrategy.conversion_insights || "",
-            contact_trigger_rules: existingStrategy.contact_trigger_rules || null,
-            previous_high_ctr_patterns: existingStrategy.high_ctr_patterns || [],
-            optimization_log_excerpt: truncateText(existingStrategy.optimization_log, 2000),
+            last_optimized_at: (existingStrategy as any).last_optimized_at || null,
+            prompt_additions: (existingStrategy as any).prompt_additions || "",
+            conversion_insights: (existingStrategy as any).conversion_insights || "",
+            contact_trigger_rules: (existingStrategy as any).contact_trigger_rules || null,
+            previous_high_ctr_patterns: (existingStrategy as any).high_ctr_patterns || [],
           } : null,
           total_searches_30d: searchLogs?.length || 0,
           unique_queries: Object.keys(queryStats).length,
           avg_ctr: searchLogs?.length
-            ? (searchLogs.filter(l => l.clicked).length / searchLogs.length * 100).toFixed(1) + "%"
+            ? (searchLogs.filter((l: any) => l.clicked).length / searchLogs.length * 100).toFixed(1) + "%"
             : "0%",
           low_ctr_queries: lowCtrQueries.slice(0, 10),
           zero_result_queries: zeroResultQueries.slice(0, 10),
           high_ctr_patterns: highCtrPatterns.slice(0, 10),
           top_converting_pages: topConverters,
-          approved_synonyms: (approvedSynonyms || []).slice(0, 25),
-          top_query_affinities: (affinityData || []).slice(0, 25),
-          click_positions: clickPositionBreakdown,
+          synonyms: (synonymsData || []).slice(0, 25),
           has_contact_methods: !!hasContactMethods,
         }, null, 2);
 
@@ -490,30 +408,18 @@ Deno.serve(async (req) => {
                 content: `You are a search optimization agent for a website's internal search engine.
 Analyze the search data and produce an optimization strategy as JSON.
 You are improving an existing strategy, not starting from scratch, unless the data strongly indicates the previous strategy is wrong.
-Respect the site's AI context and vocabulary when refining the strategy.
 
 Your output MUST be valid JSON with these fields:
 {
-  "prompt_additions": "Extra instructions to add to the search AI's system prompt to improve results. Focus on patterns you see in the data. Max 200 words. Write in Finnish if the queries are mostly Finnish.",
+  "prompt_additions": "Extra instructions to add to the search AI's system prompt. Max 200 words. Write in Finnish if queries are mostly Finnish.",
   "contact_trigger_rules": {
     "show_on_zero_results": true/false,
     "show_on_low_ctr_queries": true/false,
     "low_ctr_threshold": 0.0-1.0,
-    "trigger_categories": ["category keywords that should trigger contact CTA, e.g. 'hinnat','tarjous','asennus'"]
+    "trigger_categories": ["keyword categories that should trigger contact CTA"]
   },
-  "conversion_insights": "Brief summary of conversion patterns and recommendations. Max 150 words."
+  "conversion_insights": "Brief summary of conversion patterns. Max 150 words."
 }
-
-Guidelines:
-- Treat current_strategy as the baseline. Refine it incrementally when possible.
-- Use site.ai_context, approved synonyms, and top_query_affinities to stay aligned with the site's real offerings and terminology.
-- If low-CTR queries suggest users can't find what they need → recommend showing contact buttons
-- If zero-result queries cluster around topics → add prompt instructions to handle those topics
-- If high-CTR patterns exist → add prompt instructions to prioritize those URL patterns
-- If top converting pages exist → add prompt instructions to favor those pages for relevant queries
-- contact_trigger_rules.trigger_categories should contain query keywords/topics where showing contact buttons would help conversion (e.g. pricing, quotes, installation, support)
-- Be conservative: only trigger contact CTAs when genuinely helpful, not on every search
-- Do not invent offerings or jargon that do not appear in site context, approved synonyms, affinities, or analytics.
 
 Return ONLY valid JSON, no markdown.`
               },
@@ -551,22 +457,18 @@ Return ONLY valid JSON, no markdown.`
         log.push(`AI strategy generation failed: ${(aiErr as Error).message}`);
       }
     } else {
-      // Fallback: rule-based strategy without AI
       if (zeroResultQueries.length > 5) {
-        promptAdditions += "Monet haut eivät tuota tuloksia. Yritä löytää osittaisia vastaavuuksia ja ehdota vaihtoehtoisia hakusanoja.";
+        promptAdditions += "Monet haut eivät tuota tuloksia. Yritä löytää osittaisia vastaavuuksia.";
       }
       if (topConverters.length > 0) {
-        const paths = topConverters.slice(0, 3).map(p => p.path).join(", ");
-        promptAdditions += ` Sivuston parhaiten konvertoivat sivut: ${paths}. Priorisoi näitä relevanteille hauille.`;
+        const paths = topConverters.slice(0, 3).map((p: any) => p.path).join(", ");
+        promptAdditions += ` Parhaiten konvertoivat sivut: ${paths}.`;
       }
-      conversionInsights = `${Object.keys(queryStats).length} uniikkia hakua, ${zeroResultQueries.length} nollatuloshakua, ${highCtrPatterns.length} korkean CTR:n mallia.`;
-      log.push("Rule-based strategy generated (no AI key or insufficient data)");
+      conversionInsights = `${Object.keys(queryStats).length} uniikkia hakua, ${zeroResultQueries.length} nollatuloshakua.`;
+      log.push("Rule-based strategy generated");
     }
 
-    // -----------------------------------------------------------------------
     // 4. Write strategy to DB
-    // -----------------------------------------------------------------------
-
     const strategyData = {
       site_id,
       prompt_additions: promptAdditions,
@@ -578,18 +480,17 @@ Return ONLY valid JSON, no markdown.`
       optimization_log: log.join("\n"),
     };
 
-    // Upsert (one strategy per site)
     const { data: existing } = await supabase
       .from("site_search_strategy")
       .select("id")
       .eq("site_id", site_id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       await supabase
         .from("site_search_strategy")
         .update(strategyData)
-        .eq("id", existing.id);
+        .eq("id", (existing as any).id);
     } else {
       await supabase
         .from("site_search_strategy")
@@ -603,13 +504,9 @@ Return ONLY valid JSON, no markdown.`
       searches_analyzed: searchLogs?.length || 0,
       high_ctr_patterns: highCtrPatterns.length,
       zero_result_queries: zeroResultQueries.length,
-      low_ctr_queries: lowCtrQueries.length,
-      contact_triggers_active: contactTriggerRules.show_on_zero_results || contactTriggerRules.show_on_low_ctr_queries,
-      prompt_additions_length: promptAdditions.length,
       suggestions: failedQuerySuggestions,
-      failed_query_matches: Object.keys(failedQuerySuggestions).length,
       synonyms_created: failedQuerySynonymsCreated,
-      log: log,
+      log,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
