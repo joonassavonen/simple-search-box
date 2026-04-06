@@ -147,6 +147,7 @@ export interface LearningStats {
   affinity_count: number;
   total_affinity_clicks: number;
   top_affinities: { url: string; query: string; clicks: number; confidence: number }[];
+  failed_query_suggestions: Record<string, { url: string; title: string; reason: string }[]>;
   strategy: {
     prompt_additions: string;
     conversion_insights: string;
@@ -667,7 +668,7 @@ export const api = {
 
     const { data: strategy } = await (supabase as any)
       .from("site_search_strategy")
-      .select("prompt_additions, conversion_insights, contact_trigger_rules, last_optimized_at, optimization_log")
+      .select("prompt_additions, conversion_insights, contact_trigger_rules, last_optimized_at, optimization_log, failed_query_suggestions")
       .eq("site_id", siteId)
       .maybeSingle();
 
@@ -687,6 +688,7 @@ export const api = {
         clicks: c.click_count,
         confidence: c.confidence,
       })),
+      failed_query_suggestions: strategy?.failed_query_suggestions || {},
       strategy: strategy ? {
         prompt_additions: strategy.prompt_additions || "",
         conversion_insights: strategy.conversion_insights || "",

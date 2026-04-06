@@ -573,6 +573,7 @@ Return ONLY valid JSON, no markdown.`
       contact_trigger_rules: contactTriggerRules,
       high_ctr_patterns: highCtrPatterns.slice(0, 50),
       conversion_insights: conversionInsights,
+      failed_query_suggestions: failedQuerySuggestions,
       last_optimized_at: now.toISOString(),
       optimization_log: log.join("\n"),
     };

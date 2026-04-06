@@ -220,6 +220,7 @@ export default function Analytics() {
         setSite(s);
         setStats(st);
         setLearningStats(ls);
+        setPageSuggestions(ls.failed_query_suggestions || {});
         const [{ data: syns }, { data: gaData }] = await Promise.all([
           supabase
             .from("search_synonyms")
@@ -293,6 +294,7 @@ export default function Analytics() {
           .limit(50),
       ]);
       setLearningStats(ls);
+      setPageSuggestions(ls.failed_query_suggestions || {});
       setSynonyms((syns as any[]) || []);
       const matchCount = Object.keys(result.suggestions || {}).length;
       toast({
@@ -350,6 +352,7 @@ export default function Analytics() {
     if (siteId) {
       const ls = await api.getLearningStats(siteId);
       setLearningStats(ls);
+      setPageSuggestions(ls.failed_query_suggestions || {});
     }
     toast({ title: status === "approved" ? "Synonyymi hyväksytty" : "Synonyymi hylätty" });
   };
