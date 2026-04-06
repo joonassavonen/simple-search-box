@@ -472,19 +472,17 @@
     }
     .findai-results-header svg { width: 14px; height: 14px; }
     .findai-show-all {
-      display: flex; align-items: center; justify-content: center;
-      width: calc(100% - 16px); margin: 8px 8px 4px;
-      min-height: 40px; border-radius: 12px;
-      border: 1px solid var(--border-light);
-      background: var(--bg2); color: var(--text);
-      font-size: 13px; font-weight: 600; cursor: pointer;
-      transition: background 0.12s ease, border-color 0.12s ease;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin: 2px 16px 10px; padding: 0;
+      border: 0; background: transparent;
+      color: var(--text-soft);
+      font-size: 13px; font-weight: 600; line-height: 1.4;
+      cursor: pointer; transition: color 0.12s ease, opacity 0.12s ease;
       font-family: inherit;
     }
     .findai-show-all:hover {
-      background: hsl(var(--green-light));
-      border-color: hsl(var(--green-border));
       color: hsl(var(--green-dark));
+      opacity: 1;
     }
 
     /* AI summary card */
@@ -1667,16 +1665,16 @@
         }
       });
 
+      if (data.results.length > 3) {
+        html += `<button type="button" class="findai-show-all" data-expanded="${expanded ? "1" : "0"}">${expanded ? "Näytä vähemmän" : `Näytä kaikki (${data.results.length})`}</button>`;
+      }
+
       const cfg = data.contact_config || contactConfig;
       if (data.intervention_card && !insertedIntervention && interventionPosition > 0) {
         html += renderInterventionCard(data.intervention_card);
       }
       if (!data.intervention_card && cfg && cfg.enabled) {
         html += renderContactHtml(cfg, data.language || "fi");
-      }
-
-      if (data.results.length > 3) {
-        html += `<button type="button" class="findai-show-all" data-expanded="${expanded ? "1" : "0"}">${expanded ? "Näytä vähemmän" : `Näytä kaikki (${data.results.length})`}</button>`;
       }
 
       dropdown.innerHTML = html;
