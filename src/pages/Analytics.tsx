@@ -793,7 +793,55 @@ export default function Analytics() {
             </Button>
           </div>
 
-          {/* Learning KPI Cards */}
+          {/* Failed searches + AI analysis */}
+          <Card className={panelClass}>
+              <CardHeader className="border-b border-border pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-foreground">
+                    <SearchX className="h-4 w-4 text-primary" />
+                    Haut ilman tuloksia
+                  </CardTitle>
+                  {stats && stats.failed_searches.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-full gap-1.5 rounded-2xl border-border bg-background text-xs hover:bg-muted sm:w-auto"
+                      onClick={analyzeFailed}
+                      disabled={suggestionsLoading}
+                    >
+                      {suggestionsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
+                      {suggestionsLoading ? "Analysoidaan…" : "Analysoi AI:lla"}
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <PaginatedQueryList
+                  items={stats?.failed_searches || []}
+                  emptyMessage="Ei epäonnistuneita hakuja."
+                  renderExtra={(query) => {
+                    const matches = pageSuggestions[query];
+                    if (!matches?.length) return null;
+                    return (
+                      <div className="mt-1 ml-2 space-y-1">
+                        {matches.map((s, i) => (
+                          <div key={i} className="flex items-start gap-1.5 text-[11px]">
+                            <TrendingUp className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
+                            <div>
+                              <a href={s.url} target="_blank" rel="noopener" className="font-medium text-primary hover:underline">
+                                {s.title}
+                              </a>
+                              <span className="text-muted-foreground ml-1">— {s.reason}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }}
+                />
+              </CardContent>
+          </Card>
+
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <AnalyticsMetricCard title="Hyväksytyt synonyymit" value={String(learningStats?.approved_synonym_count ?? 0)} hint="Suoraan haussa käytössä" icon={<BookOpen className="h-5 w-5" />} tone="primary" />
             <AnalyticsMetricCard title="Ehdotetut synonyymit" value={String(learningStats?.proposed_synonym_count ?? 0)} hint="Odottaa tarkistusta" icon={<Lightbulb className="h-5 w-5" />} tone="accent" />
