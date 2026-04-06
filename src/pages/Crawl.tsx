@@ -73,11 +73,13 @@ export default function Crawl() {
       try {
         const status = await api.getCrawlJob(jobId);
         setJob(status);
-        if (["done", "error"].includes(status.status)) {
+        if (["done", "error", "partial"].includes(status.status)) {
           clearInterval(interval);
           setCrawling(false);
           if (status.status === "done") {
             toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
+          } else if (status.status === "partial") {
+            toast.info(`Indeksointi keskeytetty aikakatkaisun vuoksi (${status.pages_indexed}/${status.pages_found}). Voit jatkaa.`);
           } else {
             toast.error(status.error || "Crawl stopped before completion");
           }
@@ -93,12 +95,18 @@ export default function Crawl() {
   const crawlProgress =
     job && job.pages_found ? Math.round((job.pages_indexed / job.pages_found) * 100) : 0;
 
+  // Find the latest partial job for resume
+  const latestPartialJob = history.find((h) => h.status === "partial");
+
   const getHistorySummary = (entry: { status: string; pages_indexed: number; pages_found: number }) => {
     if (entry.status === "pending") return "Queued";
     if (entry.status === "running") {
       return entry.pages_found > 0
         ? `${entry.pages_indexed}/${entry.pages_found} pages indexed`
         : "Discovering pages...";
+    }
+    if (entry.status === "partial") {
+      return `${entry.pages_indexed}/${entry.pages_found} — keskeytetty, jatkettavissa`;
     }
     if (entry.pages_found > 0) {
       return `${entry.pages_indexed} pages indexed / ${entry.pages_found} found`;
