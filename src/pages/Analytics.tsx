@@ -41,6 +41,10 @@ import {
   Trash2,
   Check,
   X,
+  BarChart3,
+  TrendingUp,
+  Eye,
+  Target,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -61,6 +65,18 @@ interface Synonym {
   query_to: string;
   confidence: number;
   times_used: number;
+}
+
+interface GAPageData {
+  page_path: string;
+  pageviews: number;
+  sessions: number;
+  conversions: number;
+  bounce_rate: number;
+  avg_time_on_page: number;
+  period_start: string;
+  period_end: string;
+  fetched_at: string;
 }
 
 type DateRange = "7" | "30" | "90";
