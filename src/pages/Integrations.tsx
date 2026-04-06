@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ShoppingBag, TrendingUp, Store, ExternalLink, CheckCircle2, AlertCircle, BarChart3, MousePointerClick, ArrowUpRight, ArrowLeft } from "lucide-react";
+import { ShoppingBag, TrendingUp, Store, ExternalLink, CheckCircle2, AlertCircle, BarChart3, MousePointerClick, ArrowUpRight, ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ export default function Integrations() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [gaInput, setGaInput] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncResult, setLastSyncResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!siteId) return;
