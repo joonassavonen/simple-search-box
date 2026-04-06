@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
               if (schema.price) parts.push(`Hinta: ${schema.price}${schema.currency === "EUR" ? "€" : ""}`);
               if (schema.rating) parts.push(`Arvosana: ${schema.rating}/5`);
               if (schema.reviewCount) parts.push(`${schema.reviewCount} arvostelua`);
-              if (schema.availability) parts.push(schema.availability.includes("InStock") ? "Varastossa" : "Ei varastossa");
+              
               meta = `[TUOTE] ${parts.join(" | ")}`;
             } else if (schema.type === "Article") {
               const parts: string[] = [];
