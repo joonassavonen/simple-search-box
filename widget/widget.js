@@ -491,6 +491,11 @@
       background: var(--bg2); flex-shrink: 0;
     }
     .findai-trending-product span { font-size: 13px; font-weight: 500; color: var(--text); }
+    .findai-trending-growth {
+      font-size: 10px; font-weight: 600; color: hsl(145, 60%, 40%);
+      background: hsl(145, 50%, 94%); padding: 1px 5px; border-radius: 6px;
+      margin-left: 4px; white-space: nowrap;
+    }
 
     /* Contact CTA */
     .findai-contact { padding: 12px; border-top: 1px solid var(--border-light); }
@@ -738,13 +743,13 @@
             const growthPct = prev > 0 ? (curr - prev) / prev : (curr > 5 ? 1 : 0);
             if (growthPct <= 0) continue;
             const score = growthPct * Math.log(curr + 1);
-            growth.push({ page_path: path, score, curr, growthPct });
+            growth.push({ page_path: path, score, curr, growthPct: Math.round(growthPct * 100) });
           }
 
           growth.sort((a, b) => b.score - a.score);
-          const topPaths = growth.slice(0, 6).map(g => g.page_path);
+          const topItems = growth.slice(0, 6);
 
-          if (topPaths.length === 0) throw "no growth pages";
+          if (topItems.length === 0) throw "no growth pages";
 
           // Fetch page titles for the trending paths
           const pages = await supabaseRest("pages", {
@@ -759,10 +764,10 @@
             }
           }
 
-          trendingData = topPaths
-            .map(path => {
-              const page = pathToPage[path] || pathToPage[path.replace(/\/$/, "")] || pathToPage[path + "/"];
-              return page ? { query: page.title, url: page.url } : null;
+          trendingData = topItems
+            .map(g => {
+              const page = pathToPage[g.page_path] || pathToPage[g.page_path.replace(/\/$/, "")] || pathToPage[g.page_path + "/"];
+              return page ? { query: page.title, url: page.url, growth: g.growthPct, source: "ga" } : null;
             })
             .filter(Boolean);
         } catch {
@@ -784,7 +789,7 @@
               .filter(([, c]) => c >= 2)
               .sort((a, b) => b[1] - a[1])
               .slice(0, 6)
-              .map(([query, count]) => ({ query, count }));
+              .map(([query, count]) => ({ query, count, source: "search_logs" }));
           }).catch(() => {});
         }
       })();
@@ -1031,6 +1036,7 @@
     function renderTrending() {
       const hasProducts = popularProducts && popularProducts.length > 0;
       const hasTrending = trendingData && trendingData.length > 0;
+      const isGaTrending = hasTrending && trendingData[0]?.source === "ga";
 
       if (!hasProducts && !hasTrending) {
         hideDropdown();
@@ -1051,7 +1057,11 @@
       } else if (hasTrending) {
         html += '<div class="findai-trending-list">';
         trendingData.forEach(t => {
-          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${escHtml(t.query)}</button>`;
+          const growthBadge = (t.growth && t.growth > 0)
+            ? `<span class="findai-trending-growth">↑${t.growth}%</span>`
+            : "";
+          const label = escHtml(t.query.length > 40 ? t.query.slice(0, 38) + "…" : t.query);
+          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${label}${growthBadge}</button>`;
         });
         html += '</div>';
       }
