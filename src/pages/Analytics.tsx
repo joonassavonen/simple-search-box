@@ -854,7 +854,121 @@ export default function Analytics() {
             </Card>
           )}
 
-          {/* Synonyms table */}
+          {/* Page Boost Breakdown */}
+          {(() => {
+            // Compute boost per page (mirrors search function logic)
+            const boostMap: Record<string, PageBoost> = {};
+
+            // GA boost: visitor-weighted key event rate → max +25, traffic → max +8
+            if (gaPages.length > 0) {
+              const totalPV = gaPages.reduce((s, p) => s + p.pageviews, 0) || 1;
+              const maxPV = Math.max(...gaPages.map(p => p.pageviews), 1);
+              const gaEntries = gaPages
+                .filter(p => p.page_path !== "/" && p.pageviews > 0 && (p.conversions / p.pageviews) <= 1)
+                .map(p => {
+                  const keyEventRate = p.conversions / p.pageviews;
+                  const pvWeight = p.pageviews / totalPV;
+                  const weightedRate = keyEventRate * pvWeight;
+                  return { ...p, weightedRate };
+                });
+              const maxWR = Math.max(...gaEntries.map(e => e.weightedRate), 0.0001);
+
+              for (const p of gaEntries) {
+                const normalizedWR = p.weightedRate / maxWR;
+                const gaBoost = Math.round((normalizedWR * 25 + (p.pageviews / maxPV) * 8) * 10) / 10;
+                if (gaBoost > 0.5) {
+                  if (!boostMap[p.page_path]) boostMap[p.page_path] = { page_path: p.page_path, ga_boost: 0, ctr_boost: 0, popularity_boost: 0, total_boost: 0, reasons: [] };
+                  boostMap[p.page_path].ga_boost = gaBoost;
+                  boostMap[p.page_path].reasons.push(`GA: ${p.pageviews} katselua, ${p.conversions} key events`);
+                }
+              }
+            }
+
+            // High-CTR patterns → max +15
+            for (const p of highCtrPatterns) {
+              const path = (() => { try { return new URL(p.top_url).pathname; } catch { return p.top_url; } })();
+              if (!boostMap[path]) boostMap[path] = { page_path: path, ga_boost: 0, ctr_boost: 0, popularity_boost: 0, total_boost: 0, reasons: [] };
+              const ctrBoost = Math.round(Math.min(p.ctr * 20, 15) * 10) / 10;
+              boostMap[path].ctr_boost = Math.max(boostMap[path].ctr_boost, ctrBoost);
+              boostMap[path].reasons.push(`CTR: "${p.pattern}" ${(p.ctr * 100).toFixed(0)}% (${p.clicks} klik.)`);
+            }
+
+            // Popularity boost → max +10
+            for (const [path, clicks] of Object.entries(popularityData)) {
+              if (path === "/") continue;
+              const popBoost = Math.round(Math.min(clicks * 0.5, 10) * 10) / 10;
+              if (popBoost > 0.5) {
+                if (!boostMap[path]) boostMap[path] = { page_path: path, ga_boost: 0, ctr_boost: 0, popularity_boost: 0, total_boost: 0, reasons: [] };
+                boostMap[path].popularity_boost = popBoost;
+                boostMap[path].reasons.push(`Suosio: ${clicks} klikkausta hauista`);
+              }
+            }
+
+            // Calculate totals and sort
+            const boosts = Object.values(boostMap)
+              .map(b => ({ ...b, total_boost: Math.round((b.ga_boost + b.ctr_boost + b.popularity_boost) * 10) / 10 }))
+              .filter(b => b.total_boost > 0)
+              .sort((a, b) => b.total_boost - a.total_boost);
+
+            if (boosts.length === 0) return null;
+
+            return (
+              <Card className={panelClass}>
+                <CardHeader className="border-b border-border pb-4">
+                  <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    Sivujen boostaus ({boosts.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Hakutuloksia boostetaan automaattisesti Google Analytics -datan, klikkaushistorian ja CTR-mallien perusteella.
+                  </p>
+                  <div className="max-w-full overflow-x-auto">
+                    <Table className="min-w-[700px]">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Sivu</TableHead>
+                          <TableHead className="w-20 text-right">GA</TableHead>
+                          <TableHead className="w-20 text-right">CTR</TableHead>
+                          <TableHead className="w-20 text-right">Suosio</TableHead>
+                          <TableHead className="w-20 text-right">Yhteensä</TableHead>
+                          <TableHead>Perustelu</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {boosts.slice(0, 20).map((b) => (
+                          <TableRow key={b.page_path}>
+                            <TableCell className="max-w-[200px] truncate font-medium">{b.page_path}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {b.ga_boost > 0 ? <Badge variant="secondary" className="rounded-full">+{b.ga_boost}</Badge> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {b.ctr_boost > 0 ? <Badge variant="secondary" className="rounded-full">+{b.ctr_boost}</Badge> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {b.popularity_boost > 0 ? <Badge variant="secondary" className="rounded-full">+{b.popularity_boost}</Badge> : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="default" className="rounded-full">+{b.total_boost}</Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[250px]">
+                              <div className="space-y-0.5">
+                                {b.reasons.map((r, i) => (
+                                  <p key={i} className="text-xs text-muted-foreground truncate">{r}</p>
+                                ))}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           <Card className={panelClass}>
             <CardHeader className="border-b border-border pb-4">
               <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
