@@ -863,6 +863,7 @@ export default function Analytics() {
                     </div>
                   ) : null;
                 })()}
+                </>
               )}
             </CardContent>
           </Card>
