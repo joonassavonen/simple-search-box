@@ -498,12 +498,6 @@
       background: var(--bg2); flex-shrink: 0;
     }
     .findai-trending-product span { font-size: 13px; font-weight: 500; color: var(--text); }
-    .findai-trending-growth {
-      font-size: 10px; font-weight: 600; color: hsl(145, 60%, 40%);
-      background: hsl(145, 50%, 94%); padding: 1px 5px; border-radius: 6px;
-      margin-left: 4px; white-space: nowrap;
-    }
-
     /* Contact CTA */
     .findai-contact { padding: 12px; border-top: 1px solid var(--border-light); }
     .findai-contact-btn {
@@ -760,7 +754,7 @@
 
           // Fetch page titles for the trending paths
           const pages = await supabaseRest("pages", {
-            "select": "title,url",
+            "select": "title,url,meta_description,schema_data",
             "site_id": `eq.${SITE_ID}`,
             "limit": "1000",
           });
@@ -774,7 +768,16 @@
           trendingData = topItems
             .map(g => {
               const page = pathToPage[g.page_path] || pathToPage[g.page_path.replace(/\/$/, "")] || pathToPage[g.page_path + "/"];
-              return page ? { query: page.title, url: page.url, growth: g.growthPct, source: "ga" } : null;
+              if (!page) return null;
+              const schema = typeof page.schema_data === "string" ? JSON.parse(page.schema_data) : page.schema_data;
+              return {
+                query: page.title,
+                title: page.title,
+                url: page.url,
+                snippet: page.meta_description || schema?.description || "",
+                schema_data: schema || null,
+                source: "ga",
+              };
             })
             .filter(Boolean);
         } catch {
@@ -803,7 +806,7 @@
 
       // Popular products via PostgREST
       supabaseRest("pages", {
-        "select": "title,url,schema_data",
+        "select": "title,url,meta_description,schema_data",
         "site_id": `eq.${SITE_ID}`,
         "schema_data": "not.is.null",
         "limit": "50",
@@ -814,7 +817,12 @@
           try {
             const schema = typeof p.schema_data === "string" ? JSON.parse(p.schema_data) : p.schema_data;
             if (schema?.type === "Product" && p.title) {
-              products.push({ title: p.title, url: p.url, image: schema.image || undefined });
+              products.push({
+                title: p.title,
+                url: p.url,
+                snippet: p.meta_description || schema.description || "",
+                schema_data: schema,
+              });
             }
           } catch {}
         }
@@ -1040,10 +1048,72 @@
     // -----------------------------------------------------------------------
     // Trending
     // -----------------------------------------------------------------------
+    function renderResultItem(r, idx) {
+      const title = cleanTitle(r.title, r.url);
+      const snippet = cleanSnippet(r.snippet);
+      const s = r.schema_data;
+      const isProduct = s && s.type === "Product";
+      const urlUtm = addUtm(r.url);
+
+      let html = `<a href="${escHtml(urlUtm)}" target="_self" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
+
+      if (isProduct && s.image) {
+        html += `<img class="findai-result-img" src="${escHtml(s.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+      }
+
+      html += '<div class="findai-result-body">';
+      html += `<div class="findai-result-title">${escHtml(title)}</div>`;
+
+      if (isProduct && s.price) {
+        html += `<div class="findai-result-price">${formatPrice(s.price, s.currency)}</div>`;
+      }
+
+      if (isProduct && s.rating) {
+        html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
+      }
+
+      if (snippet) {
+        html += `<div class="findai-result-snippet">${escHtml(snippet)}</div>`;
+      }
+
+      if (s && s.type === "Article" && s.datePublished) {
+        try {
+          html += `<div class="findai-result-meta"><span>${new Date(s.datePublished).toLocaleDateString("fi-FI")}</span></div>`;
+        } catch {}
+      }
+
+      if (s && s.type === "Event") {
+        let meta = "";
+        if (s.startDate) { try { meta += `<span>📅 ${new Date(s.startDate).toLocaleDateString("fi-FI")}</span>`; } catch {} }
+        if (s.location) meta += `<span>📍 ${escHtml(s.location)}</span>`;
+        if (meta) html += `<div class="findai-result-meta">${meta}</div>`;
+      }
+
+      html += "</div>";
+      html += `<span class="findai-result-arrow">${ICON_EXTERNAL}</span>`;
+      html += "</a>";
+      return html;
+    }
+
     function renderTrending() {
       const hasTrending = trendingData && trendingData.length > 0;
       const hasProducts = popularProducts && popularProducts.length > 0;
-      const isGaTrending = hasTrending && trendingData[0]?.source === "ga";
+      const featuredItems = [];
+      const seenUrls = new Set();
+
+      (trendingData || []).forEach(item => {
+        if (item && item.url && !seenUrls.has(item.url)) {
+          seenUrls.add(item.url);
+          featuredItems.push(item);
+        }
+      });
+
+      (popularProducts || []).forEach(item => {
+        if (item && item.url && !seenUrls.has(item.url)) {
+          seenUrls.add(item.url);
+          featuredItems.push(item);
+        }
+      });
 
       if (!hasProducts && !hasTrending) {
         hideDropdown();
@@ -1052,26 +1122,15 @@
 
       let html = '<div class="findai-trending"><div class="findai-trending-title">Suosittua juuri nyt</div>';
 
-      if (hasTrending) {
+      if (featuredItems.length > 0) {
+        featuredItems.slice(0, 6).forEach((item, idx) => {
+          html += renderResultItem(item, idx);
+        });
+      } else if (hasTrending) {
         html += '<div class="findai-trending-list">';
         trendingData.forEach(t => {
-          const growthBadge = (isGaTrending && t.growth && t.growth > 0)
-            ? `<span class="findai-trending-growth">↑${t.growth}%</span>`
-            : "";
           const label = escHtml(t.query.length > 40 ? t.query.slice(0, 38) + "…" : t.query);
-          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${label}${growthBadge}</button>`;
-        });
-        html += '</div>';
-      }
-
-      if (hasProducts) {
-        html += `<div class="findai-suggestions-label" style="margin-top:${hasTrending ? "12px" : "0"}">Suosittuja tuotteita</div>`;
-        html += '<div style="display:flex;flex-direction:column;gap:2px">';
-        popularProducts.forEach(p => {
-          const imgHtml = p.image
-            ? `<img src="${escHtml(p.image)}" alt="" onerror="this.style.display='none'">`
-            : `<div class="findai-trending-product-placeholder"></div>`;
-          html += `<button class="findai-trending-product" data-query="${escHtml(p.title)}">${imgHtml}<span>${escHtml(p.title)}</span></button>`;
+          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${label}</button>`;
         });
         html += '</div>';
       }
@@ -1080,7 +1139,7 @@
       dropdown.innerHTML = html;
       showDropdown();
 
-      dropdown.querySelectorAll(".findai-trending-item, .findai-trending-product").forEach(btn => {
+      dropdown.querySelectorAll(".findai-trending-item").forEach(btn => {
         btn.addEventListener("click", () => {
           input.value = btn.dataset.query;
           updateClearBtn();
@@ -1196,50 +1255,7 @@
       }
 
       data.results.forEach((r, idx) => {
-        const title = cleanTitle(r.title, r.url);
-        const snippet = cleanSnippet(r.snippet);
-        const s = r.schema_data;
-        const isProduct = s && s.type === "Product";
-        const urlUtm = addUtm(r.url);
-
-        html += `<a href="${escHtml(urlUtm)}" target="_self" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
-
-        if (isProduct && s.image) {
-          html += `<img class="findai-result-img" src="${escHtml(s.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
-        }
-
-        html += '<div class="findai-result-body">';
-        html += `<div class="findai-result-title">${escHtml(title)}</div>`;
-
-        if (isProduct && s.price) {
-          html += `<div class="findai-result-price">${formatPrice(s.price, s.currency)}</div>`;
-        }
-
-        if (isProduct && s.rating) {
-          html += `<div class="findai-result-rating">${starHtml(s.rating, s.reviewCount)}</div>`;
-        }
-
-
-        if (snippet) {
-          html += `<div class="findai-result-snippet">${escHtml(snippet)}</div>`;
-        }
-
-        if (s && s.type === "Article" && s.datePublished) {
-          try {
-            html += `<div class="findai-result-meta"><span>${new Date(s.datePublished).toLocaleDateString("fi-FI")}</span></div>`;
-          } catch {}
-        }
-
-        if (s && s.type === "Event") {
-          let meta = "";
-          if (s.startDate) { try { meta += `<span>📅 ${new Date(s.startDate).toLocaleDateString("fi-FI")}</span>`; } catch {} }
-          if (s.location) meta += `<span>📍 ${escHtml(s.location)}</span>`;
-          if (meta) html += `<div class="findai-result-meta">${meta}</div>`;
-        }
-
-        html += "</div>";
-        html += `<span class="findai-result-arrow">${ICON_EXTERNAL}</span>`;
-        html += "</a>";
+        html += renderResultItem(r, idx);
       });
 
       const cfg = data.contact_config || contactConfig;
