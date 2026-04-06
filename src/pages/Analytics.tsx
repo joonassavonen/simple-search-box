@@ -773,7 +773,7 @@ export default function Analytics() {
                   Ei opittuja synonyymejä vielä. Käynnistä oppiminen kun hakudataa on kertynyt.
                 </p>
               ) : (
-                <Table>
+                <>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Hakulause</TableHead>
