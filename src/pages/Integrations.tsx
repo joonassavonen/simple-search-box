@@ -70,6 +70,29 @@ export default function Integrations() {
     }
   }
 
+  async function syncGA() {
+    if (!siteId) return;
+    setSyncing(true);
+    setLastSyncResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ga-sync", {
+        body: { site_id: siteId },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      const synced = data?.synced || 0;
+      setLastSyncResult(`${synced} sivun data synkronoitu`);
+      toast.success(`GA-data synkronoitu: ${synced} sivua`);
+      await loadData();
+    } catch (e: any) {
+      const msg = e.message || "Synkronointi epäonnistui";
+      setLastSyncResult(`Virhe: ${msg}`);
+      toast.error(msg);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   if (!siteId) {
     return <p className="text-muted-foreground">Site ID puuttuu.</p>;
   }
