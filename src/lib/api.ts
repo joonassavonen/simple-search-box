@@ -517,7 +517,7 @@ export const api = {
       .single();
 
     if (existing) {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("site_contact_configs")
         .update({
           enabled: updated.enabled,
