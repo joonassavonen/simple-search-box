@@ -18,7 +18,7 @@ const WIDGET_URL = "https://findaisearch.lovable.app/widget.js";
 const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-function getSnippet(mode: EmbedMode, siteId: string) {
+function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right") {
   const supabaseAttrs = `\n  data-supabase-url="${SUPABASE_URL_VALUE}"\n  data-supabase-key="${SUPABASE_KEY_VALUE}"`;
   if (mode === "inline") {
     return `<div id="findai-search"></div>
@@ -33,7 +33,7 @@ function getSnippet(mode: EmbedMode, siteId: string) {
     return `<script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
-  data-position="bottom-right"${supabaseAttrs}>
+  data-position="${floatPosition}"${supabaseAttrs}>
 </script>`;
   }
   return `<div id="findai-search"></div>
