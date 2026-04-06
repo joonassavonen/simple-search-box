@@ -84,6 +84,9 @@ export interface ContactConfig {
 export interface TrendingItem {
   query: string;
   count: number;
+  page_path?: string;
+  title?: string;
+  growth?: number; // weighted growth score
 }
 
 export interface LearningStats {
@@ -251,9 +254,90 @@ export const api = {
   },
 
 
-  // --- Trending (Supabase direct — aggregates search_logs) ---
+  // --- Trending (GA4 growth-based, falls back to search logs) ---
 
-  async getTrending(siteId: string, limit = 5): Promise<{ trending: TrendingItem[] }> {
+  async getTrending(siteId: string, limit = 6): Promise<{ trending: TrendingItem[]; source: "ga" | "search_logs" }> {
+    // Try GA-based trending first: compare current 30d vs previous 30d
+    const now = new Date();
+    const currentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const previousStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const currentEnd = now.toISOString().slice(0, 10);
+    const previousEnd = currentStart;
+
+    const { data: gaData } = await supabase
+      .from("page_analytics")
+      .select("page_path, pageviews, period_start, period_end")
+      .eq("site_id", siteId);
+
+    if (gaData && gaData.length > 0) {
+      // Group by page_path, split into current and previous period
+      const current: Record<string, number> = {};
+      const previous: Record<string, number> = {};
+
+      for (const row of gaData) {
+        const ps = row.period_start;
+        if (ps >= currentStart && ps <= currentEnd) {
+          current[row.page_path] = (current[row.page_path] || 0) + row.pageviews;
+        } else if (ps >= previousStart && ps < currentStart) {
+          previous[row.page_path] = (previous[row.page_path] || 0) + row.pageviews;
+        }
+      }
+
+      // Need both periods to calculate growth
+      const hasBothPeriods = Object.keys(current).length > 0 && Object.keys(previous).length > 0;
+
+      if (hasBothPeriods) {
+        // Calculate weighted growth: growth% × log(views)
+        const growthScores: { path: string; views: number; growth: number; score: number }[] = [];
+
+        for (const [path, views] of Object.entries(current)) {
+          const prevViews = previous[path] || 0;
+          const growthPct = prevViews > 0
+            ? (views - prevViews) / prevViews
+            : views > 5 ? 1.0 : 0; // New pages with >5 views get 100% growth
+          const weightedScore = growthPct * Math.log(Math.max(views, 1) + 1);
+
+          if (weightedScore > 0) {
+            growthScores.push({ path, views, growth: growthPct, score: weightedScore });
+          }
+        }
+
+        if (growthScores.length > 0) {
+          growthScores.sort((a, b) => b.score - a.score);
+
+          // Fetch page titles for the top paths
+          const topPaths = growthScores.slice(0, limit).map(g => g.path);
+          const { data: pages } = await supabase
+            .from("pages")
+            .select("url, title")
+            .eq("site_id", siteId);
+
+          const pathToTitle: Record<string, string> = {};
+          if (pages) {
+            for (const p of pages) {
+              try {
+                const pagePath = new URL(p.url).pathname;
+                if (topPaths.includes(pagePath)) {
+                  pathToTitle[pagePath] = p.title || p.url;
+                }
+              } catch { /* ignore */ }
+            }
+          }
+
+          const trending: TrendingItem[] = growthScores.slice(0, limit).map(g => ({
+            query: pathToTitle[g.path] || g.path,
+            count: g.views,
+            page_path: g.path,
+            title: pathToTitle[g.path] || g.path,
+            growth: Math.round(g.growth * 100),
+          }));
+
+          return { trending, source: "ga" };
+        }
+      }
+    }
+
+    // Fallback: search-log-based trending
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await supabase
       .from("search_logs")
@@ -262,9 +346,8 @@ export const api = {
       .gte("created_at", sevenDaysAgo)
       .gt("results_count", 0);
 
-    if (!data || data.length === 0) return { trending: [] };
+    if (!data || data.length === 0) return { trending: [], source: "search_logs" };
 
-    // Aggregate query counts client-side
     const counts: Record<string, number> = {};
     for (const row of data) {
       const q = row.query.trim().toLowerCase();
@@ -277,7 +360,7 @@ export const api = {
       .slice(0, limit)
       .map(([query, count]) => ({ query, count }));
 
-    return { trending };
+    return { trending, source: "search_logs" };
   },
 
   // --- Suggestions (Supabase direct — prefix match on past queries) ---

@@ -445,6 +445,11 @@
       background: var(--bg2); flex-shrink: 0;
     }
     .findai-trending-product span { font-size: 13px; font-weight: 500; color: var(--text); }
+    .findai-trending-growth {
+      font-size: 10px; font-weight: 600; color: hsl(145, 60%, 40%);
+      background: hsl(145, 50%, 94%); padding: 1px 5px; border-radius: 6px;
+      margin-left: 4px; white-space: nowrap;
+    }
 
     /* Contact CTA */
     .findai-contact { padding: 12px; border-top: 1px solid var(--border-light); }
@@ -614,26 +619,92 @@
     // Prefetch trending, popular products & contact config
     // -----------------------------------------------------------------------
     if (USE_SUPABASE) {
-      // Trending via PostgREST
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      supabaseRest("search_logs", {
-        "select": "query",
+      // Trending: try GA4 growth-based first, fallback to search logs
+      const now = new Date();
+      const currentStart = new Date(now.getTime() - 30*24*60*60*1000).toISOString().slice(0,10);
+      const previousStart = new Date(now.getTime() - 60*24*60*60*1000).toISOString().slice(0,10);
+      const currentEnd = now.toISOString().slice(0,10);
+
+      supabaseRest("page_analytics", {
+        "select": "page_path,pageviews,period_start",
         "site_id": `eq.${SITE_ID}`,
-        "created_at": `gte.${sevenDaysAgo}`,
-        "results_count": "gt.0",
-      }).then(data => {
-        if (!data || !Array.isArray(data)) return;
-        const counts = {};
-        for (const row of data) {
-          const q = (row.query || "").trim().toLowerCase();
-          if (q.length >= 2) counts[q] = (counts[q] || 0) + 1;
+      }).then(gaData => {
+        if (!gaData || !Array.isArray(gaData) || gaData.length === 0) return loadSearchLogTrending();
+
+        const current = {}, previous = {};
+        for (const row of gaData) {
+          const ps = row.period_start;
+          if (ps >= currentStart && ps <= currentEnd) {
+            current[row.page_path] = (current[row.page_path] || 0) + row.pageviews;
+          } else if (ps >= previousStart && ps < currentStart) {
+            previous[row.page_path] = (previous[row.page_path] || 0) + row.pageviews;
+          }
         }
-        trendingData = Object.entries(counts)
-          .filter(([, c]) => c >= 2)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 6)
-          .map(([query, count]) => ({ query, count }));
-      }).catch(() => {});
+
+        if (Object.keys(current).length === 0 || Object.keys(previous).length === 0) {
+          return loadSearchLogTrending();
+        }
+
+        // growth% × log(views) weighted scoring
+        const scores = [];
+        for (const [path, views] of Object.entries(current)) {
+          const prev = previous[path] || 0;
+          const growthPct = prev > 0 ? (views - prev) / prev : (views > 5 ? 1.0 : 0);
+          const score = growthPct * Math.log(Math.max(views, 1) + 1);
+          if (score > 0) scores.push({ path, views, growth: Math.round(growthPct * 100), score });
+        }
+
+        if (scores.length === 0) return loadSearchLogTrending();
+
+        scores.sort((a, b) => b.score - a.score);
+        const topPaths = scores.slice(0, 6);
+
+        // Fetch page titles for top paths
+        supabaseRest("pages", {
+          "select": "url,title",
+          "site_id": `eq.${SITE_ID}`,
+        }).then(pages => {
+          const pathToTitle = {};
+          if (pages && Array.isArray(pages)) {
+            for (const p of pages) {
+              try { pathToTitle[new URL(p.url).pathname] = p.title || p.url; } catch {}
+            }
+          }
+          trendingData = topPaths.map(g => ({
+            query: pathToTitle[g.path] || g.path,
+            count: g.views,
+            growth: g.growth,
+            page_path: g.path,
+            source: "ga",
+          }));
+        }).catch(() => {
+          trendingData = topPaths.map(g => ({
+            query: g.path, count: g.views, growth: g.growth, source: "ga",
+          }));
+        });
+      }).catch(() => loadSearchLogTrending());
+
+      function loadSearchLogTrending() {
+        const sevenDaysAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+        supabaseRest("search_logs", {
+          "select": "query",
+          "site_id": `eq.${SITE_ID}`,
+          "created_at": `gte.${sevenDaysAgo}`,
+          "results_count": "gt.0",
+        }).then(data => {
+          if (!data || !Array.isArray(data)) return;
+          const counts = {};
+          for (const row of data) {
+            const q = (row.query || "").trim().toLowerCase();
+            if (q.length >= 2) counts[q] = (counts[q] || 0) + 1;
+          }
+          trendingData = Object.entries(counts)
+            .filter(([, c]) => c >= 2)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6)
+            .map(([query, count]) => ({ query, count, source: "search_logs" }));
+        }).catch(() => {});
+      }
 
       // Popular products via PostgREST
       supabaseRest("pages", {
@@ -866,6 +937,7 @@
     function renderTrending() {
       const hasProducts = popularProducts && popularProducts.length > 0;
       const hasTrending = trendingData && trendingData.length > 0;
+      const isGaTrending = hasTrending && trendingData[0]?.source === "ga";
 
       if (!hasProducts && !hasTrending) {
         hideDropdown();
@@ -886,7 +958,11 @@
       } else if (hasTrending) {
         html += '<div class="findai-trending-list">';
         trendingData.forEach(t => {
-          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${escHtml(t.query)}</button>`;
+          const growthBadge = (t.growth && t.growth > 0)
+            ? `<span class="findai-trending-growth">↑${t.growth}%</span>`
+            : "";
+          const label = escHtml(t.query.length > 40 ? t.query.slice(0, 38) + "…" : t.query);
+          html += `<button class="findai-trending-item" data-query="${escHtml(t.query)}">${label}${growthBadge}</button>`;
         });
         html += '</div>';
       }
