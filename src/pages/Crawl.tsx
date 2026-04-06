@@ -4,7 +4,7 @@ import { api, Site, CrawlJob } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, RefreshCw, Loader2, CheckCircle, XCircle, Clock, Palette, Type } from "lucide-react";
+import { ArrowLeft, RefreshCw, Loader2, CheckCircle, XCircle, Clock, Palette, Type, PlayCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,16 +55,31 @@ export default function Crawl() {
     }
   }
 
+  async function resumeCrawl(previousJobId: string) {
+    if (!siteId) return;
+    setCrawling(true);
+    try {
+      const newJob = await api.resumeCrawl(siteId, previousJobId);
+      setJob(newJob);
+      pollJob(newJob.job_id);
+    } catch (e: any) {
+      toast.error("Resume failed: " + e.message);
+      setCrawling(false);
+    }
+  }
+
   function pollJob(jobId: string) {
     const interval = setInterval(async () => {
       try {
         const status = await api.getCrawlJob(jobId);
         setJob(status);
-        if (["done", "error"].includes(status.status)) {
+        if (["done", "error", "partial"].includes(status.status)) {
           clearInterval(interval);
           setCrawling(false);
           if (status.status === "done") {
             toast.success(`Crawl finished: ${status.pages_indexed} pages indexed`);
+          } else if (status.status === "partial") {
+            toast.info(`Indeksointi keskeytetty aikakatkaisun vuoksi (${status.pages_indexed}/${status.pages_found}). Voit jatkaa.`);
           } else {
             toast.error(status.error || "Crawl stopped before completion");
           }
@@ -80,12 +95,18 @@ export default function Crawl() {
   const crawlProgress =
     job && job.pages_found ? Math.round((job.pages_indexed / job.pages_found) * 100) : 0;
 
+  // Find the latest partial job for resume
+  const latestPartialJob = history.find((h) => h.status === "partial");
+
   const getHistorySummary = (entry: { status: string; pages_indexed: number; pages_found: number }) => {
     if (entry.status === "pending") return "Queued";
     if (entry.status === "running") {
       return entry.pages_found > 0
         ? `${entry.pages_indexed}/${entry.pages_found} pages indexed`
         : "Discovering pages...";
+    }
+    if (entry.status === "partial") {
+      return `${entry.pages_indexed}/${entry.pages_found} — keskeytetty, jatkettavissa`;
     }
     if (entry.pages_found > 0) {
       return `${entry.pages_indexed} pages indexed / ${entry.pages_found} found`;
@@ -136,14 +157,22 @@ export default function Crawl() {
                 </p>
               )}
             </div>
-            <Button onClick={triggerCrawl} disabled={crawling}>
-              {crawling ? (
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-1 h-4 w-4" />
+            <div className="flex gap-2">
+              {latestPartialJob && !crawling && (
+                <Button variant="outline" onClick={() => resumeCrawl(latestPartialJob.id)}>
+                  <PlayCircle className="mr-1 h-4 w-4" />
+                  Jatka
+                </Button>
               )}
-              {crawling ? "Crawling..." : "Start Crawl"}
-            </Button>
+              <Button onClick={triggerCrawl} disabled={crawling}>
+                {crawling ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-1 h-4 w-4" />
+                )}
+                {crawling ? "Crawling..." : "Start Crawl"}
+              </Button>
+            </div>
           </div>
 
           {crawling && job && (
@@ -221,6 +250,8 @@ export default function Crawl() {
                       <CheckCircle className="h-4 w-4 text-primary" />
                     ) : h.status === "error" ? (
                       <XCircle className="h-4 w-4 text-destructive" />
+                    ) : h.status === "partial" ? (
+                      <PlayCircle className="h-4 w-4 text-orange-500" />
                     ) : (
                       <Clock className="h-4 w-4 text-muted-foreground" />
                     )}
@@ -233,9 +264,16 @@ export default function Crawl() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : "secondary"}>
-                    {h.status}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    {h.status === "partial" && !crawling && (
+                      <Button variant="outline" size="sm" onClick={() => resumeCrawl(h.id)}>
+                        Jatka
+                      </Button>
+                    )}
+                    <Badge variant={h.status === "done" ? "default" : h.status === "error" ? "destructive" : h.status === "partial" ? "outline" : "secondary"}>
+                      {h.status === "partial" ? "keskeytynyt" : h.status}
+                    </Badge>
+                  </div>
                 </div>
               ))}
             </div>

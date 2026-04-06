@@ -8,7 +8,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-async function doCrawl(jobId: string, siteId: string) {
+async function doCrawl(jobId: string, siteId: string, resumeFromJob?: string) {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   const startedAt = Date.now();
   const SOFT_TIME_LIMIT_MS = 75_000;
@@ -18,6 +18,19 @@ async function doCrawl(jobId: string, siteId: string) {
   let pagesFound = 0;
   const errors: string[] = [];
   let timedOut = false;
+
+  // If resuming, get already-indexed URLs to skip
+  let alreadyIndexedUrls = new Set<string>();
+  if (resumeFromJob) {
+    const { data: existingPages } = await supabase
+      .from("pages")
+      .select("url")
+      .eq("site_id", siteId);
+    if (existingPages) {
+      alreadyIndexedUrls = new Set(existingPages.map((p: any) => p.url));
+      console.log(`Resuming crawl: ${alreadyIndexedUrls.size} pages already indexed, skipping them`);
+    }
+  }
 
   const updateJob = async (patch: Record<string, unknown>) => {
     const { error } = await supabase.from("crawl_jobs").update(patch).eq("id", jobId);
@@ -109,12 +122,21 @@ async function doCrawl(jobId: string, siteId: string) {
       }
     });
 
-    pagesFound = urls.length;
-    console.log(`Sitemap discovery complete: ${pagesFound} URLs found, crawling ${pagesFound}`);
+    // If resuming, filter out already-indexed URLs
+    if (resumeFromJob && alreadyIndexedUrls.size > 0) {
+      const beforeCount = urls.length;
+      urls = urls.filter(u => !alreadyIndexedUrls.has(u));
+      indexed = alreadyIndexedUrls.size; // count already-indexed pages
+      console.log(`Resume: skipped ${beforeCount - urls.length} already-indexed URLs, ${urls.length} remaining`);
+    }
+
+    pagesFound = urls.length + (resumeFromJob ? alreadyIndexedUrls.size : 0);
+    console.log(`Sitemap discovery complete: ${pagesFound} total URLs, ${urls.length} to crawl`);
 
     await updateJob({
       status: "running",
       pages_found: pagesFound,
+      pages_indexed: indexed,
     });
 
     try {
@@ -229,7 +251,7 @@ async function doCrawl(jobId: string, siteId: string) {
       }
     }
 
-    const finalStatus = timedOut || (indexed === 0 && errors.length > 0) ? "error" : "done";
+    const finalStatus = timedOut ? "partial" : (indexed === 0 && errors.length > 0) ? "error" : "done";
 
     await updateJob({
       status: finalStatus,
@@ -347,6 +369,7 @@ Deno.serve(async (req) => {
     const action = payload?.action;
     const siteId = typeof payload?.site_id === "string" ? payload.site_id : null;
     const jobId = typeof payload?.job_id === "string" ? payload.job_id : null;
+    const resumeFromJob = typeof payload?.resume_from_job === "string" ? payload.resume_from_job : undefined;
 
     // Allow triggering AI context generation independently
     if (action === "generate_context" && siteId) {
@@ -366,7 +389,7 @@ Deno.serve(async (req) => {
     }
 
     // @ts-ignore: EdgeRuntime is available in Supabase Edge Functions
-    EdgeRuntime.waitUntil(doCrawl(jobId, siteId));
+    EdgeRuntime.waitUntil(doCrawl(jobId, siteId, resumeFromJob));
 
     return new Response(JSON.stringify({ status: "started", job_id: jobId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
