@@ -74,6 +74,20 @@ export interface SearchResult {
   schema_data?: SchemaData | null;
 }
 
+export interface SearchInterventionAction {
+  label: string;
+  url: string;
+  kind: "phone" | "chat" | "email" | "page";
+}
+
+export interface SearchInterventionCard {
+  type: "contact" | "service" | "commercial" | "urgent";
+  title: string;
+  body?: string;
+  position?: number;
+  actions: SearchInterventionAction[];
+}
+
 export interface SearchResponse {
   results: SearchResult[];
   language: string;
@@ -81,6 +95,7 @@ export interface SearchResponse {
   fallback_message?: string;
   search_log_id?: string;
   contact_config?: ContactConfig | null;
+  intervention_card?: SearchInterventionCard;
   ai_summary?: string;
   suggestions?: string[];
   error?: string;

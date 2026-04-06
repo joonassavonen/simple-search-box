@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     // Verify site exists and is active
     const { data: site } = await supabase
       .from("sites")
-      .select("id, is_active, ai_context")
+      .select("id, is_active, ai_context, name, domain")
       .eq("id", site_id)
       .single();
 
@@ -576,7 +576,9 @@ Palauta VAIN validi JSON.`
     const responseMs = Date.now() - startTime;
 
     // --- STRATEGY: Decide whether to show contact CTA ---
+    const interventionIntent = detectQueryIntent(queryLower, triggerRules?.trigger_categories || []);
     let contactConfigResponse: any = undefined;
+    let interventionCard: any = undefined;
     if (contactConfig && contactConfig.enabled &&
         (contactConfig.phone || contactConfig.email || contactConfig.chat_url)) {
       let shouldShowContact = false;
@@ -617,6 +619,19 @@ Palauta VAIN validi JSON.`
           cta_text_en: (contactConfig as any).cta_text_en || "Didn't find what you need? Contact us!",
         };
       }
+
+      interventionCard = buildInterventionCard({
+        query,
+        language,
+        intent: interventionIntent,
+        contactConfig,
+        results,
+        highCtrPatterns,
+        site,
+      });
+      if (interventionCard) {
+        contactConfigResponse = undefined;
+      }
     }
 
     // Log the search
@@ -643,6 +658,7 @@ Palauta VAIN validi JSON.`
       search_log_id: insertedSearchLog?.id || undefined,
       ai_summary: aiSummary || undefined,
       suggestions: suggestions.length > 0 ? suggestions : undefined,
+      intervention_card: interventionCard || undefined,
       contact_config: contactConfigResponse || undefined,
       fallback_message: results.length === 0 ? "Ei tuloksia. Kokeile eri hakusanoja." : undefined,
     }), {
@@ -757,6 +773,167 @@ function summaryMentionsSpecificBrandOrModel(summary: string | undefined, result
     const pattern = new RegExp(`\\b${escapeRegex(term)}(?:in|n|lle|lta|sta|stä)?\\b`, "i");
     return pattern.test(text);
   });
+}
+
+function detectQueryIntent(queryLower: string, triggerCategories: string[]): {
+  type: "contact" | "service" | "commercial" | "urgent" | null;
+  confidence: number;
+  matchedTerms: string[];
+} {
+  const contactTerms = [
+    "yhteystiedot", "yhteystieto", "puhelin", "numero", "sähköposti", "email", "e-mail",
+    "asiakaspalvelu", "contact", "contacts", "phone", "call", "whatsapp",
+  ];
+  const serviceTerms = [
+    "huolto", "huoltaa", "asennus", "asentaa", "ajanvaraus", "varaa", "korjaus",
+    "repair", "service", "support", "maintenance", "tuki", "varaosa", "varaosat",
+  ];
+  const commercialTerms = [
+    "hinta", "hinnat", "tarjous", "quote", "price", "pricing", "osta", "tilaa", "buy", "order",
+  ];
+  const urgentTerms = [
+    "vika", "rikki", "ei toimi", "vuotaa", "kiire", "heti", "urgent", "broken", "fault",
+  ];
+
+  const matchedTerms = new Set<string>();
+  let type: "contact" | "service" | "commercial" | "urgent" | null = null;
+  let confidence = 0;
+
+  const scoreTerms = (terms: string[], intentType: "contact" | "service" | "commercial" | "urgent", base: number) => {
+    const hits = terms.filter((term) => queryLower.includes(term));
+    if (hits.length > 0 && base > confidence) {
+      type = intentType;
+      confidence = base + Math.min(hits.length - 1, 2) * 0.08;
+      hits.forEach((hit) => matchedTerms.add(hit));
+    }
+  };
+
+  scoreTerms(contactTerms, "contact", 0.88);
+  scoreTerms(urgentTerms, "urgent", 0.86);
+  scoreTerms(serviceTerms, "service", 0.76);
+  scoreTerms(commercialTerms, "commercial", 0.72);
+
+  const categoryHits = (triggerCategories || []).filter((cat) => cat && queryLower.includes(String(cat).toLowerCase()));
+  if (categoryHits.length > 0) {
+    categoryHits.forEach((hit) => matchedTerms.add(String(hit)));
+    if (!type) type = "service";
+    confidence = Math.max(confidence, 0.78);
+  }
+
+  return { type, confidence: Math.min(confidence, 0.98), matchedTerms: Array.from(matchedTerms) };
+}
+
+function buildInterventionCard(params: {
+  query: string;
+  language: "fi" | "en";
+  intent: { type: "contact" | "service" | "commercial" | "urgent" | null; confidence: number; matchedTerms: string[] };
+  contactConfig: any;
+  results: any[];
+  highCtrPatterns: { pattern: string; top_url: string; ctr: number }[];
+  site: { ai_context?: string | null; name?: string | null; domain?: string | null };
+}) {
+  const { query, language, intent, contactConfig, results, highCtrPatterns, site } = params;
+  if (!intent.type || intent.confidence < 0.72) return undefined;
+  if (!results || results.length === 0) return undefined;
+
+  const bestPattern = (highCtrPatterns || []).find((pattern) =>
+    pattern?.pattern && query.toLowerCase().includes(pattern.pattern.toLowerCase()),
+  );
+  const fallbackUrl = bestPattern?.top_url || results[0]?.url || null;
+
+  const actions: Array<{ label: string; url: string; kind: "phone" | "chat" | "email" | "page" }> = [];
+  if ((intent.type === "contact" || intent.type === "urgent") && contactConfig.phone) {
+    actions.push({
+      label: language === "fi" ? `Soita ${contactConfig.phone}` : `Call ${contactConfig.phone}`,
+      url: `tel:${contactConfig.phone}`,
+      kind: "phone",
+    });
+  }
+
+  if ((intent.type === "service" || intent.type === "commercial" || intent.type === "urgent") && fallbackUrl) {
+    actions.push({
+      label: interventionPageLabel(intent.type, language),
+      url: fallbackUrl,
+      kind: "page",
+    });
+  }
+
+  if (actions.length < 2 && contactConfig.chat_url) {
+    actions.push({
+      label: language === "fi" ? "Lähetä viesti" : "Send message",
+      url: contactConfig.chat_url,
+      kind: "chat",
+    });
+  }
+
+  if (actions.length < 2 && contactConfig.email) {
+    actions.push({
+      label: language === "fi" ? "Lähetä sähköposti" : "Send email",
+      url: `mailto:${contactConfig.email}`,
+      kind: "email",
+    });
+  }
+
+  if (actions.length === 0) return undefined;
+
+  const contextHint = String(site?.ai_context || "").toLowerCase();
+  const coolingHint = /\bviilenn|jäähdy|cool/i.test(query);
+  const body = interventionBody(intent.type, language, coolingHint, contextHint);
+
+  return {
+    type: intent.type,
+    title: interventionTitle(intent.type, query, language),
+    body,
+    position: 2,
+    actions: actions.slice(0, 2),
+  };
+}
+
+function interventionTitle(type: "contact" | "service" | "commercial" | "urgent", query: string, language: "fi" | "en") {
+  const cleanQuery = query.replace(/[?!.]+$/g, "").trim();
+  if (language === "fi") {
+    if (type === "contact") return "Haluatko yhteystiedot heti?";
+    if (type === "urgent") return `Tarvitsetko apua nopeasti: ${cleanQuery}?`;
+    if (type === "service") return `Etsitkö palvelua hakuun "${cleanQuery}"?`;
+    return `Haluatko edetä nopeasti haulla "${cleanQuery}"?`;
+  }
+  if (type === "contact") return "Do you want the contact details right away?";
+  if (type === "urgent") return `Need help quickly with "${cleanQuery}"?`;
+  if (type === "service") return `Looking for help with "${cleanQuery}"?`;
+  return `Want to move faster with "${cleanQuery}"?`;
+}
+
+function interventionBody(
+  type: "contact" | "service" | "commercial" | "urgent",
+  language: "fi" | "en",
+  coolingHint: boolean,
+  contextHint: string,
+) {
+  const mentionsOnlyCooling = coolingHint && /(viilennys|jäähdytys|cool)/i.test(contextHint) && !/(lämmitys|heating)/i.test(contextHint);
+  if (language === "fi") {
+    if (type === "contact") return "Voit avata yhteystiedot suoraan tästä ilman ylimääräisiä klikkauksia.";
+    if (type === "urgent") return "Kun intentti on selvästi kiireellinen, suora yhteydenotto toimii usein nopeammin kuin lisähaku.";
+    if (mentionsOnlyCooling) return "Näytämme tähän suoran etenemisvaihtoehdon, koska haussa on vahva palveluintentti ja sisältö viittaa rajattuun käyttötarkoitukseen.";
+    if (type === "service") return "Hakusi viittaa vahvaan palveluintenttiin, joten voit siirtyä suoraan sopivalle sivulle tai ottaa yhteyttä heti.";
+    return "Hakusi näyttää kaupalliselta, joten tarjoamme suoran etenemisvaihtoehdon hakutulosten rinnalle.";
+  }
+  if (type === "contact") return "You can open the contact details directly from here without extra searching.";
+  if (type === "urgent") return "When the intent looks urgent, direct contact often works faster than browsing more results.";
+  if (type === "service") return "Your query shows strong service intent, so we offer a direct next step alongside the results.";
+  return "Your query looks commercially strong, so we surface a direct next step next to the results.";
+}
+
+function interventionPageLabel(type: "contact" | "service" | "commercial" | "urgent", language: "fi" | "en") {
+  if (language === "fi") {
+    if (type === "contact") return "Näytä yhteystiedot";
+    if (type === "urgent") return "Avaa sopiva sivu";
+    if (type === "service") return "Avaa sopiva sivu";
+    return "Katso vaihtoehto";
+  }
+  if (type === "contact") return "View contact details";
+  if (type === "urgent") return "Open suggested page";
+  if (type === "service") return "Open suggested page";
+  return "View option";
 }
 
 function extractSnippet(content: string, words: string[], maxLen = 200): string {

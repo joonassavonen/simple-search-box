@@ -460,6 +460,49 @@
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
     }
 
+    .findai-intervention {
+      margin: 8px;
+      padding: 14px;
+      border: 1px solid hsl(var(--green-border));
+      background: linear-gradient(180deg, hsl(var(--green-light)) 0%, #fff 100%);
+      border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .findai-intervention-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: hsl(var(--green-dark));
+      margin-bottom: 6px;
+    }
+    .findai-intervention h3 {
+      margin: 0;
+      font-size: 14px; line-height: 1.35; font-weight: 700; color: var(--text);
+    }
+    .findai-intervention p {
+      margin: 6px 0 0;
+      font-size: 12px; line-height: 1.55; color: var(--text-muted);
+    }
+    .findai-intervention-actions {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      margin-top: 12px;
+    }
+    .findai-intervention-action {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 38px; padding: 0 14px; border-radius: 999px;
+      text-decoration: none; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border-light);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+    .findai-intervention-action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    .findai-intervention-action-primary {
+      background: hsl(var(--green-cta)); color: #fff; border-color: hsl(var(--green-cta));
+    }
+    .findai-intervention-action-secondary {
+      background: #fff; color: var(--text); border-color: var(--border-light);
+    }
+
     /* Result item */
     .findai-result {
       display: flex; align-items: flex-start; gap: 12px;
@@ -1472,6 +1515,28 @@
       return html;
     }
 
+    function renderInterventionCard(card) {
+      if (!card || !card.actions || !card.actions.length) return "";
+      const actionsHtml = card.actions.map((action, actionIdx) => {
+        const clickId = `findai-${SESSION_ID}-intervention-${Date.now()}-${actionIdx}`;
+        const isPrimary = actionIdx === 0;
+        const href = action.kind === "page" || action.kind === "chat"
+          ? addUtm(action.url, { searchLogId: currentSearchLogId, clickId })
+          : action.url;
+        const target = action.kind === "page" || action.kind === "chat" ? "_self" : "_self";
+        return `<a href="${escHtml(href)}" target="${target}" class="findai-intervention-action ${isPrimary ? "findai-intervention-action-primary" : "findai-intervention-action-secondary"}" data-url="${escHtml(action.url)}" data-click-id="${escHtml(clickId)}" data-idx="${escHtml(String(card.position || 1))}">${escHtml(action.label)}</a>`;
+      }).join("");
+
+      return `
+        <div class="findai-intervention">
+          <div class="findai-intervention-eyebrow">Suora apu</div>
+          <h3>${escHtml(card.title)}</h3>
+          ${card.body ? `<p>${escHtml(card.body)}</p>` : ""}
+          <div class="findai-intervention-actions">${actionsHtml}</div>
+        </div>
+      `;
+    }
+
     function renderResults(data) {
       if (!data.results || data.results.length === 0) {
         renderNoResults(data);
@@ -1499,19 +1564,27 @@
         `;
       }
 
+      let insertedIntervention = false;
       data.results.forEach((r, idx) => {
         html += renderResultItem(r, idx);
+        if (data.intervention_card && (data.intervention_card.position || 2) === idx + 2) {
+          html += renderInterventionCard(data.intervention_card);
+          insertedIntervention = true;
+        }
       });
 
       const cfg = data.contact_config || contactConfig;
-      if (cfg && cfg.enabled) {
+      if (data.intervention_card && !insertedIntervention) {
+        html += renderInterventionCard(data.intervention_card);
+      }
+      if (!data.intervention_card && cfg && cfg.enabled) {
         html += renderContactHtml(cfg, data.language || "fi");
       }
 
       dropdown.innerHTML = html;
       showDropdown();
 
-      dropdown.querySelectorAll(".findai-result, .findai-ai-summary").forEach(el => {
+      dropdown.querySelectorAll(".findai-result, .findai-ai-summary, .findai-intervention-action").forEach(el => {
         el.addEventListener("click", (e) => {
           trackClick(el.dataset.url, parseInt(el.dataset.idx || "0", 10), el.dataset.clickId || "");
         });
