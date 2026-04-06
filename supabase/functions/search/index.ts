@@ -619,18 +619,27 @@ Palauta VAIN validi JSON.`
     }
 
     // Log the search
-    await supabase.from("search_logs").insert({
-      site_id,
-      query,
-      results_count: results.length,
-      language,
-      response_ms: responseMs,
-    });
+    const { data: insertedSearchLog, error: searchLogErr } = await supabase
+      .from("search_logs")
+      .insert({
+        site_id,
+        query,
+        results_count: results.length,
+        language,
+        response_ms: responseMs,
+      })
+      .select("id")
+      .single();
+
+    if (searchLogErr) {
+      throw new Error(searchLogErr.message);
+    }
 
     return new Response(JSON.stringify({
       results,
       language,
       response_ms: responseMs,
+      search_log_id: insertedSearchLog?.id || undefined,
       ai_summary: aiSummary || undefined,
       suggestions: suggestions.length > 0 ? suggestions : undefined,
       contact_config: contactConfigResponse || undefined,
@@ -649,7 +658,7 @@ Palauta VAIN validi JSON.`
 
 // Handle click tracking
 async function handleClick(body: any) {
-  const { site_id, query, url } = body;
+  const { site_id, query, url, search_log_id, click_id, session_id, click_position } = body;
   if (!site_id || !query || !url) {
     return new Response(JSON.stringify({ error: "site_id, query, url required" }), {
       status: 400,
@@ -683,6 +692,24 @@ async function handleClick(body: any) {
     await supabase
       .from("search_clicks")
       .insert({ site_id, query: normalizedQuery, page_url: url, click_count: 1 });
+  }
+
+  await supabase.from("search_click_events").insert({
+    site_id,
+    search_log_id: search_log_id || null,
+    query: normalizedQuery,
+    page_url: url,
+    click_id: click_id || null,
+    session_id: session_id || null,
+    click_position: Number.isFinite(click_position) ? click_position : 0,
+  });
+
+  if (search_log_id) {
+    await supabase
+      .from("search_logs")
+      .update({ clicked: true })
+      .eq("id", search_log_id)
+      .eq("site_id", site_id);
   }
 
   return new Response(JSON.stringify({ ok: true }), {

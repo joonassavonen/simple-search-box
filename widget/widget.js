@@ -187,12 +187,18 @@
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
-  function addUtm(url) {
+  function addUtm(url, options) {
     try {
       const u = new URL(url);
       u.searchParams.set("utm_source", "findai");
       u.searchParams.set("utm_medium", "AI-onsite-search");
       u.searchParams.set("utm_campaign", "site-search");
+      if (options && options.searchLogId) {
+        u.searchParams.set("utm_content", String(options.searchLogId));
+      }
+      if (options && options.clickId) {
+        u.searchParams.set("findai_click_id", String(options.clickId));
+      }
       return u.toString();
     } catch { return url; }
   }
@@ -1265,13 +1271,14 @@
     // Trending
     // -----------------------------------------------------------------------
     function renderResultItem(r, idx) {
+      const clickId = `findai-${SESSION_ID}-${idx}-${Date.now()}`;
       const title = cleanTitle(r.title, r.url);
       const snippet = cleanSnippet(r.snippet);
       const s = r.schema_data;
       const isProduct = s && s.type === "Product";
-      const urlUtm = addUtm(r.url);
+      const urlUtm = addUtm(r.url, { searchLogId: currentSearchLogId, clickId });
 
-      let html = `<a href="${escHtml(urlUtm)}" target="_self" class="findai-result" data-url="${escHtml(r.url)}" data-idx="${idx}">`;
+      let html = `<a href="${escHtml(urlUtm)}" target="_self" class="findai-result" data-url="${escHtml(r.url)}" data-click-id="${escHtml(clickId)}" data-idx="${idx}">`;
 
       if (isProduct && s.image) {
         html += `<img class="findai-result-img" src="${escHtml(s.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
@@ -1459,7 +1466,7 @@
         html += `<a href="tel:${escHtml(cfg.phone)}" class="findai-contact-btn findai-contact-phone">${phoneIcon} Soita ${escHtml(cfg.phone)}</a>`;
       }
       if (cfg.chat_url) {
-        html += `<a href="${escHtml(addUtm(cfg.chat_url))}" target="_blank" rel="noopener" class="findai-contact-btn findai-contact-chat">${chatIcon} Lähetä WhatsApp-viesti</a>`;
+        html += `<a href="${escHtml(addUtm(cfg.chat_url, { searchLogId: currentSearchLogId }))}" target="_blank" rel="noopener" class="findai-contact-btn findai-contact-chat">${chatIcon} Lähetä WhatsApp-viesti</a>`;
       }
       if (cfg.email) {
         html += `<a href="mailto:${escHtml(cfg.email)}" class="findai-contact-btn findai-contact-email">${mailIcon} ${escHtml(cfg.email)}</a>`;
@@ -1482,9 +1489,10 @@
 
       if (data.ai_summary) {
         const firstUrl = data.results[0]?.url || "#";
-        const firstUrlUtm = addUtm(firstUrl);
+        const firstClickId = `findai-${SESSION_ID}-summary-${Date.now()}`;
+        const firstUrlUtm = addUtm(firstUrl, { searchLogId: currentSearchLogId, clickId: firstClickId });
         html += `
-          <a href="${escHtml(firstUrlUtm)}" target="_self" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-idx="0">
+          <a href="${escHtml(firstUrlUtm)}" target="_self" class="findai-ai-summary" data-url="${escHtml(firstUrl)}" data-click-id="${escHtml(firstClickId)}" data-idx="0">
             <div class="findai-ai-summary-text">
               <h3>${escHtml(summaryParts.title || data.ai_summary)}</h3>
               ${summaryParts.body ? `<p>${escHtml(summaryParts.body)}</p>` : ""}
@@ -1508,7 +1516,7 @@
 
       dropdown.querySelectorAll(".findai-result, .findai-ai-summary").forEach(el => {
         el.addEventListener("click", (e) => {
-          trackClick(el.dataset.url, parseInt(el.dataset.idx || "0", 10));
+          trackClick(el.dataset.url, parseInt(el.dataset.idx || "0", 10), el.dataset.clickId || "");
         });
       });
     }
@@ -1540,7 +1548,7 @@
         .catch(() => renderError());
     }
 
-    function trackClick(url, position) {
+    function trackClick(url, position, clickId) {
       if (!currentSearchLogId) return;
 
       if (USE_SUPABASE) {
@@ -1556,6 +1564,10 @@
             site_id: SITE_ID,
             query: lastQuery,
             url,
+            search_log_id: currentSearchLogId,
+            click_id: clickId || null,
+            session_id: SESSION_ID,
+            click_position: position || 0,
           }),
         }).catch(() => {});
       } else {

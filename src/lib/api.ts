@@ -79,7 +79,7 @@ export interface SearchResponse {
   language: string;
   response_ms: number;
   fallback_message?: string;
-  search_log_id?: number;
+  search_log_id?: string;
   contact_config?: ContactConfig | null;
   ai_summary?: string;
   suggestions?: string[];
