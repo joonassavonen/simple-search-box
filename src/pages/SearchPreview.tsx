@@ -128,7 +128,7 @@ export default function SearchPreview() {
   const [copiedResults, setCopiedResults] = useState(false);
 
   function copySnippet() {
-    const snippet = getSnippet(activeMode, siteId || "", floatSide, "/hakutulokset");
+    const snippet = getSnippet(activeMode, siteId || "", floatSide, "/hakutulokset", agentMode);
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -246,7 +246,7 @@ export default function SearchPreview() {
               <CardContent>
                 <div className="relative">
                   <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {getSnippet(mode.value, siteId || "", floatSide, "/hakutulokset")}
+                    {getSnippet(mode.value, siteId || "", floatSide, "/hakutulokset", agentMode)}
                   </pre>
                   <Button
                     variant="ghost"
