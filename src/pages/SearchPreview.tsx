@@ -67,6 +67,7 @@ export default function SearchPreview() {
   const [copied, setCopied] = useState(false);
   const [activeMode, setActiveMode] = useState<EmbedMode>("inline");
   const [floatSide, setFloatSide] = useState<"bottom-right" | "bottom-left">("bottom-right");
+  const [agentMode, setAgentMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetScriptRef = useRef<HTMLScriptElement | null>(null);
 
