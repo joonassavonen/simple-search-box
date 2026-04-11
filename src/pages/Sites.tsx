@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, Plug, Trash2, ExternalLink } from "lucide-react";
+import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, Plug, Trash2, ExternalLink, Bot } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
