@@ -225,7 +225,7 @@ export default function SearchPreview() {
               <CardContent>
                 <div className="relative">
                   <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {getSnippet(mode.value, siteId || "", floatSide)}
+                    {getSnippet(mode.value, siteId || "", floatSide, "/hakutulokset")}
                   </pre>
                   <Button
                     variant="ghost"
@@ -246,6 +246,40 @@ export default function SearchPreview() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Results widget snippet */}
+      <Card className="mt-8 border-border/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Hakutulossivun widget
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground mb-3">
+            Upota tämä koodi erilliselle hakutulossivulle (esim. <code className="text-[10px] bg-muted px-1 py-0.5 rounded">/hakutulokset</code>). 
+            Hakukenttä ohjaa käyttäjän automaattisesti tälle sivulle "Näytä kaikki" -napista tai Enter-painalluksesta.
+          </p>
+          <div className="relative">
+            <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
+              {getResultsSnippet(siteId || "")}
+            </pre>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyResultsSnippet}
+              className="absolute right-1 top-1 h-7 gap-1 text-[10px]"
+            >
+              {copiedResults ? (
+                <Check className="h-3 w-3 text-emerald-500" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              {copiedResults ? "Kopioitu" : "Kopioi"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
