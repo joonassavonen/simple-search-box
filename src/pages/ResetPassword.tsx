@@ -44,7 +44,7 @@ export default function ResetPassword({ onComplete }: { onComplete?: () => void 
       <div className="flex min-h-dvh items-center justify-center bg-muted/30 px-4">
         <Card className="w-full max-w-sm border-border/60 shadow-lg">
           <CardContent className="pt-6 text-center space-y-3">
-            <CheckCircle className="mx-auto h-10 w-10 text-green-500" />
+            <CheckCircle className="mx-auto h-10 w-10 text-primary" />
             <p className="text-sm font-medium">Password updated! Redirecting...</p>
           </CardContent>
         </Card>
