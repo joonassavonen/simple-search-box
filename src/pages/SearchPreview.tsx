@@ -165,6 +165,19 @@ export default function SearchPreview() {
       </div>
 
       {/* Embed mode tabs */}
+      {/* Agent mode toggle */}
+      <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-muted/40 border border-border/40">
+        <Bot className="h-4 w-4 text-primary shrink-0" />
+        <Label htmlFor="agent-toggle" className="text-xs font-medium flex-1 cursor-pointer">
+          Agenttitila (keskusteleva haku)
+        </Label>
+        <Switch
+          id="agent-toggle"
+          checked={agentMode}
+          onCheckedChange={setAgentMode}
+        />
+      </div>
+
       <Tabs value={activeMode} onValueChange={handleModeChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           {EMBED_MODES.map((mode) => {
