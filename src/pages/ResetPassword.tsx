@@ -31,8 +31,7 @@ export default function ResetPassword({ onComplete }: { onComplete?: () => void 
       if (error) throw error;
       setSuccess(true);
       toast.success("Password updated successfully");
-      // Redirect to dashboard after a moment
-      setTimeout(() => { window.location.href = "/"; }, 2000);
+      setTimeout(() => { onComplete?.(); window.location.href = "/"; }, 2000);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
