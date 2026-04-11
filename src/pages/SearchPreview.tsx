@@ -21,23 +21,24 @@ const RESULTS_WIDGET_URL = "https://findaisearch.lovable.app/results-widget.js";
 const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right", resultsUrl: string = "") {
+function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right", resultsUrl: string = "", isAgent: boolean = false) {
   const supabaseAttrs = `\n  data-supabase-url="${SUPABASE_URL_VALUE}"\n  data-supabase-key="${SUPABASE_KEY_VALUE}"`;
   const resultsAttr = resultsUrl ? `\n  data-results-url="${resultsUrl}"` : "";
+  const agentAttr = isAgent ? `\n  data-mode="agent"` : "";
   if (mode === "inline") {
     return `<div id="findai-search"></div>
 <script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="inline"
-  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}${agentAttr}>
 </script>`;
   }
   if (mode === "floating") {
     return `<script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
-  data-position="${floatPosition}"${supabaseAttrs}${resultsAttr}>
+  data-position="${floatPosition}"${supabaseAttrs}${resultsAttr}${agentAttr}>
 </script>`;
   }
   return `<div id="findai-search"></div>
@@ -45,7 +46,7 @@ function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bo
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="header-icon"
-  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}${agentAttr}>
 </script>`;
 }
 
