@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, Plug, Trash2, ExternalLink } from "lucide-react";
+import { Globe, Plus, BarChart3, Search, RefreshCw, Loader2, Settings, Plug, Trash2, ExternalLink, Bot } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -19,6 +19,7 @@ import {
 
 const NAV_ITEMS = [
   { label: "Settings", icon: Settings, path: "settings" },
+  { label: "AI Agent", icon: Bot, path: "agent" },
   { label: "Analytics", icon: BarChart3, path: "analytics" },
   { label: "Integrations", icon: Plug, path: "integrations" },
   { label: "Test & Design", icon: Search, path: "search" },
