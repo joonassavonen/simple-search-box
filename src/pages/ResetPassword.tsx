@@ -39,21 +39,6 @@ export default function ResetPassword({ onComplete }: { onComplete?: () => void 
     }
   }
 
-  if (!hasRecovery && !success) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-muted/30 px-4">
-        <Card className="w-full max-w-sm border-border/60 shadow-lg">
-          <CardContent className="pt-6 text-center">
-            <p className="text-sm text-muted-foreground">Invalid or expired reset link.</p>
-            <Button variant="link" className="mt-2" onClick={() => window.location.href = "/"}>
-              Back to Sign In
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (success) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-muted/30 px-4">
