@@ -24,6 +24,7 @@ const queryClient = new QueryClient();
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRecovery, setIsRecovery] = useState(false);
 
   useEffect(() => {
     if (!hasSupabaseConfig || !supabase) {
@@ -31,15 +32,19 @@ const App = () => {
       return;
     }
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      if (event === "PASSWORD_RECOVERY") {
+        setIsRecovery(true);
+      }
+      setLoading(false);
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     }).catch(() => {
       setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
     });
 
     return () => subscription.unsubscribe();
@@ -67,29 +72,26 @@ const App = () => {
     );
   }
 
-  // Handle reset-password route even without session
-  const isResetPassword = window.location.pathname === "/reset-password" ||
-    window.location.hash.includes("type=recovery");
+  // Show reset password form if recovery event or on reset-password path
+  if (isRecovery || window.location.pathname === "/reset-password") {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <ResetPassword onComplete={() => setIsRecovery(false)} />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
 
-  if (!session && !isResetPassword) {
+  if (!session) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <Auth />
-        </TooltipProvider>
-      </QueryClientProvider>
-    );
-  }
-
-  if (!session && isResetPassword) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <ResetPassword />
         </TooltipProvider>
       </QueryClientProvider>
     );

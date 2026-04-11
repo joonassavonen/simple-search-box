@@ -7,26 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Search, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
-export default function ResetPassword() {
+export default function ResetPassword({ onComplete }: { onComplete?: () => void }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [hasRecovery, setHasRecovery] = useState(false);
+  const hasRecovery = true; // Always show form when rendered by App
 
   useEffect(() => {
-    // Check for recovery token in URL hash
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setHasRecovery(true);
-    }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setHasRecovery(true);
-      }
-    });
-
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {});
     return () => subscription.unsubscribe();
   }, []);
 
@@ -42,8 +31,7 @@ export default function ResetPassword() {
       if (error) throw error;
       setSuccess(true);
       toast.success("Password updated successfully");
-      // Redirect to dashboard after a moment
-      setTimeout(() => { window.location.href = "/"; }, 2000);
+      setTimeout(() => { onComplete?.(); window.location.href = "/"; }, 2000);
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -51,27 +39,12 @@ export default function ResetPassword() {
     }
   }
 
-  if (!hasRecovery && !success) {
-    return (
-      <div className="flex min-h-dvh items-center justify-center bg-muted/30 px-4">
-        <Card className="w-full max-w-sm border-border/60 shadow-lg">
-          <CardContent className="pt-6 text-center">
-            <p className="text-sm text-muted-foreground">Invalid or expired reset link.</p>
-            <Button variant="link" className="mt-2" onClick={() => window.location.href = "/"}>
-              Back to Sign In
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (success) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-muted/30 px-4">
         <Card className="w-full max-w-sm border-border/60 shadow-lg">
           <CardContent className="pt-6 text-center space-y-3">
-            <CheckCircle className="mx-auto h-10 w-10 text-green-500" />
+            <CheckCircle className="mx-auto h-10 w-10 text-primary" />
             <p className="text-sm font-medium">Password updated! Redirecting...</p>
           </CardContent>
         </Card>
