@@ -4,7 +4,7 @@ import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon } from "lucide-react";
+import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon, LayoutGrid } from "lucide-react";
 
 type EmbedMode = "inline" | "floating" | "header-icon";
 
