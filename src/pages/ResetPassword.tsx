@@ -15,18 +15,7 @@ export default function ResetPassword({ onComplete }: { onComplete?: () => void 
   const hasRecovery = true; // Always show form when rendered by App
 
   useEffect(() => {
-    // Check for recovery token in URL hash
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setHasRecovery(true);
-    }
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setHasRecovery(true);
-      }
-    });
-
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {});
     return () => subscription.unsubscribe();
   }, []);
 
