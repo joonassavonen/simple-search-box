@@ -17,6 +17,7 @@ import Integrations from "./pages/Integrations";
 import Crawl from "./pages/Crawl";
 import NotFound from "./pages/NotFound";
 import AgentConfig from "./pages/AgentConfig";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
