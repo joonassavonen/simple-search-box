@@ -4,7 +4,9 @@ import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon, LayoutGrid } from "lucide-react";
+import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon, LayoutGrid, Bot } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 type EmbedMode = "inline" | "floating" | "header-icon";
 
@@ -19,23 +21,24 @@ const RESULTS_WIDGET_URL = "https://findaisearch.lovable.app/results-widget.js";
 const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right", resultsUrl: string = "") {
+function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right", resultsUrl: string = "", isAgent: boolean = false) {
   const supabaseAttrs = `\n  data-supabase-url="${SUPABASE_URL_VALUE}"\n  data-supabase-key="${SUPABASE_KEY_VALUE}"`;
   const resultsAttr = resultsUrl ? `\n  data-results-url="${resultsUrl}"` : "";
+  const agentAttr = isAgent ? `\n  data-mode="agent"` : "";
   if (mode === "inline") {
     return `<div id="findai-search"></div>
 <script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="inline"
-  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}${agentAttr}>
 </script>`;
   }
   if (mode === "floating") {
     return `<script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
-  data-position="${floatPosition}"${supabaseAttrs}${resultsAttr}>
+  data-position="${floatPosition}"${supabaseAttrs}${resultsAttr}${agentAttr}>
 </script>`;
   }
   return `<div id="findai-search"></div>
@@ -43,7 +46,7 @@ function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bo
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="header-icon"
-  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}${agentAttr}>
 </script>`;
 }
 
@@ -65,6 +68,7 @@ export default function SearchPreview() {
   const [copied, setCopied] = useState(false);
   const [activeMode, setActiveMode] = useState<EmbedMode>("inline");
   const [floatSide, setFloatSide] = useState<"bottom-right" | "bottom-left">("bottom-right");
+  const [agentMode, setAgentMode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetScriptRef = useRef<HTMLScriptElement | null>(null);
 
@@ -100,9 +104,13 @@ export default function SearchPreview() {
       script.setAttribute("data-position", floatSide);
     }
 
+    if (agentMode) {
+      script.setAttribute("data-mode", "agent");
+    }
+
     document.body.appendChild(script);
     widgetScriptRef.current = script;
-  }, [siteId, floatSide]);
+  }, [siteId, floatSide, agentMode]);
 
   // Load widget on mount and mode change
   useEffect(() => {
@@ -115,12 +123,12 @@ export default function SearchPreview() {
       const host = document.getElementById("findai-host");
       if (host) host.remove();
     };
-  }, [activeMode, loadWidget]);
+  }, [activeMode, loadWidget, agentMode]);
 
   const [copiedResults, setCopiedResults] = useState(false);
 
   function copySnippet() {
-    const snippet = getSnippet(activeMode, siteId || "", floatSide, "/hakutulokset");
+    const snippet = getSnippet(activeMode, siteId || "", floatSide, "/hakutulokset", agentMode);
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -158,6 +166,19 @@ export default function SearchPreview() {
       </div>
 
       {/* Embed mode tabs */}
+      {/* Agent mode toggle */}
+      <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-muted/40 border border-border/40">
+        <Bot className="h-4 w-4 text-primary shrink-0" />
+        <Label htmlFor="agent-toggle" className="text-xs font-medium flex-1 cursor-pointer">
+          Agenttitila (keskusteleva haku)
+        </Label>
+        <Switch
+          id="agent-toggle"
+          checked={agentMode}
+          onCheckedChange={setAgentMode}
+        />
+      </div>
+
       <Tabs value={activeMode} onValueChange={handleModeChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-4">
           {EMBED_MODES.map((mode) => {
@@ -225,7 +246,7 @@ export default function SearchPreview() {
               <CardContent>
                 <div className="relative">
                   <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {getSnippet(mode.value, siteId || "", floatSide, "/hakutulokset")}
+                    {getSnippet(mode.value, siteId || "", floatSide, "/hakutulokset", agentMode)}
                   </pre>
                   <Button
                     variant="ghost"
