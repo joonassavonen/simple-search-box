@@ -24,6 +24,7 @@ const queryClient = new QueryClient();
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRecovery, setIsRecovery] = useState(false);
 
   useEffect(() => {
     if (!hasSupabaseConfig || !supabase) {
@@ -31,15 +32,19 @@ const App = () => {
       return;
     }
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      if (event === "PASSWORD_RECOVERY") {
+        setIsRecovery(true);
+      }
+      setLoading(false);
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     }).catch(() => {
       setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
     });
 
     return () => subscription.unsubscribe();
