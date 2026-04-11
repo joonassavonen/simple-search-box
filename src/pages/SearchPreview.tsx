@@ -4,7 +4,7 @@ import { api, Site } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon } from "lucide-react";
+import { ArrowLeft, Copy, Check, Search, MousePointerClick, SearchIcon, LayoutGrid } from "lucide-react";
 
 type EmbedMode = "inline" | "floating" | "header-icon";
 
@@ -15,25 +15,27 @@ const EMBED_MODES: { value: EmbedMode; label: string; icon: typeof Search; descr
 ];
 
 const WIDGET_URL = "https://findaisearch.lovable.app/widget.js";
+const RESULTS_WIDGET_URL = "https://findaisearch.lovable.app/results-widget.js";
 const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right") {
+function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right", resultsUrl: string = "") {
   const supabaseAttrs = `\n  data-supabase-url="${SUPABASE_URL_VALUE}"\n  data-supabase-key="${SUPABASE_KEY_VALUE}"`;
+  const resultsAttr = resultsUrl ? `\n  data-results-url="${resultsUrl}"` : "";
   if (mode === "inline") {
     return `<div id="findai-search"></div>
 <script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="inline"
-  data-inline-target="#findai-search"${supabaseAttrs}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
 </script>`;
   }
   if (mode === "floating") {
     return `<script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
-  data-position="${floatPosition}"${supabaseAttrs}>
+  data-position="${floatPosition}"${supabaseAttrs}${resultsAttr}>
 </script>`;
   }
   return `<div id="findai-search"></div>
@@ -41,7 +43,19 @@ function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bo
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="header-icon"
-  data-inline-target="#findai-search"${supabaseAttrs}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
+</script>`;
+}
+
+function getResultsSnippet(siteId: string) {
+  return `<!-- Hakutulossivulle (esim. /hakutulokset) -->
+<div id="findai-results"></div>
+<script
+  src="${RESULTS_WIDGET_URL}"
+  data-site-id="${siteId}"
+  data-supabase-url="${SUPABASE_URL_VALUE}"
+  data-supabase-key="${SUPABASE_KEY_VALUE}"
+  data-target="#findai-results">
 </script>`;
 }
 
@@ -103,11 +117,21 @@ export default function SearchPreview() {
     };
   }, [activeMode, loadWidget]);
 
+  const [copiedResults, setCopiedResults] = useState(false);
+
   function copySnippet() {
-    const snippet = getSnippet(activeMode, siteId || "", floatSide);
+    const snippet = getSnippet(activeMode, siteId || "", floatSide, "/hakutulokset");
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function copyResultsSnippet() {
+    const snippet = getResultsSnippet(siteId || "");
+    navigator.clipboard.writeText(snippet).then(() => {
+      setCopiedResults(true);
+      setTimeout(() => setCopiedResults(false), 2000);
     });
   }
 
@@ -201,7 +225,7 @@ export default function SearchPreview() {
               <CardContent>
                 <div className="relative">
                   <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
-                    {getSnippet(mode.value, siteId || "", floatSide)}
+                    {getSnippet(mode.value, siteId || "", floatSide, "/hakutulokset")}
                   </pre>
                   <Button
                     variant="ghost"
@@ -222,6 +246,40 @@ export default function SearchPreview() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Results widget snippet */}
+      <Card className="mt-8 border-border/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Hakutulossivun widget
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground mb-3">
+            Upota tämä koodi erilliselle hakutulossivulle (esim. <code className="text-[10px] bg-muted px-1 py-0.5 rounded">/hakutulokset</code>). 
+            Hakukenttä ohjaa käyttäjän automaattisesti tälle sivulle "Näytä kaikki" -napista tai Enter-painalluksesta.
+          </p>
+          <div className="relative">
+            <pre className="overflow-x-auto rounded-lg bg-muted/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
+              {getResultsSnippet(siteId || "")}
+            </pre>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={copyResultsSnippet}
+              className="absolute right-1 top-1 h-7 gap-1 text-[10px]"
+            >
+              {copiedResults ? (
+                <Check className="h-3 w-3 text-emerald-500" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              {copiedResults ? "Kopioitu" : "Kopioi"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

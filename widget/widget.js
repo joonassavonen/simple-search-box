@@ -35,6 +35,7 @@
   const POSITION = script.getAttribute("data-position") || "bottom-right";
   const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
   const PLACEHOLDER = script.getAttribute("data-placeholder") || "Kysy meiltä mitä vain...";
+  const RESULTS_URL = script.getAttribute("data-results-url") || "";
 
   if (!SITE_ID || SITE_ID === "0") {
     console.warn("[FindAI] Missing data-site-id attribute");
@@ -1274,6 +1275,13 @@
     });
 
     // Keyboard navigation
+    function navigateToResultsPage(query) {
+      if (!RESULTS_URL || !query) return false;
+      const sep = RESULTS_URL.includes("?") ? "&" : "?";
+      window.location.href = `${RESULTS_URL}${sep}findai_q=${encodeURIComponent(query)}`;
+      return true;
+    }
+
     input.addEventListener("keydown", (e) => {
       const suggestionBtns = Array.from(dropdown.querySelectorAll(".findai-suggestion"));
       if (suggestionBtns.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
@@ -1283,9 +1291,15 @@
         suggestionBtns.forEach((el, i) => el.classList.toggle("active", i === activeSuggestionIdx));
         return;
       }
-      if (e.key === "Enter" && activeSuggestionIdx >= 0 && suggestionBtns[activeSuggestionIdx]) {
+      if (e.key === "Enter") {
         e.preventDefault();
-        selectSuggestion(suggestionBtns[activeSuggestionIdx].dataset.query);
+        const q = activeSuggestionIdx >= 0 && suggestionBtns[activeSuggestionIdx]
+          ? suggestionBtns[activeSuggestionIdx].dataset.query
+          : input.value.trim();
+        if (q && navigateToResultsPage(q)) return;
+        if (activeSuggestionIdx >= 0 && suggestionBtns[activeSuggestionIdx]) {
+          selectSuggestion(suggestionBtns[activeSuggestionIdx].dataset.query);
+        }
         return;
       }
       if (e.key === "Escape") {
@@ -1675,7 +1689,11 @@
       });
 
       if (data.results.length > 3) {
-        html += `<button type="button" class="findai-show-all" data-expanded="${expanded ? "1" : "0"}">${expanded ? "Näytä vähemmän" : `Näytä kaikki (${data.results.length})`}</button>`;
+        if (RESULTS_URL && !expanded) {
+          html += `<a href="#" class="findai-show-all findai-show-all-link">Näytä kaikki (${data.results.length}) →</a>`;
+        } else {
+          html += `<button type="button" class="findai-show-all" data-expanded="${expanded ? "1" : "0"}">${expanded ? "Näytä vähemmän" : `Näytä kaikki (${data.results.length})`}</button>`;
+        }
       }
 
       const cfg = data.contact_config || contactConfig;
@@ -1701,7 +1719,14 @@
         });
       });
 
-      const toggleBtn = dropdown.querySelector(".findai-show-all");
+      const showAllLink = dropdown.querySelector(".findai-show-all-link");
+      if (showAllLink) {
+        showAllLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          navigateToResultsPage(lastQuery || input.value.trim());
+        });
+      }
+      const toggleBtn = dropdown.querySelector(".findai-show-all:not(.findai-show-all-link)");
       if (toggleBtn) {
         toggleBtn.addEventListener("click", () => {
           renderResults(data, !expanded);
