@@ -93,6 +93,7 @@ const App = () => {
               <Route path="/sites/:siteId/settings" element={<ContactConfig />} />
               <Route path="/sites/:siteId/integrations" element={<Integrations />} />
               <Route path="/sites/:siteId/crawl" element={<Crawl />} />
+              <Route path="/sites/:siteId/agent" element={<AgentConfig />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </DashboardLayout>
