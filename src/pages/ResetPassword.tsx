@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Search, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
-export default function ResetPassword() {
+export default function ResetPassword({ onComplete }: { onComplete?: () => void }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [hasRecovery, setHasRecovery] = useState(false);
+  const hasRecovery = true; // Always show form when rendered by App
 
   useEffect(() => {
     // Check for recovery token in URL hash
