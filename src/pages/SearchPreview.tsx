@@ -122,7 +122,7 @@ export default function SearchPreview() {
       const host = document.getElementById("findai-host");
       if (host) host.remove();
     };
-  }, [activeMode, loadWidget]);
+  }, [activeMode, loadWidget, agentMode]);
 
   const [copiedResults, setCopiedResults] = useState(false);
 
