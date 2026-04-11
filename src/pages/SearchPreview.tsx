@@ -15,25 +15,27 @@ const EMBED_MODES: { value: EmbedMode; label: string; icon: typeof Search; descr
 ];
 
 const WIDGET_URL = "https://findaisearch.lovable.app/widget.js";
+const RESULTS_WIDGET_URL = "https://findaisearch.lovable.app/results-widget.js";
 const SUPABASE_URL_VALUE = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_KEY_VALUE = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right") {
+function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bottom-right", resultsUrl: string = "") {
   const supabaseAttrs = `\n  data-supabase-url="${SUPABASE_URL_VALUE}"\n  data-supabase-key="${SUPABASE_KEY_VALUE}"`;
+  const resultsAttr = resultsUrl ? `\n  data-results-url="${resultsUrl}"` : "";
   if (mode === "inline") {
     return `<div id="findai-search"></div>
 <script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="inline"
-  data-inline-target="#findai-search"${supabaseAttrs}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
 </script>`;
   }
   if (mode === "floating") {
     return `<script
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
-  data-position="${floatPosition}"${supabaseAttrs}>
+  data-position="${floatPosition}"${supabaseAttrs}${resultsAttr}>
 </script>`;
   }
   return `<div id="findai-search"></div>
@@ -41,7 +43,19 @@ function getSnippet(mode: EmbedMode, siteId: string, floatPosition: string = "bo
   src="${WIDGET_URL}"
   data-site-id="${siteId}"
   data-position="header-icon"
-  data-inline-target="#findai-search"${supabaseAttrs}>
+  data-inline-target="#findai-search"${supabaseAttrs}${resultsAttr}>
+</script>`;
+}
+
+function getResultsSnippet(siteId: string) {
+  return `<!-- Hakutulossivulle (esim. /hakutulokset) -->
+<div id="findai-results"></div>
+<script
+  src="${RESULTS_WIDGET_URL}"
+  data-site-id="${siteId}"
+  data-supabase-url="${SUPABASE_URL_VALUE}"
+  data-supabase-key="${SUPABASE_KEY_VALUE}"
+  data-target="#findai-results">
 </script>`;
 }
 
