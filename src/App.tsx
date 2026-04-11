@@ -67,13 +67,29 @@ const App = () => {
     );
   }
 
-  if (!session) {
+  // Handle reset-password route even without session
+  const isResetPassword = window.location.pathname === "/reset-password" ||
+    window.location.hash.includes("type=recovery");
+
+  if (!session && !isResetPassword) {
     return (
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <Auth />
+        </TooltipProvider>
+      </QueryClientProvider>
+    );
+  }
+
+  if (!session && isResetPassword) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <ResetPassword />
         </TooltipProvider>
       </QueryClientProvider>
     );
