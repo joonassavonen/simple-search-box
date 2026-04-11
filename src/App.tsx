@@ -16,6 +16,7 @@ import ContactConfig from "./pages/ContactConfig";
 import Integrations from "./pages/Integrations";
 import Crawl from "./pages/Crawl";
 import NotFound from "./pages/NotFound";
+import AgentConfig from "./pages/AgentConfig";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +93,7 @@ const App = () => {
               <Route path="/sites/:siteId/settings" element={<ContactConfig />} />
               <Route path="/sites/:siteId/integrations" element={<Integrations />} />
               <Route path="/sites/:siteId/crawl" element={<Crawl />} />
+              <Route path="/sites/:siteId/agent" element={<AgentConfig />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </DashboardLayout>

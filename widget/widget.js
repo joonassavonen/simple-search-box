@@ -36,6 +36,7 @@
   const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
   const PLACEHOLDER = script.getAttribute("data-placeholder") || "Kysy meiltä mitä vain...";
   const RESULTS_URL = script.getAttribute("data-results-url") || "";
+  const AGENT_MODE = script.getAttribute("data-mode") === "agent";
 
   if (!SITE_ID || SITE_ID === "0") {
     console.warn("[FindAI] Missing data-site-id attribute");
@@ -1821,11 +1822,491 @@
   }
 
   // -------------------------------------------------------------------------
+  // Agent Mode CSS
+  // -------------------------------------------------------------------------
+  const AGENT_CSS = `
+    .findai-agent-chat {
+      display: flex; flex-direction: column;
+      max-height: 70vh; overflow: hidden;
+    }
+    .findai-agent-messages {
+      flex: 1; overflow-y: auto; padding: 12px;
+      display: flex; flex-direction: column; gap: 10px;
+      min-height: 120px; max-height: 55vh;
+      overscroll-behavior: contain;
+    }
+    .findai-agent-messages::-webkit-scrollbar { width: 5px; }
+    .findai-agent-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .findai-agent-msg {
+      max-width: 88%; padding: 10px 14px;
+      border-radius: 14px; font-size: 14px; line-height: 1.55;
+      animation: findai-slideIn 0.2s ease;
+      word-wrap: break-word;
+    }
+    .findai-agent-msg-user {
+      align-self: flex-end;
+      background: hsl(var(--green));
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .findai-agent-msg-assistant {
+      align-self: flex-start;
+      background: var(--bg2);
+      color: var(--text);
+      border-bottom-left-radius: 4px;
+      border: 1px solid var(--border-light);
+    }
+    .findai-agent-msg-assistant a {
+      color: hsl(var(--green-dark));
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .findai-agent-msg-assistant a:hover {
+      color: hsl(var(--green));
+    }
+    .findai-agent-typing {
+      align-self: flex-start;
+      display: flex; align-items: center; gap: 5px;
+      padding: 10px 14px;
+      background: var(--bg2);
+      border: 1px solid var(--border-light);
+      border-radius: 14px 14px 14px 4px;
+      animation: findai-slideIn 0.2s ease;
+    }
+    .findai-agent-typing .findai-dot {
+      width: 6px; height: 6px;
+    }
+    .findai-agent-suggestions {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      padding: 0 12px 10px;
+    }
+    .findai-agent-suggestion-btn {
+      background: var(--bg2);
+      border: 1px solid var(--border-light);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 12px; color: var(--text-muted);
+      cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .findai-agent-suggestion-btn:hover {
+      background: hsl(var(--green-light));
+      border-color: hsl(var(--green-border));
+      color: hsl(var(--green-dark));
+    }
+    .findai-agent-input-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--border-light);
+    }
+    .findai-agent-input {
+      flex: 1; height: 40px;
+      border: 1.5px solid var(--border-light); border-radius: 12px;
+      background: var(--bg); color: var(--text);
+      font-size: 14px; padding: 0 14px;
+      outline: none; font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .findai-agent-input::placeholder { color: rgba(107,114,128,0.4); }
+    .findai-agent-input:focus { border-color: hsl(var(--green)); }
+    .findai-agent-send {
+      width: 36px; height: 36px;
+      border: none; border-radius: 10px;
+      background: hsl(var(--green));
+      color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.15s;
+      flex-shrink: 0;
+    }
+    .findai-agent-send:disabled { opacity: 0.4; cursor: default; }
+    .findai-agent-send:not(:disabled):hover { opacity: 0.85; }
+    .findai-agent-welcome {
+      text-align: center; padding: 20px 16px 10px;
+      color: var(--text-muted); font-size: 13px;
+    }
+    .findai-agent-welcome-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 40px; height: 40px; border-radius: 12px;
+      background: hsl(var(--green-light));
+      color: hsl(var(--green-dark));
+      margin-bottom: 8px;
+    }
+    .findai-agent-product-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; margin-top: 6px;
+      border: 1px solid var(--border-light);
+      border-radius: 10px; background: var(--bg);
+      text-decoration: none; color: var(--text);
+      transition: background 0.15s;
+    }
+    .findai-agent-product-card:hover { background: hsl(var(--green-light)); }
+    .findai-agent-product-card img {
+      width: 36px; height: 36px; border-radius: 6px;
+      object-fit: contain; background: #fff; border: 1px solid var(--border-light);
+    }
+    .findai-agent-product-card span {
+      font-size: 13px; font-weight: 500;
+    }
+  `;
+
+  // -------------------------------------------------------------------------
+  // Agent mode widget builder
+  // -------------------------------------------------------------------------
+  function buildAgentWidget() {
+    const host = document.createElement("div");
+    host.id = "findai-host";
+    const shadow = host.attachShadow({ mode: "open" });
+
+    const style = document.createElement("style");
+    style.textContent = CSS + AGENT_CSS;
+    shadow.appendChild(style);
+
+    const wrapper = document.createElement("div");
+    wrapper.className = `findai-wrapper${THEME === "dark" ? " dark" : ""}`;
+
+    let panel, overlay, trigger;
+
+    if (POSITION === "inline" && INLINE_TARGET) {
+      panel = document.createElement("div");
+      panel.className = "findai-inline";
+      wrapper.appendChild(panel);
+    } else if (POSITION === "header-icon") {
+      trigger = document.createElement("button");
+      trigger.className = "findai-header-icon";
+      trigger.innerHTML = ICON_SEARCH;
+      trigger.setAttribute("aria-label", "Open search");
+      wrapper.appendChild(trigger);
+
+      overlay = document.createElement("div");
+      overlay.className = "findai-overlay";
+      overlay.setAttribute("role", "dialog");
+      panel = document.createElement("div");
+      panel.className = "findai-panel";
+      overlay.appendChild(panel);
+      wrapper.appendChild(overlay);
+    } else {
+      trigger = document.createElement("button");
+      trigger.className = `findai-trigger pos-${POSITION}`;
+      trigger.innerHTML = `${ICON_SEARCH} <span class="findai-trigger-label">Kysy</span>`;
+      trigger.setAttribute("aria-label", "Open search");
+      wrapper.appendChild(trigger);
+
+      overlay = document.createElement("div");
+      overlay.className = "findai-overlay";
+      panel = document.createElement("div");
+      panel.className = "findai-panel";
+      overlay.appendChild(panel);
+      wrapper.appendChild(overlay);
+    }
+
+    // Agent chat container
+    const chatContainer = document.createElement("div");
+    chatContainer.className = "findai-agent-chat";
+
+    // Messages area
+    const messagesEl = document.createElement("div");
+    messagesEl.className = "findai-agent-messages";
+    messagesEl.innerHTML = `
+      <div class="findai-agent-welcome">
+        <div class="findai-agent-welcome-icon">${ICON_SPARKLES}</div>
+        <div>Hei! Kuinka voin auttaa sinua tänään?</div>
+      </div>
+    `;
+    chatContainer.appendChild(messagesEl);
+
+    // Suggestions area
+    const suggestionsEl = document.createElement("div");
+    suggestionsEl.className = "findai-agent-suggestions";
+    chatContainer.appendChild(suggestionsEl);
+
+    // Input row
+    const inputRow = document.createElement("div");
+    inputRow.className = "findai-agent-input-row";
+
+    const agentInput = document.createElement("input");
+    agentInput.className = "findai-agent-input";
+    agentInput.type = "text";
+    agentInput.autocomplete = "off";
+    agentInput.placeholder = PLACEHOLDER;
+    inputRow.appendChild(agentInput);
+
+    const sendBtn = document.createElement("button");
+    sendBtn.className = "findai-agent-send";
+    sendBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+    sendBtn.disabled = true;
+    inputRow.appendChild(sendBtn);
+
+    chatContainer.appendChild(inputRow);
+    panel.appendChild(chatContainer);
+
+    shadow.appendChild(wrapper);
+
+    // Mount
+    if ((POSITION === "inline" || POSITION === "header-icon") && INLINE_TARGET) {
+      const target = document.querySelector(INLINE_TARGET);
+      if (target) target.appendChild(host);
+      else document.body.appendChild(host);
+    } else {
+      document.body.appendChild(host);
+    }
+
+    // Fetch brand styles
+    if (USE_SUPABASE) {
+      supabaseRest("sites", {
+        "select": "brand_color,brand_font,brand_bg_color",
+        "id": `eq.${SITE_ID}`,
+        "limit": "1",
+      }).then(data => {
+        if (!data || !Array.isArray(data) || !data[0]) return;
+        applyBrandStyles(wrapper, style, data[0].brand_color, data[0].brand_font, data[0].brand_bg_color);
+      }).catch(() => {});
+    }
+
+    // State
+    const conversationHistory = [];
+    let isStreaming = false;
+
+    // Open/close
+    function openSearch() {
+      if (overlay) {
+        overlay.classList.add("open");
+        if (trigger) trigger.style.display = "none";
+        agentInput.focus();
+      }
+    }
+    function closeSearch() {
+      if (overlay) {
+        overlay.classList.remove("open");
+        if (trigger) trigger.style.display = "";
+      }
+    }
+
+    if (trigger) trigger.addEventListener("click", openSearch);
+    if (overlay) overlay.addEventListener("click", (e) => { if (e.target === overlay) closeSearch(); });
+    document.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        if (overlay && overlay.classList.contains("open")) closeSearch();
+        else openSearch();
+      }
+      if (e.key === "Escape" && overlay) closeSearch();
+    });
+
+    // Input handling
+    agentInput.addEventListener("input", () => {
+      sendBtn.disabled = !agentInput.value.trim() || isStreaming;
+    });
+
+    agentInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    function addMessage(role, content) {
+      // Remove welcome
+      const welcome = messagesEl.querySelector(".findai-agent-welcome");
+      if (welcome) welcome.remove();
+
+      const msgEl = document.createElement("div");
+      msgEl.className = `findai-agent-msg findai-agent-msg-${role}`;
+
+      if (role === "assistant") {
+        msgEl.innerHTML = renderMarkdown(content);
+      } else {
+        msgEl.textContent = content;
+      }
+
+      messagesEl.appendChild(msgEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return msgEl;
+    }
+
+    function showTyping() {
+      const el = document.createElement("div");
+      el.className = "findai-agent-typing";
+      el.innerHTML = '<div class="findai-dot"></div><div class="findai-dot"></div><div class="findai-dot"></div>';
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return el;
+    }
+
+    function setSuggestions(items) {
+      suggestionsEl.innerHTML = "";
+      (items || []).forEach(text => {
+        const btn = document.createElement("button");
+        btn.className = "findai-agent-suggestion-btn";
+        btn.textContent = text;
+        btn.addEventListener("click", () => {
+          agentInput.value = text;
+          sendMessage();
+        });
+        suggestionsEl.appendChild(btn);
+      });
+    }
+
+    // Simple markdown renderer for links and bold
+    function renderMarkdown(text) {
+      return escHtml(text)
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+          const utmUrl = addUtm(url, {});
+          return `<a href="${escHtml(utmUrl)}" target="_self">${label}</a>`;
+        })
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+    }
+
+    async function sendMessage() {
+      const text = agentInput.value.trim();
+      if (!text || isStreaming) return;
+
+      isStreaming = true;
+      sendBtn.disabled = true;
+      agentInput.value = "";
+      suggestionsEl.innerHTML = "";
+
+      addMessage("user", text);
+      conversationHistory.push({ role: "user", content: text });
+
+      const typingEl = showTyping();
+      let assistantContent = "";
+      let assistantEl = null;
+
+      try {
+        const url = USE_SUPABASE
+          ? `${SUPABASE_URL}/functions/v1/agent-chat`
+          : `${API_URL}/api/agent-chat`;
+        const headers = { "Content-Type": "application/json" };
+        if (USE_SUPABASE) {
+          headers["Authorization"] = `Bearer ${SUPABASE_KEY}`;
+          headers["apikey"] = SUPABASE_KEY;
+        }
+
+        const resp = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            site_id: SITE_ID,
+            messages: conversationHistory,
+          }),
+        });
+
+        if (!resp.ok || !resp.body) {
+          throw new Error("Stream failed");
+        }
+
+        // Remove typing indicator
+        typingEl.remove();
+
+        // Create assistant message element
+        assistantEl = addMessage("assistant", "");
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let newlineIdx;
+          while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+            let line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (line.startsWith(":") || line.trim() === "") continue;
+            if (!line.startsWith("data: ")) continue;
+
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") break;
+
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                assistantContent += content;
+                assistantEl.innerHTML = renderMarkdown(assistantContent);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+              }
+            } catch {
+              buffer = line + "\n" + buffer;
+              break;
+            }
+          }
+        }
+
+        // Flush remaining buffer
+        if (buffer.trim()) {
+          for (let raw of buffer.split("\n")) {
+            if (!raw) continue;
+            if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+            if (!raw.startsWith("data: ")) continue;
+            const jsonStr = raw.slice(6).trim();
+            if (jsonStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                assistantContent += content;
+                assistantEl.innerHTML = renderMarkdown(assistantContent);
+              }
+            } catch {}
+          }
+        }
+
+        conversationHistory.push({ role: "assistant", content: assistantContent });
+
+        // Extract follow-up suggestions from response
+        extractAndShowSuggestions(assistantContent);
+
+      } catch (err) {
+        typingEl.remove();
+        addMessage("assistant", "Pahoittelut, jokin meni pieleen. Yritä uudelleen hetken päästä.");
+        console.error("[FindAI Agent]", err);
+      }
+
+      isStreaming = false;
+      sendBtn.disabled = !agentInput.value.trim();
+      agentInput.focus();
+    }
+
+    function extractAndShowSuggestions(text) {
+      // Look for question marks at end of sentences as follow-up suggestions
+      const sentences = text.split(/[.!]\s+/);
+      const questions = sentences
+        .filter(s => s.includes("?"))
+        .map(s => {
+          const q = s.replace(/.*?([^.!]*\?)\s*$/, "$1").trim();
+          return q.length > 10 && q.length < 80 ? q : null;
+        })
+        .filter(Boolean)
+        .slice(0, 2);
+
+      if (questions.length > 0) {
+        setSuggestions(questions);
+      }
+    }
+
+    // Show initial suggestions if inline
+    if (POSITION === "inline") {
+      setSuggestions([
+        "Mitä tuotteita suosittelette?",
+        "Mikä on palautuskäytäntö?",
+      ]);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Bootstrap
   // -------------------------------------------------------------------------
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", buildWidget);
+    document.addEventListener("DOMContentLoaded", AGENT_MODE ? buildAgentWidget : buildWidget);
   } else {
-    buildWidget();
+    (AGENT_MODE ? buildAgentWidget : buildWidget)();
   }
 })();

@@ -1,0 +1,1 @@
+ALTER TABLE public.sites ADD COLUMN agent_prompt text DEFAULT '';

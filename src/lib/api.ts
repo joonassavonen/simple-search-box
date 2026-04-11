@@ -16,6 +16,7 @@ export interface Site {
   brand_color: string | null;
   brand_font: string | null;
   brand_bg_color: string | null;
+  agent_prompt: string | null;
 }
 
 export interface CrawlJob {

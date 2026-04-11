@@ -367,6 +367,7 @@ export type Database = {
       }
       sites: {
         Row: {
+          agent_prompt: string | null
           ai_context: string | null
           api_key: string
           brand_bg_color: string | null
@@ -385,6 +386,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          agent_prompt?: string | null
           ai_context?: string | null
           api_key?: string
           brand_bg_color?: string | null
@@ -403,6 +405,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          agent_prompt?: string | null
           ai_context?: string | null
           api_key?: string
           brand_bg_color?: string | null
