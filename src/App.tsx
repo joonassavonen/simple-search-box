@@ -16,6 +16,7 @@ import ContactConfig from "./pages/ContactConfig";
 import Integrations from "./pages/Integrations";
 import Crawl from "./pages/Crawl";
 import NotFound from "./pages/NotFound";
+import AgentConfig from "./pages/AgentConfig";
 
 const queryClient = new QueryClient();
 
