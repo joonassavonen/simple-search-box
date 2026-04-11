@@ -1,55 +1,63 @@
 
 
-# Analytics Page v2 — Comprehensive Redesign Plan
+## Hakutulossivun upotus-elementti
 
-## Summary
-Restructure the Analytics page into a tabbed layout with three sections: **Search Performance**, **Learning** (synonyms + boosts), and **Integrations** (GA + future). This consolidates the current separate Integrations page into Analytics and adds a full Learning dashboard with boost/click data.
+### Idea
 
-## Architecture
+Kaksi erillistä upotuskomponenttia:
+1. **Hakukenttä-widget** (nykyinen) — näyttää 3-5 tulosta dropdownissa
+2. **Hakutulossivun widget** (uusi) — upotetaan asiakkaan erilliselle sivulle (esim. `/hakutulokset`), näyttää kaikki tulokset grid/lista-näkymässä
 
-```text
-Analytics Page (Tabs)
-├── Search Performance (current content, unchanged)
-│   ├── KPI cards
-│   ├── Line chart with metric selector
-│   └── 3-column tables (top searches, no results, no clicks)
-├── Learning
-│   ├── KPI row: synonym count, boost pairs, total clicks learned
-│   ├── Synonyms table (from/to/confidence/uses) + run learning button
-│   ├── Boosts table (query → URL, click count, boost score)
-│   └── Click position distribution (bar chart)
-└── Integrations
-    ├── Google Analytics card (moved from Integrations page)
-    └── Shopify / WooCommerce placeholders
+Hakutermi välitetään URL-parametrilla: hakukenttä ohjaa käyttäjän esim. `https://kauppa.fi/hakutulokset?findai_q=miesten+shortsit`
+
+### Toteutus
+
+#### 1. Hakukenttä-widgetin muutos (`widget/widget.js` + `public/widget.js`)
+- Lisätään uusi `data-results-url` attribuutti widgetin script-tagiin
+- Kun `data-results-url` on asetettu, "Näytä kaikki" -nappi muuttuu linkiksi joka ohjaa kyseiseen URLiin hakutermin kanssa: `{results-url}?findai_q={query}`
+- Enter-napin painallus voisi myös ohjata tulossivulle
+
+#### 2. Uusi hakutulossivun widget (`public/results-widget.js`)
+- Erillinen JS-tiedosto joka upotetaan asiakkaan hakutulossivulle
+- Lukee `findai_q` parametrin URLista ja tekee haun automaattisesti
+- Sisältää oman hakukentän sivun yläosassa (jotta käyttäjä voi tarkentaa hakua)
+- Näyttää kaikki tulokset grid-muodossa (tuotekortit kuvilla, hinnoilla, saatavuudella)
+- Tukee samoja `data-site-id`, `data-supabase-url`, `data-supabase-key` attribuutteja
+- Käyttää samaa hakurajapintaa mutta pyytää enemmän tuloksia (`max_results: 20-50`)
+- Tyyliltään sopii asiakkaan sivulle (minimaalinen oma tyyli, responsiivinen gridi)
+
+#### 3. Asennus asiakkaan sivulle
+
+Hakukenttä (olemassa oleva sivu):
+```html
+<script src="https://findai.app/widget.js"
+        data-site-id="xxx"
+        data-supabase-url="..."
+        data-supabase-key="..."
+        data-results-url="/hakutulokset"></script>
 ```
 
-## Technical Details
+Hakutulossivulla:
+```html
+<div id="findai-results"></div>
+<script src="https://findai.app/results-widget.js"
+        data-site-id="xxx"
+        data-supabase-url="..."
+        data-supabase-key="..."
+        data-target="#findai-results"></script>
+```
 
-### 1. Tabbed layout using existing `Tabs` component
-- Three tabs: "Hakuanalyysi", "Oppiminen", "Integraatiot"
-- All data loads on mount; tabs switch instantly (no re-fetch)
+### Tekninen rakenne (`results-widget.js`)
 
-### 2. Learning tab — new content
-- Call `api.getLearningStats(siteId)` which already fetches `search_clicks` and `search_synonyms`
-- Display synonyms table (already exists, moved here)
-- New: **Boosts table** showing top query→URL pairs ranked by click_count with boost score
-- New: **KPI cards** for synonym count, boost pairs, total learned clicks
-- Keep the "Käynnistä oppiminen" button here
-- Optional: small bar chart for click position distribution using Recharts `BarChart`
+- Jakaa helper-funktiot nykyisen widgetin kanssa (cleanTitle, formatPrice, addUtm jne.)
+- Komponentit: hakukenttä + tulosten lajittelu/filtteröinti + tuotegridi
+- Responsiivinen: 4 kolumnia desktop, 2 tabletti, 1 mobile
+- Tukee samaa teemaa (light/dark) ja värikustomointia
+- Klikkien seuranta toimii samalla logiikalla
 
-### 3. Integrations tab — merge from Integrations page
-- Move the full GA config card from `src/pages/Integrations.tsx` into this tab
-- Keep Shopify/WooCommerce placeholders
-- Update sidebar nav: remove separate Integrations link or redirect to `analytics#integrations`
-
-### 4. Route cleanup
-- Keep `/sites/:siteId/integrations` route but redirect to analytics page (or remove)
-- Update `DashboardLayout.tsx` sidebar links
-
-### Files to modify
-- **`src/pages/Analytics.tsx`** — major rewrite: add Tabs, Learning section, embed Integrations content
-- **`src/lib/api.ts`** — minor: ensure `getLearningStats` returns all needed data
-- **`src/App.tsx`** — remove or redirect Integrations route
-- **`src/components/DashboardLayout.tsx`** — update nav links
-- **`src/pages/Integrations.tsx`** — can be deleted or turned into redirect
+### Muutettavat tiedostot
+1. `widget/widget.js` — lisää `data-results-url` tuki + muuta "Näytä kaikki" ohjaamaan tulossivulle
+2. `public/widget.js` — sama muutos
+3. `public/results-widget.js` — **uusi tiedosto**, hakutulossivun upotuswidget
+4. `src/pages/SearchPreview.tsx` — lisää esikatselunäkymä tulossivulle dashboardiin (valinnainen)
 
