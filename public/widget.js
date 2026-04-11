@@ -36,6 +36,7 @@
   const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
   const PLACEHOLDER = script.getAttribute("data-placeholder") || "Kysy meiltä mitä vain...";
   const RESULTS_URL = script.getAttribute("data-results-url") || "";
+  const AGENT_MODE = script.getAttribute("data-mode") === "agent";
 
   if (!SITE_ID || SITE_ID === "0") {
     console.warn("[FindAI] Missing data-site-id attribute");
