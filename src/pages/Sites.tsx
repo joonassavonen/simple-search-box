@@ -19,6 +19,7 @@ import {
 
 const NAV_ITEMS = [
   { label: "Settings", icon: Settings, path: "settings" },
+  { label: "AI Agent", icon: Bot, path: "agent" },
   { label: "Analytics", icon: BarChart3, path: "analytics" },
   { label: "Integrations", icon: Plug, path: "integrations" },
   { label: "Test & Design", icon: Search, path: "search" },
