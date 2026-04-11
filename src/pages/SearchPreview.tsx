@@ -117,11 +117,21 @@ export default function SearchPreview() {
     };
   }, [activeMode, loadWidget]);
 
+  const [copiedResults, setCopiedResults] = useState(false);
+
   function copySnippet() {
-    const snippet = getSnippet(activeMode, siteId || "", floatSide);
+    const snippet = getSnippet(activeMode, siteId || "", floatSide, "/hakutulokset");
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function copyResultsSnippet() {
+    const snippet = getResultsSnippet(siteId || "");
+    navigator.clipboard.writeText(snippet).then(() => {
+      setCopiedResults(true);
+      setTimeout(() => setCopiedResults(false), 2000);
     });
   }
 
