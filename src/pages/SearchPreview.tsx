@@ -103,9 +103,13 @@ export default function SearchPreview() {
       script.setAttribute("data-position", floatSide);
     }
 
+    if (agentMode) {
+      script.setAttribute("data-mode", "agent");
+    }
+
     document.body.appendChild(script);
     widgetScriptRef.current = script;
-  }, [siteId, floatSide]);
+  }, [siteId, floatSide, agentMode]);
 
   // Load widget on mount and mode change
   useEffect(() => {
