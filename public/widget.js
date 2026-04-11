@@ -35,6 +35,7 @@
   const POSITION = script.getAttribute("data-position") || "bottom-right";
   const INLINE_TARGET = script.getAttribute("data-inline-target") || null;
   const PLACEHOLDER = script.getAttribute("data-placeholder") || "Kysy meiltä mitä vain...";
+  const RESULTS_URL = script.getAttribute("data-results-url") || "";
 
   if (!SITE_ID || SITE_ID === "0") {
     console.warn("[FindAI] Missing data-site-id attribute");
@@ -976,7 +977,7 @@
             const growthPct = prev > 0 ? (curr - prev) / prev : (curr > 5 ? 1 : 0);
             if (growthPct <= 0) continue;
             const score = growthPct * Math.log(curr + 1);
-            growth.push({ page_path: path, score, curr, growthPct });
+            growth.push({ page_path: path, score, curr, growthPct: Math.round(growthPct * 100) });
           }
 
           growth.sort((a, b) => b.score - a.score);
@@ -1032,7 +1033,7 @@
               .filter(([, c]) => c >= 2)
               .sort((a, b) => b[1] - a[1])
               .slice(0, 6)
-              .map(([query, count]) => ({ query, count }));
+              .map(([query, count]) => ({ query, count, source: "search_logs" }));
             startPlaceholderAnimation();
           }).catch(() => {});
         }
@@ -1063,11 +1064,16 @@
         popularProducts = products.slice(0, 5);
       }).catch(() => {});
 
-      // Contact config from localStorage (same as preview)
-      try {
-        const stored = localStorage.getItem(`findai-contact-${SITE_ID}`);
-        if (stored) contactConfig = JSON.parse(stored);
-      } catch {}
+      // Contact config from DB via Supabase REST
+      supabaseRest("site_contact_configs", {
+        "select": "enabled,email,phone,chat_url,cta_text_fi,cta_text_en",
+        "site_id": `eq.${SITE_ID}`,
+        "limit": "1",
+      }).then(data => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          contactConfig = data[0];
+        }
+      }).catch(() => {});
 
       // Fetch brand styles and apply to widget
       supabaseRest("sites", {
@@ -1269,6 +1275,13 @@
     });
 
     // Keyboard navigation
+    function navigateToResultsPage(query) {
+      if (!RESULTS_URL || !query) return false;
+      const sep = RESULTS_URL.includes("?") ? "&" : "?";
+      window.location.href = `${RESULTS_URL}${sep}findai_q=${encodeURIComponent(query)}`;
+      return true;
+    }
+
     input.addEventListener("keydown", (e) => {
       const suggestionBtns = Array.from(dropdown.querySelectorAll(".findai-suggestion"));
       if (suggestionBtns.length > 0 && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
@@ -1278,9 +1291,15 @@
         suggestionBtns.forEach((el, i) => el.classList.toggle("active", i === activeSuggestionIdx));
         return;
       }
-      if (e.key === "Enter" && activeSuggestionIdx >= 0 && suggestionBtns[activeSuggestionIdx]) {
+      if (e.key === "Enter") {
         e.preventDefault();
-        selectSuggestion(suggestionBtns[activeSuggestionIdx].dataset.query);
+        const q = activeSuggestionIdx >= 0 && suggestionBtns[activeSuggestionIdx]
+          ? suggestionBtns[activeSuggestionIdx].dataset.query
+          : input.value.trim();
+        if (q && navigateToResultsPage(q)) return;
+        if (activeSuggestionIdx >= 0 && suggestionBtns[activeSuggestionIdx]) {
+          selectSuggestion(suggestionBtns[activeSuggestionIdx].dataset.query);
+        }
         return;
       }
       if (e.key === "Escape") {
@@ -1670,7 +1689,11 @@
       });
 
       if (data.results.length > 3) {
-        html += `<button type="button" class="findai-show-all" data-expanded="${expanded ? "1" : "0"}">${expanded ? "Näytä vähemmän" : `Näytä kaikki (${data.results.length})`}</button>`;
+        if (RESULTS_URL && !expanded) {
+          html += `<a href="#" class="findai-show-all findai-show-all-link">Näytä kaikki (${data.results.length}) →</a>`;
+        } else {
+          html += `<button type="button" class="findai-show-all" data-expanded="${expanded ? "1" : "0"}">${expanded ? "Näytä vähemmän" : `Näytä kaikki (${data.results.length})`}</button>`;
+        }
       }
 
       const cfg = data.contact_config || contactConfig;
@@ -1696,7 +1719,14 @@
         });
       });
 
-      const toggleBtn = dropdown.querySelector(".findai-show-all");
+      const showAllLink = dropdown.querySelector(".findai-show-all-link");
+      if (showAllLink) {
+        showAllLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          navigateToResultsPage(lastQuery || input.value.trim());
+        });
+      }
+      const toggleBtn = dropdown.querySelector(".findai-show-all:not(.findai-show-all-link)");
       if (toggleBtn) {
         toggleBtn.addEventListener("click", () => {
           renderResults(data, !expanded);
